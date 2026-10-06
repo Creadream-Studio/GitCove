@@ -2,14 +2,21 @@ package com.gitcove.app.data.git
 
 import com.gitcove.app.data.log.OpLog
 import com.gitcove.app.data.store.AuthStore
+import com.gitcove.app.domain.model.Branch
 import com.gitcove.app.domain.model.Commit
+import com.gitcove.app.domain.model.ConflictAction
 import com.gitcove.app.domain.model.DiffEntryInfo
 import com.gitcove.app.domain.model.DiffLine
 import com.gitcove.app.domain.model.FileStatus
 import com.gitcove.app.domain.model.LineType
 import com.gitcove.app.domain.model.RepoStatus
 import com.gitcove.app.domain.model.Status
+import com.gitcove.app.domain.model.Tag
+import org.eclipse.jgit.api.CheckoutCommand
+import org.eclipse.jgit.api.CreateBranchCommand
 import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.api.ListBranchCommand
+import org.eclipse.jgit.api.MergeResult
 import org.eclipse.jgit.diff.DiffEntry
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.BranchTrackingStatus
@@ -18,6 +25,8 @@ import org.eclipse.jgit.lib.RepositoryState
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.transport.ProgressMonitor
+import org.eclipse.jgit.transport.RemoteRefUpdate
+import org.eclipse.jgit.transport.URIish
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
 import org.eclipse.jgit.treewalk.TreeWalk
 import java.io.ByteArrayOutputStream
@@ -353,6 +362,246 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         require(!f.exists()) { "文件已存在" }
         f.parentFile?.mkdirs()
         f.writeText(content)
+    }
+
+    // ────────────────────────── C. 同步 ──────────────────────────
+
+    /** 远端 origin URL */
+    fun remoteUrl(repoDir: File): String? = runCatching {
+        Git.open(repoDir).use { git ->
+            git.repository.config.getString("remote", "origin", "url")
+        }
+    }.getOrNull()
+
+    /** 功能 15/18：Fetch */
+    fun fetch(repoDir: File, onProgress: (String) -> Unit = {}): Result<Unit> = try {
+        Git.open(repoDir).use { git ->
+            val url = git.repository.config.getString("remote", "origin", "url")
+                ?: return@use
+            val cmd = git.fetch().setProgressMonitor(monitor(onProgress))
+            creds(url)?.let { cmd.setCredentialsProvider(it) }
+            cmd.call()
+        }
+        log.append("sync", "fetch 完成: ${repoDir.name}")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        log.append("sync", "fetch 失败: ${e.message}")
+        Result.failure(e)
+    }
+
+    /** 功能 17/22：Pull（冲突时抛 GitConflictException） */
+    fun pull(repoDir: File): Result<Int> = try {
+        val pulled = Git.open(repoDir).use { git ->
+            val url = git.repository.config.getString("remote", "origin", "url")
+                ?: throw IllegalStateException("未配置远端 origin")
+            val cmd = git.pull()
+            creds(url)?.let { cmd.setCredentialsProvider(it) }
+            val result = cmd.call()
+            val conflicts = result.mergeResult?.conflicts?.keys?.toList()
+            if (!conflicts.isNullOrEmpty()) throw GitConflictException(conflicts)
+            result.fetchResult?.trackingRefUpdates?.size ?: 0
+        }
+        log.append("sync", "pull 完成: ${repoDir.name}")
+        Result.success(pulled)
+    } catch (e: GitConflictException) {
+        log.append("sync", "pull 冲突: ${e.files}")
+        Result.failure(e)
+    } catch (e: Exception) {
+        log.append("sync", "pull 失败: ${e.message}")
+        Result.failure(e)
+    }
+
+    /** 功能 11/27：Push（自动补齐 upstream；force 支持强制推送） */
+    fun push(repoDir: File, force: Boolean = false, onProgress: (String) -> Unit = {}): Result<Unit> = try {
+        Git.open(repoDir).use { git ->
+            val repo = git.repository
+            val url = repo.config.getString("remote", "origin", "url")
+                ?: throw IllegalStateException("未配置远端 origin")
+            val branch = repo.branch
+            val cmd = git.push()
+                .setRemote("origin")
+                .setProgressMonitor(monitor(onProgress))
+                .add("refs/heads/$branch:refs/heads/$branch")
+            if (force) cmd.setForce(true)
+            creds(url)?.let { cmd.setCredentialsProvider(it) }
+            val results = cmd.call()
+            val rejected = results.flatMap { it.remoteUpdates }
+                .any { it.status != RemoteRefUpdate.Status.OK && it.status != RemoteRefUpdate.Status.UP_TO_DATE }
+            if (rejected) throw IllegalStateException("推送被拒绝（远端有新提交，先拉取或使用强制推送）")
+            // 首次推送后补齐 upstream 追踪
+            val cfg = repo.config
+            if (cfg.getString("branch", branch, "merge") == null) {
+                cfg.setString("branch", branch, "remote", "origin")
+                cfg.setString("branch", branch, "merge", "refs/heads/$branch")
+                cfg.save()
+            }
+        }
+        log.append("sync", "push 完成${if (force) "（强制）" else ""}: ${repoDir.name}")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        log.append("sync", "push 失败: ${e.message}")
+        Result.failure(e)
+    }
+
+    /** 功能 5：关联外部远端 */
+    fun addRemote(repoDir: File, name: String, url: String): Result<Unit> = withRepo(repoDir) { git ->
+        git.remoteAdd().setName(name).setUri(URIish(url.trim())).call()
+    }
+
+    fun removeRemote(repoDir: File, name: String): Result<Unit> = withRepo(repoDir) { git ->
+        git.remoteRemove().setRemoteName(name).call()
+    }
+
+    // ────────────────────────── D. 分支 ──────────────────────────
+
+    /** 功能 23/29：分支列表（本地 + 远程） */
+    fun branches(repoDir: File): Result<List<Branch>> = withRepo(repoDir) { git ->
+        val repo = git.repository
+        val current = repo.branch
+        val locals = git.branchList().call().map { ref ->
+            val name = Repository.shortenRefName(ref.name)
+            Branch(name, false, name == current, ref.objectId?.abbreviate(8)?.name())
+        }
+        val remotes = git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call()
+            .map { ref -> Repository.shortenRefName(ref.name) }
+            .filter { it != "origin/HEAD" }
+            .map { name -> Branch(name, true, false, refHash(repo, "refs/remotes/$name")) }
+        locals + remotes
+    }
+
+    private fun refHash(repo: Repository, refName: String): String? =
+        runCatching { repo.resolve(refName)?.abbreviate(8)?.name() }.getOrNull()
+
+    /** 功能 24：新建分支 */
+    fun createBranch(repoDir: File, name: String, fromRef: String? = null, checkout: Boolean = false): Result<Unit> =
+        withRepo(repoDir) { git ->
+            val cmd = git.branchCreate().setName(name.trim())
+            if (!fromRef.isNullOrBlank()) cmd.setStartPoint(fromRef.trim())
+            cmd.call()
+            if (checkout) git.checkout().setName(name.trim()).call()
+        }
+
+    /** 功能 23/30：切换分支（远程分支自动创建跟踪分支；支持 detached HEAD） */
+    fun checkout(repoDir: File, name: String): Result<Unit> = withRepo(repoDir) { git ->
+        val remoteName = "origin/$name"
+        val existsRemote = git.repository.resolve(remoteName) != null
+        val existsLocal = git.repository.resolve("refs/heads/$name") != null
+        when {
+            existsLocal -> git.checkout().setName(name).call()
+            existsRemote -> git.checkout()
+                .setCreateBranch(true)
+                .setName(name)
+                .setStartPoint(remoteName)
+                .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
+                .call()
+            else -> throw IllegalStateException("分支不存在: $name")
+        }
+    }
+
+    /** 功能 30：签出旧版本（detached HEAD） */
+    fun checkoutDetached(repoDir: File, hash: String): Result<Unit> = withRepo(repoDir) { git ->
+        git.checkout().setName(hash.trim()).setKeepIndex(false).call()
+    }
+
+    /** 功能 25：删除分支 */
+    fun deleteBranch(repoDir: File, name: String): Result<Unit> = withRepo(repoDir) { git ->
+        git.branchDelete().setBranchNames(name).setForce(true).call()
+    }
+
+    /** 功能 26：Merge 指定分支到当前分支 */
+    fun merge(repoDir: File, ref: String): Result<String> = withRepo(repoDir) { git ->
+        val id = git.repository.resolve(ref.trim())
+            ?: throw IllegalStateException("找不到引用: $ref")
+        val result = git.merge().include(id).call()
+        when {
+            result.conflicts != null && result.conflicts.isNotEmpty() ->
+                throw GitConflictException(result.conflicts.keys.toList())
+            result.mergeStatus == MergeResult.MergeStatus.ALREADY_UP_TO_DATE -> "已是最新，无需合并"
+            else -> "合并完成：${result.mergeStatus.name}"
+        }
+    }
+
+    // ────────────────────────── E. 历史与回滚 ──────────────────────────
+
+    /** 功能 29：提交历史（仓库 / 文件级） */
+    fun log(repoDir: File, path: String? = null, max: Int = 200): Result<List<Commit>> = withRepo(repoDir) { git ->
+        try {
+            var cmd = git.log().setMaxCount(max)
+            if (!path.isNullOrBlank()) cmd = cmd.addPath(path)
+            cmd.call().map { rc -> toCommit(rc) }
+        } catch (e: Exception) {
+            // 空仓库（无任何提交）
+            emptyList()
+        }
+    }
+
+    private fun toCommit(rc: RevCommit) = Commit(
+        hash = rc.name(),
+        message = rc.shortMessage,
+        author = rc.authorIdent.name,
+        email = rc.authorIdent.emailAddress,
+        date = rc.commitTime * 1000L,
+        parents = rc.parents.map { it.name }
+    )
+
+    /** 功能 31：Revert 撤销提交（生成反向提交） */
+    fun revert(repoDir: File, hash: String): Result<String> = withRepo(repoDir) { git ->
+        val id = git.repository.resolve(hash.trim())
+            ?: throw IllegalStateException("找不到提交 $hash")
+        val result = git.revert().include(id).call()
+        log.append("git", "revert ${hash.take(8)}")
+        result.name()
+    }
+
+    // ────────────────────────── G. 高级：Stash / Tag / 冲突 ──────────────────────────
+
+    /** 功能 43：Stash 储藏全部改动（含未跟踪） */
+    fun stash(repoDir: File): Result<String> = withRepo(repoDir) { git ->
+        val ref = git.stashCreate().setIncludeUntracked(true).setWorkingDirectoryMessage("码湾储藏")
+            .call() ?: throw IllegalStateException("没有可储藏的改动")
+        log.append("git", "stash ${repoDir.name}")
+        ref.abbreviate(8).name()
+    }
+
+    /** Stash 列表（ref 字符串按顺序 stash@{i}） */
+    fun stashList(repoDir: File): Result<List<Commit>> = withRepo(repoDir) { git ->
+        git.stashList().call().map { toCommit(it) }
+    }
+
+    /** 恢复指定储藏（不删除记录用 apply；index 参数恢复暂存状态） */
+    fun stashApply(repoDir: File, index: Int): Result<Unit> = withRepo(repoDir) { git ->
+        git.stashApply().setName("stash@{$index}").call()
+    }
+
+    /** 删除指定储藏 */
+    fun stashDrop(repoDir: File, index: Int): Result<Unit> = withRepo(repoDir) { git ->
+        git.stashDrop().setStashRef(index).call()
+    }
+
+    /** 功能 42：创建标签（message 为空 → 轻量标签，否则附注标签） */
+    fun createTag(repoDir: File, name: String, message: String? = null): Result<Unit> = withRepo(repoDir) { git ->
+        val cmd = git.tag().setName(name.trim())
+        if (!message.isNullOrBlank()) cmd.setMessage(message.trim())
+        cmd.call()
+    }
+
+    /** 标签列表 */
+    fun tags(repoDir: File): Result<List<Tag>> = withRepo(repoDir) { git ->
+        git.tagList().call().map { Tag(Repository.shortenRefName(it.name), it.objectId?.abbreviate(8)?.name()) }
+            .sortedByDescending { it.name }
+    }
+
+    /** 功能 35/36/37：冲突解决 —— 采用我方 / 对方后标记已解决 */
+    fun resolveConflict(repoDir: File, path: String, action: ConflictAction): Result<Unit> = withRepo(repoDir) { git ->
+        val stage = if (action == ConflictAction.OURS) CheckoutCommand.Stage.OURS else CheckoutCommand.Stage.THEIRS
+        git.checkout().setStage(stage).addPath(path).call()
+        git.add().addFilepattern(path).call()
+        log.append("conflict", "$path → ${action.name}")
+    }
+
+    /** 冲突手动解决后标记（编辑器保存后调用） */
+    fun markResolved(repoDir: File, path: String): Result<Unit> = withRepo(repoDir) { git ->
+        git.add().addFilepattern(path).call()
     }
 
     /** 提交日期格式化 */
