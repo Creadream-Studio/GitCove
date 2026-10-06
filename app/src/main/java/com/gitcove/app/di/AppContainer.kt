@@ -1,11 +1,13 @@
 package com.gitcove.app.di
 
 import android.content.Context
+import androidx.compose.runtime.mutableStateOf
 import com.gitcove.app.data.git.GitCore
 import com.gitcove.app.data.log.OpLog
 import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.data.store.AuthStore
 import com.gitcove.app.data.store.RepoStore
+import com.gitcove.app.ui.theme.ThemeMode
 import java.io.File
 
 /**
@@ -22,4 +24,12 @@ class AppContainer(context: Context) {
 
     /** 内部仓库根目录：/data/data/com.gitcove.app/files/repos/（文档 7.1） */
     val repoParent: File = File(appContext.filesDir, "repos").apply { mkdirs() }
+
+    /** 主题模式（响应式 + 持久化） */
+    val themeMode = mutableStateOf(auth.themeMode)
+
+    fun setThemeMode(mode: ThemeMode) {
+        auth.themeMode = mode
+        themeMode.value = mode
+    }
 }
