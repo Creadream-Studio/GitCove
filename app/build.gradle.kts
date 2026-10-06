@@ -98,8 +98,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Git 内核：JGit（纯 Java，无需 NDK）
-    implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032530-r")
-    implementation("org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:6.10.0.202406032530-r") {
+    implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
+    implementation("org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:6.10.0.202406032230-r") {
         exclude(group = "com.jcraft", module = "jsch")
     }
     // JSch 维护版（mwiede fork）：支持 OpenSSH 新格式与 Ed25519 密钥导入
