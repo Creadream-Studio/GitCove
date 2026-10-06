@@ -20,11 +20,10 @@ import org.eclipse.jgit.api.MergeResult
 import org.eclipse.jgit.diff.DiffEntry
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.BranchTrackingStatus
+import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.Repository
-import org.eclipse.jgit.lib.RepositoryState
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.RevWalk
-import org.eclipse.jgit.transport.ProgressMonitor
 import org.eclipse.jgit.transport.RemoteRefUpdate
 import org.eclipse.jgit.transport.URIish
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
@@ -150,7 +149,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
     /** 综合状态：分支 / 暂存区 / 工作区 / 冲突 / 领先落后 */
     fun status(repoDir: File): Result<RepoStatus> = withRepo(repoDir) { git ->
         val repo = git.repository
-        val detached = repo.repositoryState == RepositoryState.DETACHED_HEAD
+        // detached HEAD：fullBranch 不是 refs/heads/ 引用
+        val detached = repo.fullBranch?.startsWith("refs/heads/") != true
         val branch = repo.branch
         val s = git.status().call()
 
@@ -195,7 +195,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
     fun unstage(repoDir: File, paths: List<String>): Result<Unit> = withRepo(repoDir) { git ->
         if (paths.isNotEmpty()) {
             val reset = git.reset()
-            paths.forEach { reset.addPattern(it) }
+            paths.forEach { reset.addPath(it) }
             reset.call()
         }
     }
@@ -500,7 +500,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     /** 功能 30：签出旧版本（detached HEAD） */
     fun checkoutDetached(repoDir: File, hash: String): Result<Unit> = withRepo(repoDir) { git ->
-        git.checkout().setName(hash.trim()).setKeepIndex(false).call()
+        git.checkout().setName(hash.trim()).call()
     }
 
     /** 功能 25：删除分支 */
@@ -570,7 +570,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     /** 恢复指定储藏（不删除记录用 apply；index 参数恢复暂存状态） */
     fun stashApply(repoDir: File, index: Int): Result<Unit> = withRepo(repoDir) { git ->
-        git.stashApply().setName("stash@{$index}").call()
+        git.stashApply().setStashRef("stash@{$index}").call()
     }
 
     /** 删除指定储藏 */

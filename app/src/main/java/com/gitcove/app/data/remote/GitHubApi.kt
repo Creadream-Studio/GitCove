@@ -71,14 +71,12 @@ class GitHubApi(private val auth: AuthStore) {
     ): Result<String> = withContext(Dispatchers.IO) {
         val token = token() ?: return@withContext Result.failure(IllegalStateException("请先在设置中配置 GitHub 访问令牌"))
         runCatching {
-            val payload = json.encodeToString(
-                kotlinx.serialization.json.JsonObject(mapOf(
-                    "title" to kotlinx.serialization.json.JsonPrimitive(title),
-                    "head" to kotlinx.serialization.json.JsonPrimitive(head),
-                    "base" to kotlinx.serialization.json.JsonPrimitive(base),
-                    "body" to kotlinx.serialization.json.JsonPrimitive(body)
-                ))
-            )
+            val payload = org.json.JSONObject()
+                .put("title", title)
+                .put("head", head)
+                .put("base", base)
+                .put("body", body)
+                .toString()
             val req = Request.Builder()
                 .url("https://api.github.com/repos/$owner/$repo/pulls")
                 .header("Authorization", "Bearer $token")

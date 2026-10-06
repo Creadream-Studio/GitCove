@@ -3,9 +3,9 @@ package com.gitcove.app.data.git
 import com.gitcove.app.data.store.AuthStore
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
-import org.eclipse.jgit.transport.OpenSshConfig
 import org.eclipse.jgit.transport.SshSessionFactory
 import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory
+import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig
 import org.eclipse.jgit.util.FS
 
 /**
@@ -23,12 +23,11 @@ object SshTransport {
         synchronized(this) {
             if (configured) return
             val factory = object : JschConfigSessionFactory() {
-                override fun createJSch(hc: OpenSshConfig.Host, fs: FS): JSch {
-                    val jsch = super.createJSch(hc, fs)
+                override fun configureJSch(jsch: JSch) {
+                    super.configureJSch(jsch)
                     auth.sshDir.listFiles { f -> f.isFile && !f.name.endsWith(".pub") }?.forEach { key ->
                         runCatching { jsch.addIdentity(key.absolutePath) }
                     }
-                    return jsch
                 }
 
                 override fun configure(hc: OpenSshConfig.Host, session: Session) {

@@ -36,7 +36,7 @@ object SshKeyGen {
         val publicKey = "$typeStr $b64 ${comment.trim()}"
         val key = auth.saveSshKey(safeName, privFile.readText(), publicKey)
         kp.dispose()
-        key
+        Result.success(key)
     } catch (e: Exception) {
         Result.failure(e)
     }
