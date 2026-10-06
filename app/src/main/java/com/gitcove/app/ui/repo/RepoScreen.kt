@@ -40,6 +40,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -281,7 +282,7 @@ private fun StatusPanel(
             }
         }
         Row(Modifier.padding(vertical = 16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onGoCommit, enabled = dirty > 0) {
+            Button(onClick = onGoCommit, enabled = (vm.status?.dirtyCount ?: 0) > 0) {
                 Icon(Icons.Filled.Commit, contentDescription = null, modifier = Modifier.size(16.dp))
                 Text("提交", modifier = Modifier.padding(start = 4.dp))
             }

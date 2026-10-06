@@ -127,13 +127,14 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                 runCatching {
                     f.file.useLines { lines ->
                         lines.forEachIndexed { idx, line ->
-                            if (hits.size >= 200) return@outer
+                            if (hits.size >= 200) return@runCatching
                             if (line.contains(keyword, ignoreCase = true)) {
                                 hits.add(SearchHit(f.path, idx + 1, line.trim().take(160)))
                             }
                         }
                     }
                 }
+                if (hits.size >= 200) break
             }
             searchResults = hits
         }
@@ -260,7 +261,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     fun loadCommitDetail(commit: Commit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val files = repoDir?.let { d -> c.gitCore.commitDiffEntries(d, commit.hash).getOrDefault(emptyList()) }
+            val files = repoDir?.let { d -> c.gitCore.commitDiffEntries(d, commit.hash).getOrDefault(emptyList()) } ?: emptyList()
             lastCommitDetail = commit to files
         }
     }
@@ -304,7 +305,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     }
 
     /** 冲突文件两侧内容（用于手动解决参考） */
-    fun conflictVersions(path: String): Pair<String, String>? {
+    fun conflictVersions(path: String): Pair<String?, String?>? {
         val dir = repoDir ?: return null
         return try {
             val ours = GitConflictVersions.readStageVersion(dir, path, 2)

@@ -84,6 +84,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
         override fun endTask() {}
         override fun isCancelled(): Boolean = false
+        override fun showDuration(enabled: Boolean) {}
     }
 
     private fun creds(url: String) = GitCredentials.providerFor(url, auth)

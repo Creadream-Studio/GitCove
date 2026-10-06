@@ -142,24 +142,24 @@ fun DiffScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
 
             if (isConflict) {
-                ConflictBar(
-                    onOurs = {
-                        scope.launch(Dispatchers.IO) {
-                            repoDir?.let { container.gitCore.resolveConflict(it, path, com.gitcove.app.domain.model.ConflictAction.OURS) }
-                                .onSuccess { withContext(Dispatchers.Main) { snackbar.showSnackbar("已采用我方版本"); nav.popBackStack() } }
-                                .onFailure { withContext(Dispatchers.Main) { snackbar.showSnackbar(it.message ?: "操作失败") } }
+                fun resolve(action: com.gitcove.app.domain.model.ConflictAction, okMsg: String) {
+                    scope.launch(Dispatchers.IO) {
+                        val result = repoDir?.let { container.gitCore.resolveConflict(it, path, action) }
+                        val msg = when {
+                            result == null -> "仓库不可用"
+                            result.isSuccess -> okMsg
+                            else -> result.exceptionOrNull()?.message ?: "操作失败"
                         }
-                    },
-                    onTheirs = {
-                        scope.launch(Dispatchers.IO) {
-                            repoDir?.let { container.gitCore.resolveConflict(it, path, com.gitcove.app.domain.model.ConflictAction.THEIRS) }
-                                .onSuccess { withContext(Dispatchers.Main) { snackbar.showSnackbar("已采用对方版本"); nav.popBackStack() } }
-                                .onFailure { withContext(Dispatchers.Main) { snackbar.showSnackbar(it.message ?: "操作失败") } }
+                        withContext(Dispatchers.Main) {
+                            snackbar.showSnackbar(msg)
+                            if (result?.isSuccess == true) nav.popBackStack()
                         }
-                    },
-                    onManual = {
-                        nav.navigate(Routes.editor(repoId, path))
                     }
+                }
+                ConflictBar(
+                    onOurs = { resolve(com.gitcove.app.domain.model.ConflictAction.OURS, "已采用我方版本") },
+                    onTheirs = { resolve(com.gitcove.app.domain.model.ConflictAction.THEIRS, "已采用对方版本") },
+                    onManual = { nav.navigate(Routes.editor(repoId, path)) }
                 )
             }
 
