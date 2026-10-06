@@ -1,0 +1,25 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+captures/
+.externalNativeBuild/
+.cxx/
+
+# SDK / local config
+local.properties
+
+# 签名文件（严禁入库）
+keystore.properties
+*.jks
+*.keystore
+
+# 日志与临时文件
+*.log
+.DS_Store
