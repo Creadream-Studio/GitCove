@@ -1,6 +1,6 @@
 # GitCove（码湾）
 
-> Android 端最好用的图形化 Git 客户端 —— 紧凑、美观、免费、无广告。对标 iOS 的 Working Copy。
+> Android 端最好用的图形化 Git 客户端 —— 紧凑、美观、免费、无广告。
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%2026%2B-green.svg)](https://developer.android.com)
