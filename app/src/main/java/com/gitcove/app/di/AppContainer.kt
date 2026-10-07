@@ -7,6 +7,10 @@ import com.gitcove.app.data.log.OpLog
 import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.data.store.AuthStore
 import com.gitcove.app.data.store.RepoStore
+import com.gitcove.app.i18n.AppLanguage
+import com.gitcove.app.i18n.Strings
+import com.gitcove.app.i18n.resolveStrings
+import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
 import java.io.File
 
@@ -27,9 +31,32 @@ class AppContainer(context: Context) {
 
     /** 主题模式（响应式 + 持久化） */
     val themeMode = mutableStateOf(auth.themeMode)
-
     fun setThemeMode(mode: ThemeMode) {
         auth.themeMode = mode
         themeMode.value = mode
     }
+
+    /** 应用语言（响应式 + 持久化；SYSTEM 跟随设备语言，首次启动默认） */
+    val appLanguage = mutableStateOf(auth.appLanguage)
+    fun setAppLanguage(lang: AppLanguage) {
+        auth.appLanguage = lang
+        appLanguage.value = lang
+    }
+
+    /** MD3 动态取色（响应式 + 持久化） */
+    val dynamicColor = mutableStateOf(auth.dynamicColor)
+    fun setDynamicColor(enabled: Boolean) {
+        auth.dynamicColor = enabled
+        dynamicColor.value = enabled
+    }
+
+    /** MD3 圆角风格（响应式 + 持久化） */
+    val shapeStyle = mutableStateOf(auth.shapeStyle)
+    fun setShapeStyle(style: ShapeStyle) {
+        auth.shapeStyle = style
+        shapeStyle.value = style
+    }
+
+    /** 当前生效文案（响应式：读取 appLanguage 状态，切换语言立即全局生效；ViewModel 亦可在任意线程读取） */
+    val strings: Strings get() = resolveStrings(appLanguage.value)
 }

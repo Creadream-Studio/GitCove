@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.ConfirmDialog
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.repo.tabs.BranchTab
@@ -73,6 +74,7 @@ fun RepoScreen(
     nav: androidx.navigation.NavHostController,
     repoId: Long
 ) {
+    val S = LocalStrings.current
     val vm: RepoViewModel = viewModel(
         key = "repo_$repoId",
         factory = vmFactory { RepoViewModel(container, repoId) }
@@ -117,7 +119,7 @@ fun RepoScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
                     }
                 },
                 actions = {
@@ -143,7 +145,7 @@ fun RepoScreen(
                                 }
                                 HorizontalDivider()
                                 DropdownMenuItem(
-                                    text = { Text("分支管理…") },
+                                    text = { Text(S.branchManager) },
                                     onClick = { branchMenu = false; tab = 3 }
                                 )
                             }
@@ -161,16 +163,16 @@ fun RepoScreen(
                     }
                     Box {
                         IconButton(onClick = { overflowMenu = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "更多")
+                            Icon(Icons.Filled.MoreVert, contentDescription = S.more)
                         }
                         DropdownMenu(expanded = overflowMenu, onDismissRequest = { overflowMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text("强制推送（Force Push）") },
+                                text = { Text(S.forcePushMenu) },
                                 onClick = { overflowMenu = false; forcePushConfirm = true },
                                 enabled = gitEnabled
                             )
                             DropdownMenuItem(
-                                text = { Text("打开设置") },
+                                text = { Text(S.openSettings) },
                                 onClick = { overflowMenu = false; nav.navigate(Routes.SETTINGS) }
                             )
                         }
@@ -203,7 +205,7 @@ fun RepoScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Filled.Fingerprint, contentDescription = "仓库状态面板")
+                        Icon(Icons.Filled.Fingerprint, contentDescription = S.statusPanelDesc)
                     }
                 }
             }
@@ -218,10 +220,10 @@ fun RepoScreen(
                 )
             }
             TabRow(selectedTabIndex = tab) {
-                Tab(tab == 0, onClick = { tab = 0 }, text = { Text("文件") })
-                Tab(tab == 1, onClick = { tab = 1 }, enabled = gitEnabled, text = { Text("改动 $dirty") })
-                Tab(tab == 2, onClick = { tab = 2 }, enabled = gitEnabled, text = { Text("历史") })
-                Tab(tab == 3, onClick = { tab = 3 }, enabled = gitEnabled, text = { Text("分支") })
+                Tab(tab == 0, onClick = { tab = 0 }, text = { Text(S.tabFiles) })
+                Tab(tab == 1, onClick = { tab = 1 }, enabled = gitEnabled, text = { Text(S.tabChanges(dirty)) })
+                Tab(tab == 2, onClick = { tab = 2 }, enabled = gitEnabled, text = { Text(S.tabHistory) })
+                Tab(tab == 3, onClick = { tab = 3 }, enabled = gitEnabled, text = { Text(S.tabBranches) })
             }
             // 非 Git 仓库：显示初始化引导横幅
             if (!gitEnabled && vm.repo != null) {
@@ -245,9 +247,9 @@ fun RepoScreen(
 
     if (forcePushConfirm) {
         ConfirmDialog(
-            title = "强制推送",
-            text = "将用本地分支覆盖远端，远端上未经合并的提交会丢失。确定继续吗？",
-            confirmLabel = "强制推送",
+            title = S.forcePush,
+            text = S.forcePushConfirmText,
+            confirmLabel = S.forcePush,
             danger = true,
             onDismiss = { forcePushConfirm = false },
             onConfirm = { forcePushConfirm = false; vm.push(force = true) }
@@ -258,19 +260,20 @@ fun RepoScreen(
 /** 非 Git 仓库提示横幅：Git 功能置灰，引导初始化 */
 @Composable
 private fun NotGitRepoBanner(onInit: () -> Unit, busy: Boolean) {
+    val S = LocalStrings.current
     androidx.compose.material3.Surface(
         color = MaterialTheme.colorScheme.tertiaryContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Text(
-                "当前目录不是 Git 仓库，Git 相关功能已禁用",
+                S.notGitBannerTitle,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
             Text(
-                "初始化 Git 仓库后即可使用提交、分支、历史等功能（文件浏览与编辑不受影响）",
+                S.notGitBannerDesc,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
@@ -279,7 +282,7 @@ private fun NotGitRepoBanner(onInit: () -> Unit, busy: Boolean) {
                 enabled = !busy,
                 modifier = Modifier.padding(top = 4.dp)
             ) {
-                Text("初始化 Git 仓库")
+                Text(S.initGitRepo)
             }
         }
     }
@@ -293,16 +296,17 @@ private fun StatusPanel(
     onClose: () -> Unit,
     onGoCommit: () -> Unit
 ) {
+    val S = LocalStrings.current
     val st = vm.status
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).verticalScroll(rememberScrollState())) {
         Text(
-            "仓库状态",
+            S.statusPanelTitle,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(vertical = 8.dp)
         )
         val all = (st?.staged.orEmpty() + st?.unstaged.orEmpty())
         if (all.isEmpty() && (st?.conflicts?.isEmpty() != false)) {
-            Text("工作区干净，没有待提交的改动", style = MaterialTheme.typography.bodyMedium)
+            Text(S.cleanWorkingTree, style = MaterialTheme.typography.bodyMedium)
         } else {
             LazyColumn(Modifier.height(200.dp)) {
                 items(st!!.conflicts) { path ->
@@ -325,11 +329,11 @@ private fun StatusPanel(
         Row(Modifier.padding(vertical = 16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
             Button(onClick = onGoCommit, enabled = (vm.status?.dirtyCount ?: 0) > 0) {
                 Icon(Icons.Filled.Commit, contentDescription = null, modifier = Modifier.size(16.dp))
-                Text("提交", modifier = Modifier.padding(start = 4.dp))
+                Text(S.commit, modifier = Modifier.padding(start = 4.dp))
             }
-            OutlinedButton(onClick = { vm.fetch(); onClose() }) { Text("Fetch") }
-            OutlinedButton(onClick = { vm.pull(); onClose() }) { Text("Pull") }
-            OutlinedButton(onClick = { vm.push(); onClose() }) { Text("Push") }
+            OutlinedButton(onClick = { vm.fetch(); onClose() }) { Text(S.fetch) }
+            OutlinedButton(onClick = { vm.pull(); onClose() }) { Text(S.pull) }
+            OutlinedButton(onClick = { vm.push(); onClose() }) { Text(S.push) }
         }
     }
 }

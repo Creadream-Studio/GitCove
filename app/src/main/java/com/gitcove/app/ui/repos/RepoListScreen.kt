@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.ConfirmDialog
 import com.gitcove.app.ui.components.EmptyView
 import com.gitcove.app.ui.nav.Routes
@@ -60,6 +61,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostController) {
+    val S = LocalStrings.current
     val vm: RepoListViewModel = viewModel(factory = com.gitcove.app.util.vmFactory { RepoListViewModel(container) })
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -72,11 +74,11 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
         topBar = {
             TopAppBar(
                 title = {
-                    Text("码湾 GitCove", style = MaterialTheme.typography.titleLarge)
+                    Text(S.appName, style = MaterialTheme.typography.titleLarge)
                 },
                 actions = {
                     IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
-                        Icon(Icons.Filled.Settings, contentDescription = "设置")
+                        Icon(Icons.Filled.Settings, contentDescription = S.settings)
                     }
                 }
             )
@@ -85,7 +87,7 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
             ExtendedFloatingActionButton(
                 onClick = { nav.navigate(Routes.CLONE) },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("克隆 / 新建") }
+                text = { Text(S.cloneOrCreate) }
             )
         },
         snackbarHost = { SnackbarHost(snackbar) }
@@ -96,9 +98,9 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
             }
             if (vm.items.isEmpty() && !vm.loading) {
                 EmptyView(
-                    text = "还没有仓库\n点击右下角按钮，从远程克隆或新建一个仓库开始",
+                    text = S.emptyRepos,
                     action = {
-                        TextButton(onClick = { nav.navigate(Routes.CLONE) }) { Text("克隆 / 新建仓库") }
+                        TextButton(onClick = { nav.navigate(Routes.CLONE) }) { Text(S.cloneOrCreateRepo) }
                     }
                 )
             } else {
@@ -118,9 +120,9 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
 
     deleteTarget?.let { target ->
         ConfirmDialog(
-            title = "删除仓库",
-            text = "确定从码湾移除「${target.repo.name}」吗？",
-            confirmLabel = "删除",
+            title = S.deleteRepo,
+            text = S.deleteRepoConfirm(target.repo.name),
+            confirmLabel = S.delete,
             danger = true,
             onDismiss = { deleteTarget = null },
             onConfirm = {
@@ -134,6 +136,7 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RepoRow(item: Item, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val S = LocalStrings.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -157,11 +160,11 @@ private fun RepoRow(item: Item, onClick: () -> Unit, onLongClick: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             if (item.conflicts > 0) {
-                BadgeText("${item.conflicts} 冲突", MaterialTheme.colorScheme.error)
+                BadgeText(S.conflictsBadge(item.conflicts), MaterialTheme.colorScheme.error)
                 Spacer(Modifier.size(6.dp))
             }
             if (item.dirty > 0) {
-                BadgeText("${item.dirty} 改动", MaterialTheme.colorScheme.tertiary)
+                BadgeText(S.changesBadge(item.dirty), MaterialTheme.colorScheme.tertiary)
                 Spacer(Modifier.size(6.dp))
             }
             if (item.ahead > 0) BadgeText("↑${item.ahead}", MaterialTheme.colorScheme.secondary)
@@ -170,12 +173,12 @@ private fun RepoRow(item: Item, onClick: () -> Unit, onLongClick: () -> Unit) {
         Spacer(Modifier.height(2.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             val meta = buildString {
-                if (item.broken) append("仓库目录不可用")
-                else if (item.notGit) append("非 Git 仓库 · 待初始化")
+                if (item.broken) append(S.repoDirUnavailable)
+                else if (item.notGit) append(S.notGitRepoMeta)
                 else {
-                    append(item.repo.currentBranch.ifBlank { "未知分支" })
+                    append(item.repo.currentBranch.ifBlank { S.unknownBranch })
                     item.repo.remoteUrl?.let { append("  ·  ").append(it.substringAfter("://").substringBefore('/')) }
-                    item.repo.lastSync?.let { append("  ·  同步于 ").append(relativeTime(it)) }
+                    item.repo.lastSync?.let { append("  ·  ").append(S.syncedAt(relativeTime(it, S))) }
                 }
             }
             Text(

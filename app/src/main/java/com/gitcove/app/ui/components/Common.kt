@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.domain.model.Status
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.theme.StatusAddedColor
 import com.gitcove.app.ui.theme.StatusConflictColor
 import com.gitcove.app.ui.theme.StatusDeletedColor
@@ -82,16 +83,17 @@ fun StatusLetterBadge(status: Status, modifier: Modifier = Modifier) {
     }
 }
 
-/** 通用确认对话框 */
+/** 通用确认对话框（取消按钮文案取自当前语言文案库） */
 @Composable
 fun ConfirmDialog(
     title: String,
     text: String,
-    confirmLabel: String = "确定",
+    confirmLabel: String,
     danger: Boolean = false,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val S = LocalStrings.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, style = MaterialTheme.typography.titleMedium) },
@@ -104,7 +106,7 @@ fun ConfirmDialog(
                 ) else androidx.compose.material3.ButtonDefaults.textButtonColors()
             ) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(S.cancel) } }
     )
 }
 

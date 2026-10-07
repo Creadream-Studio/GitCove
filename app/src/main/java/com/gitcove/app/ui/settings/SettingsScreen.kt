@@ -1,5 +1,6 @@
 package com.gitcove.app.ui.settings
 
+import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -40,16 +41,19 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.data.auth.SshKeyGen
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.i18n.AppLanguage
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.SectionHeader
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.theme.MonoFont
+import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
 import com.gitcove.app.work.SyncWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * 设置页：Git 身份 / 主题 / 访问令牌 / SSH 密钥 / 自动同步 / 日志 / 关于
+ * 设置页：Git 身份 / 语言 / MD3 风格 / 主题 / 访问令牌 / SSH 密钥 / 自动同步 / 日志 / 关于
  * （功能 45-48 / 19-21 / 79）
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +62,7 @@ fun SettingsScreen(
     container: AppContainer,
     nav: androidx.navigation.NavHostController
 ) {
+    val S = LocalStrings.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
 
@@ -82,10 +87,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置") },
+                title = { Text(S.settings) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
                     }
                 }
             )
@@ -99,44 +104,116 @@ fun SettingsScreen(
         ) {
 
             // ── Git 身份 ──
-            SectionHeader("Git 身份")
+            SectionHeader(S.sectionGitIdentity)
             Column(Modifier.padding(horizontal = 12.dp)) {
                 OutlinedTextField(
                     value = gitName,
                     onValueChange = { gitName = it },
-                    label = { Text("用户名") },
+                    label = { Text(S.username) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = gitEmail,
                     onValueChange = { gitEmail = it },
-                    label = { Text("邮箱") },
+                    label = { Text(S.email) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
                 )
                 TextButton(onClick = {
                     container.auth.gitName = gitName.trim()
                     container.auth.gitEmail = gitEmail.trim()
-                    Toast.makeText(container.appContext, "身份已保存，新提交将使用此身份", Toast.LENGTH_SHORT).show()
-                }) { Text("保存身份") }
+                    Toast.makeText(container.appContext, S.identitySaved, Toast.LENGTH_SHORT).show()
+                }) { Text(S.saveIdentity) }
             }
 
+            // ── 语言 ──
+            SectionHeader(S.sectionLanguage)
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                AppLanguage.entries.forEach { lang ->
+                    FilterChip(
+                        selected = container.appLanguage.value == lang,
+                        onClick = { container.setAppLanguage(lang) },
+                        label = { Text(if (lang == AppLanguage.SYSTEM) S.languageSystem else lang.displayName) },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+            }
+            Text(
+                S.languageHint,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
             // ── 外观 ──
-            SectionHeader("外观")
+            SectionHeader(S.sectionAppearance)
             Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = container.themeMode.value == mode,
                         onClick = { container.setThemeMode(mode) },
-                        label = { Text(mode.label) },
+                        label = {
+                            Text(
+                                when (mode) {
+                                    ThemeMode.SYSTEM -> S.themeSystem
+                                    ThemeMode.DARK -> S.themeDark
+                                    ThemeMode.LIGHT -> S.themeLight
+                                }
+                            )
+                        },
                         modifier = Modifier.padding(end = 8.dp)
                     )
                 }
             }
 
+            // ── MD3 风格 ──
+            SectionHeader(S.sectionMd3Style)
+            Text(
+                S.shapeStyle,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 2.dp)) {
+                ShapeStyle.entries.forEach { style ->
+                    FilterChip(
+                        selected = container.shapeStyle.value == style,
+                        onClick = { container.setShapeStyle(style) },
+                        label = {
+                            Text(
+                                when (style) {
+                                    ShapeStyle.STANDARD -> S.shapeStandard
+                                    ShapeStyle.ROUNDED -> S.shapeRounded
+                                    ShapeStyle.COMPACT -> S.shapeCompact
+                                }
+                            )
+                        },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(S.dynamicColor, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        S.dynamicColorHint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = container.dynamicColor.value,
+                    onCheckedChange = { container.setDynamicColor(it) },
+                    // Material You 动态取色仅在 Android 12+ 可用
+                    enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                )
+            }
+
             // ── 访问令牌 ──
-            SectionHeader("访问令牌（GitHub / GitLab / Gitea）")
+            SectionHeader(S.sectionTokens)
             tokens.forEach { t ->
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -154,18 +231,18 @@ fun SettingsScreen(
                         container.auth.removeToken(t.host)
                         tokens = container.auth.tokens()
                     }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "删除", tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = MaterialTheme.colorScheme.error)
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             }
             TextButton(onClick = { tokenDialog = true }, modifier = Modifier.padding(horizontal = 12.dp)) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
-                Text("添加令牌")
+                Text(S.addToken)
             }
 
             // ── SSH 密钥 ──
-            SectionHeader("SSH 密钥")
+            SectionHeader(S.sectionSsh)
             sshKeys.forEach { k ->
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -187,27 +264,27 @@ fun SettingsScreen(
                         container.auth.deleteSshKey(k.name)
                         sshKeys = container.auth.sshKeys()
                     }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "删除", tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = MaterialTheme.colorScheme.error)
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             }
             Row(Modifier.padding(horizontal = 12.dp)) {
-                TextButton(onClick = { sshGenDialog = true }) { Text("生成密钥") }
+                TextButton(onClick = { sshGenDialog = true }) { Text(S.generateKey) }
                 Spacer(Modifier.width(8.dp))
-                TextButton(onClick = { sshImportDialog = true }) { Text("导入私钥") }
+                TextButton(onClick = { sshImportDialog = true }) { Text(S.importKey) }
             }
 
             // ── 自动同步 ──
-            SectionHeader("后台自动同步")
+            SectionHeader(S.sectionAutoSync)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("定期 Fetch + Pull 所有仓库", style = MaterialTheme.typography.bodyMedium)
+                    Text(S.autoSyncDesc, style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "每 $interval 分钟（需要网络）",
+                        S.everyNMinutes(interval),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -219,7 +296,7 @@ fun SettingsScreen(
                         container.auth.autoSyncEnabled = enabled
                         if (enabled) {
                             SyncWorker.schedule(container.appContext, interval)
-                            Toast.makeText(container.appContext, "已开启自动同步", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(container.appContext, S.autoSyncOn, Toast.LENGTH_SHORT).show()
                         } else {
                             SyncWorker.cancel(container.appContext)
                         }
@@ -242,22 +319,22 @@ fun SettingsScreen(
             }
 
             // ── 日志 ──
-            SectionHeader("操作日志")
+            SectionHeader(S.sectionOpLog)
             Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                TextButton(onClick = { nav.navigate(Routes.LOG) }) { Text("查看日志") }
+                TextButton(onClick = { nav.navigate(Routes.LOG) }) { Text(S.viewLogs) }
             }
 
             // ── 关于 ──
-            SectionHeader("关于")
+            SectionHeader(S.sectionAbout)
             Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                Text("码湾 GitCove v1.0.0", style = MaterialTheme.typography.titleSmall)
+                Text(S.aboutTitle, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Android 端最好用的图形化 Git 客户端\n基于 JGit · Kotlin + Compose · Apache 2.0 开源",
+                    S.aboutDesc,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    "github.com/Creadream-Studio/GitCove",
+                    S.aboutLink,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.padding(top = 4.dp)
@@ -274,10 +351,10 @@ fun SettingsScreen(
         var token by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { tokenDialog = false },
-            title = { Text("添加访问令牌", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.addTokenTitle, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column {
-                    Text("主机：", style = MaterialTheme.typography.labelMedium)
+                    Text(S.hostLabel, style = MaterialTheme.typography.labelMedium)
                     Row {
                         listOf("github.com", "gitlab.com", "gitea.com").forEach { h ->
                             FilterChip(
@@ -291,20 +368,20 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = host,
                         onValueChange = { host = it },
-                        label = { Text("自定义主机") },
+                        label = { Text(S.customHost) },
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = username,
                         onValueChange = { username = it },
-                        label = { Text("用户名") },
+                        label = { Text(S.username) },
                         singleLine = true,
                         modifier = Modifier.padding(top = 6.dp)
                     )
                     OutlinedTextField(
                         value = token,
                         onValueChange = { token = it },
-                        label = { Text("令牌 / Personal Access Token") },
+                        label = { Text(S.tokenLabel) },
                         singleLine = true,
                         modifier = Modifier.padding(top = 6.dp)
                     )
@@ -318,9 +395,9 @@ fun SettingsScreen(
                         tokenDialog = false
                     },
                     enabled = host.isNotBlank() && token.isNotBlank()
-                ) { Text("保存") }
+                ) { Text(S.save) }
             },
-            dismissButton = { TextButton(onClick = { tokenDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { tokenDialog = false }) { Text(S.cancel) } }
         )
     }
 
@@ -331,13 +408,13 @@ fun SettingsScreen(
         var type by remember { mutableStateOf(SshKeyGen.KeyType.ECDSA256) }
         AlertDialog(
             onDismissRequest = { sshGenDialog = false },
-            title = { Text("生成 SSH 密钥", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.genSshTitle, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("密钥名称") },
+                        label = { Text(S.keyName) },
                         singleLine = true
                     )
                     Row(Modifier.padding(vertical = 6.dp)) {
@@ -353,7 +430,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = comment,
                         onValueChange = { comment = it },
-                        label = { Text("备注（通常为邮箱）") },
+                        label = { Text(S.keyComment) },
                         singleLine = true
                     )
                 }
@@ -374,9 +451,9 @@ fun SettingsScreen(
                         }
                     },
                     enabled = name.isNotBlank()
-                ) { Text("生成") }
+                ) { Text(S.generate) }
             },
-            dismissButton = { TextButton(onClick = { sshGenDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { sshGenDialog = false }) { Text(S.cancel) } }
         )
     }
 
@@ -386,25 +463,25 @@ fun SettingsScreen(
         var privateKey by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { sshImportDialog = false },
-            title = { Text("导入 SSH 私钥", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.importSshTitle, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("密钥名称") },
+                        label = { Text(S.keyName) },
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = privateKey,
                         onValueChange = { privateKey = it },
-                        label = { Text("粘贴 OpenSSH / PEM 私钥内容") },
+                        label = { Text(S.pastePrivateKey) },
                         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFont),
                         minLines = 4,
                         modifier = Modifier.padding(top = 6.dp)
                     )
                     Text(
-                        "支持 RSA / ECDSA / Ed25519（OpenSSH 新格式）",
+                        S.privateKeyHint,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -421,7 +498,7 @@ fun SettingsScreen(
                                 tmp.writeText(privateKey.trim() + "\n")
                                 val kp = com.jcraft.jsch.KeyPair.load(jsch, tmp.absolutePath)
                                 val blob = kp.getPublicKeyBlob()
-                                    ?: throw IllegalStateException("无法从私钥推导公钥")
+                                    ?: throw IllegalStateException(S.derivePubFailed)
                                 val bb = java.nio.ByteBuffer.wrap(blob)
                                 val len = bb.int
                                 val algo = ByteArray(len).also { bb.get(it) }.toString(Charsets.US_ASCII)
@@ -436,9 +513,9 @@ fun SettingsScreen(
                         }
                     },
                     enabled = name.isNotBlank() && privateKey.contains("PRIVATE KEY")
-                ) { Text("导入") }
+                ) { Text(S.importAction) }
             },
-            dismissButton = { TextButton(onClick = { sshImportDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { sshImportDialog = false }) { Text(S.cancel) } }
         )
     }
 
@@ -446,7 +523,7 @@ fun SettingsScreen(
     sshShowPub?.let { pub ->
         AlertDialog(
             onDismissRequest = { sshShowPub = null },
-            title = { Text("公钥（点击复制）", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.pubKeyTitle, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Text(
                     pub,
@@ -459,10 +536,10 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     clipboard.setText(AnnotatedString(pub))
-                    Toast.makeText(container.appContext, "公钥已复制", Toast.LENGTH_SHORT).show()
-                }) { Text("复制") }
+                    Toast.makeText(container.appContext, S.pubKeyCopied, Toast.LENGTH_SHORT).show()
+                }) { Text(S.copy) }
             },
-            dismissButton = { TextButton(onClick = { sshShowPub = null }) { Text("关闭") } }
+            dismissButton = { TextButton(onClick = { sshShowPub = null }) { Text(S.close) } }
         )
     }
 }

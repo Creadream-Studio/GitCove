@@ -49,27 +49,27 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
     fun cloneRepo(url: String, name: String, parentDir: File, onDone: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             busy = true
-            progress = "准备克隆…"
+            progress = c.strings.preparingClone
             try {
                 val cleanUrl = url.trim()
                 require(cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://") ||
                     cleanUrl.startsWith("ssh://") || cleanUrl.startsWith("git@") ||
-                    cleanUrl.startsWith("git://")) { "不支持的协议，请使用 https / ssh / git 地址" }
+                    cleanUrl.startsWith("git://")) { c.strings.unsupportedProtocol }
                 val repoName = name.trim().ifBlank { GitCredentials.repoNameOf(cleanUrl) }
-                require(repoName.isNotBlank()) { "请填写仓库名称" }
-                require(parentDir.isDirectory) { "目标目录不可用：${parentDir.absolutePath}（请检查权限）" }
+                require(repoName.isNotBlank()) { c.strings.repoNameRequired }
+                require(parentDir.isDirectory) { c.strings.badTargetDir(parentDir.absolutePath) }
                 val dir = File(parentDir, repoName)
-                require(!(dir.exists() && dir.listFiles()?.isNotEmpty() == true)) { "已存在同名仓库：$repoName" }
+                require(!(dir.exists() && dir.listFiles()?.isNotEmpty() == true)) { c.strings.repoExists(repoName) }
                 dir.mkdirs()
                 c.gitCore.clone(cleanUrl, dir) { progress = it }.getOrThrow()
                 val repo = c.repoStore.add(repoName, dir.absolutePath, cleanUrl)
                 c.gitCore.status(dir).onSuccess { c.repoStore.updateCurrentBranch(repo.id, it.branch) }
                 c.repoStore.updateLastSync(repo.id, System.currentTimeMillis())
-                c.opLog.append("repo", "克隆仓库: $cleanUrl → $repoName")
-                msg.tryEmit("克隆完成：$repoName")
+                c.opLog.append("repo", "Clone: $cleanUrl → $repoName")
+                msg.tryEmit(c.strings.cloneDone(repoName))
                 notifyDone(onDone)
             } catch (e: Throwable) {
-                msg.tryEmit("克隆失败：${e.message ?: e.javaClass.simpleName}")
+                msg.tryEmit(c.strings.cloneFailed(e.message ?: e.javaClass.simpleName))
             } finally {
                 busy = false
             }
@@ -82,18 +82,18 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
             busy = true
             try {
                 val repoName = name.trim()
-                require(repoName.isNotBlank()) { "请填写仓库名称" }
-                require(parentDir.isDirectory) { "目标目录不可用：${parentDir.absolutePath}（请检查权限）" }
+                require(repoName.isNotBlank()) { c.strings.repoNameRequired }
+                require(parentDir.isDirectory) { c.strings.badTargetDir(parentDir.absolutePath) }
                 val dir = File(parentDir, repoName)
-                require(!dir.exists()) { "已存在同名仓库：$repoName" }
+                require(!dir.exists()) { c.strings.repoExists(repoName) }
                 dir.mkdirs()
                 c.gitCore.init(dir).getOrThrow()
                 c.repoStore.add(repoName, dir.absolutePath, null)
-                c.opLog.append("repo", "新建仓库: $repoName")
-                msg.tryEmit("已创建新仓库：$repoName")
+                c.opLog.append("repo", "Create: $repoName")
+                msg.tryEmit(c.strings.repoCreated(repoName))
                 notifyDone(onDone)
             } catch (e: Throwable) {
-                msg.tryEmit("创建失败：${e.message ?: e.javaClass.simpleName}")
+                msg.tryEmit(c.strings.createFailed(e.message ?: e.javaClass.simpleName))
             } finally {
                 busy = false
             }
@@ -114,23 +114,23 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
             busy = true
             try {
                 val dir = File(path.trim())
-                require(dir.exists() && dir.isDirectory) { "目录不存在：$path" }
+                require(dir.exists() && dir.isDirectory) { c.strings.dirNotFound(path) }
                 if (!StorageAccess.hasAllFilesAccess(c.appContext) &&
                     dir.absolutePath.startsWith("/storage") && dir.listFiles() == null
                 ) {
-                    throw IllegalStateException("无权访问该目录，请在系统设置中授予「所有文件」权限后重试")
+                    throw IllegalStateException(c.strings.noDirAccess)
                 }
                 val repoName = (name ?: dir.name).trim().ifBlank { dir.name }
                 val isGit = c.gitCore.isValidRepo(dir)
                 c.repoStore.add(repoName, dir.absolutePath, c.gitCore.remoteUrl(dir), isGit)
-                c.opLog.append("repo", "导入仓库: $repoName ← ${dir.absolutePath}${if (isGit) "" else "（非 Git）"}")
+                c.opLog.append("repo", "Import: $repoName ← ${dir.absolutePath}${if (isGit) "" else " (non-git)"}")
                 msg.tryEmit(
-                    if (isGit) "已导入仓库：$repoName"
-                    else "已导入：$repoName（非 Git 仓库，Git 功能需先初始化）"
+                    if (isGit) c.strings.importDone(repoName)
+                    else c.strings.importDoneNonGit(repoName)
                 )
                 notifyDone(onDone)
             } catch (e: Throwable) {
-                msg.tryEmit("导入失败：${e.message ?: e.javaClass.simpleName}")
+                msg.tryEmit(c.strings.importFailed(e.message ?: e.javaClass.simpleName))
             } finally {
                 busy = false
             }
@@ -142,7 +142,7 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             c.githubApi.listUserRepos()
                 .onSuccess { githubRepos = it }
-                .onFailure { msg.tryEmit(it.message ?: "获取仓库列表失败") }
+                .onFailure { msg.tryEmit(it.message ?: c.strings.listReposFailed) }
         }
     }
 

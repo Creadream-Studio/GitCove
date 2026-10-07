@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.data.git.GitCredentials
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.util.StorageAccess
 import com.gitcove.app.util.vmFactory
@@ -64,6 +65,7 @@ fun CloneScreen(
     container: AppContainer,
     nav: androidx.navigation.NavHostController
 ) {
+    val S = LocalStrings.current
     val vm: CloneViewModel = viewModel(factory = vmFactory { CloneViewModel(container) })
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -90,7 +92,7 @@ fun CloneScreen(
     ) { uri ->
         val dir = uri?.let { StorageAccess.treeUriToDir(it) }
         if (dir == null) {
-            vm.showMessage("请从系统文件管理器中选择内部存储或 SD 卡上的目录")
+            vm.showMessage(S.pickDirFailed)
             return@rememberLauncherForActivityResult
         }
         if (pickTarget == 2) {
@@ -116,10 +118,10 @@ fun CloneScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("添加仓库") },
+                title = { Text(S.addRepo) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
                     }
                 }
             )
@@ -138,17 +140,17 @@ fun CloneScreen(
                     selected = mode == 0,
                     onClick = { mode = 0 },
                     shape = SegmentedButtonDefaults.itemShape(0, 3)
-                ) { Text("克隆") }
+                ) { Text(S.modeClone) }
                 SegmentedButton(
                     selected = mode == 1,
                     onClick = { mode = 1 },
                     shape = SegmentedButtonDefaults.itemShape(1, 3)
-                ) { Text("新建") }
+                ) { Text(S.modeNew) }
                 SegmentedButton(
                     selected = mode == 2,
                     onClick = { mode = 2 },
                     shape = SegmentedButtonDefaults.itemShape(2, 3)
-                ) { Text("导入") }
+                ) { Text(S.modeImport) }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -161,32 +163,34 @@ fun CloneScreen(
                             url = it
                             if (!nameTouched) name = GitCredentials.repoNameOf(it)
                         },
-                        label = { Text("远程地址（https / ssh / git）") },
+                        label = { Text(S.remoteUrlLabel) },
                         placeholder = { Text("https://github.com/user/repo.git") },
                         singleLine = true,
                         supportingText = {
-                            if (url.isNotBlank()) Text("平台：${GitCredentials.platformOf(url)}")
+                            if (url.isNotBlank()) Text(S.platformOf(GitCredentials.platformOf(url)))
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it; nameTouched = true },
-                        label = { Text("仓库名称") },
+                        label = { Text(S.repoName) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     // 目标目录选择（默认仓库根目录，可改任意目录）
                     DirectoryField(
-                        label = "保存目录",
+                        label = S.saveDir,
                         dirPath = parentDir,
+                        hint = S.tapToPick,
+                        supporting = S.pickDirDesc,
                         onClick = { pickDir(0, parentDir) }
                     )
                     if (container.auth.tokenFor("github.com") != null) {
                         TextButton(onClick = {
                             vm.loadMyGithubRepos()
                             showGithubList = true
-                        }) { Text("从我的 GitHub 选择仓库") }
+                        }) { Text(S.pickFromGithub) }
                     }
                     Spacer(Modifier.height(8.dp))
                     Button(
@@ -195,21 +199,23 @@ fun CloneScreen(
                         },
                         enabled = !vm.busy && url.isNotBlank(),
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("开始克隆") }
+                    ) { Text(S.startClone) }
                 }
 
                 1 -> {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("仓库名称") },
+                        label = { Text(S.repoName) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     // 目标目录选择
                     DirectoryField(
-                        label = "保存目录",
+                        label = S.saveDir,
                         dirPath = parentDir,
+                        hint = S.tapToPick,
+                        supporting = S.pickDirDesc,
                         onClick = { pickDir(0, parentDir) }
                     )
                     Spacer(Modifier.height(8.dp))
@@ -217,19 +223,19 @@ fun CloneScreen(
                         onClick = { vm.initRepo(name, File(parentDir)) { nav.popBackStack() } },
                         enabled = !vm.busy && name.isNotBlank(),
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("创建新仓库") }
+                    ) { Text(S.createNewRepo) }
                 }
 
                 2 -> {
                     OutlinedTextField(
                         value = path,
                         onValueChange = { path = it },
-                        label = { Text("本地目录路径") },
+                        label = { Text(S.localDirPath) },
                         placeholder = { Text("/storage/emulated/0/...") },
                         singleLine = true,
                         supportingText = {
                             Text(
-                                "支持导入 Git 仓库或普通目录（非 Git 目录需先初始化才能使用 Git 功能）",
+                                S.importHint,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -237,14 +243,16 @@ fun CloneScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     DirectoryField(
-                        label = "本地目录",
+                        label = S.localDir,
                         dirPath = path,
+                        hint = S.tapToPick,
+                        supporting = S.pickDirDesc,
                         onClick = { pickDir(2, path.ifBlank { pickRootPath() }) }
                     )
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it; nameTouched = true },
-                        label = { Text("显示名称（可选）") },
+                        label = { Text(S.displayNameOptional) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -255,7 +263,7 @@ fun CloneScreen(
                         },
                         enabled = !vm.busy && path.isNotBlank(),
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("导入该目录") }
+                    ) { Text(S.importDir) }
                 }
             }
 
@@ -290,21 +298,18 @@ fun CloneScreen(
     if (showPermissionHint) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showPermissionHint = false },
-            title = { Text("需要「所有文件」权限", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.permissionTitle, style = MaterialTheme.typography.titleMedium) },
             text = {
-                Text(
-                    "在外部存储中执行 Git 操作（读写仓库、识别 .git）需要授予「所有文件」权限。\n" +
-                        "未授权时选择目录后，应用仍无法读写其中的仓库内容。\n\n点击「去授权」后在系统设置中开启「允许访问所有文件」。"
-                )
+                Text(S.permissionText)
             },
             confirmButton = {
                 TextButton(onClick = {
                     showPermissionHint = false
                     StorageAccess.requestAllFilesAccess(context)
-                }) { Text("去授权") }
+                }) { Text(S.grantAccess) }
             },
             dismissButton = {
-                TextButton(onClick = { showPermissionHint = false }) { Text("取消") }
+                TextButton(onClick = { showPermissionHint = false }) { Text(S.cancel) }
             }
         )
     }
@@ -316,22 +321,28 @@ private fun pickRootPath(): String =
 
 /** 目录选择字段：只读展示 + 点击选择 */
 @Composable
-private fun DirectoryField(label: String, dirPath: String, onClick: () -> Unit) {
+private fun DirectoryField(
+    label: String,
+    dirPath: String,
+    hint: String,
+    supporting: String,
+    onClick: () -> Unit
+) {
     OutlinedTextField(
         value = dirPath,
         onValueChange = { },
         readOnly = true,
         label = { Text(label) },
-        placeholder = { Text("点击选择目录") },
+        placeholder = { Text(hint) },
         singleLine = true,
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onClick) {
-                    Icon(Icons.Filled.Folder, contentDescription = "选择目录")
+                    Icon(Icons.Filled.Folder, contentDescription = hint)
                 }
             }
         },
-        supportingText = { Text("点击右侧图标或文本框选择目录", style = MaterialTheme.typography.labelSmall) },
+        supportingText = { Text(supporting, style = MaterialTheme.typography.labelSmall) },
         textStyle = MaterialTheme.typography.bodySmall,
         modifier = Modifier
             .fillMaxWidth()
@@ -347,14 +358,15 @@ private fun GithubRepoPickerDialog(
     onPick: (com.gitcove.app.data.remote.GitHubRepoInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val S = LocalStrings.current
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择 GitHub 仓库", style = MaterialTheme.typography.titleMedium) },
+        title = { Text(S.githubPickerTitle, style = MaterialTheme.typography.titleMedium) },
         text = {
             if (loading && repos.isEmpty()) {
-                Text("加载中…")
+                Text(S.loading)
             } else if (repos.isEmpty()) {
-                Text("未获取到仓库，请检查令牌权限")
+                Text(S.noReposFound)
             } else {
                 Column(Modifier.height(360.dp).verticalScroll(rememberScrollState())) {
                     repos.forEach { repo ->
@@ -372,7 +384,7 @@ private fun GithubRepoPickerDialog(
                                 Spacer(Modifier.width(6.dp))
                                 if (repo.isPrivate) {
                                     Text(
-                                        "私有",
+                                        S.privateBadge,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.tertiary
                                     )
@@ -391,6 +403,6 @@ private fun GithubRepoPickerDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(S.close) } }
     )
 }

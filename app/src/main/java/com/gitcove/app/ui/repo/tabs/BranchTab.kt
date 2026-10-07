@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.SectionHeader
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
@@ -56,6 +57,7 @@ fun BranchTab(
     nav: androidx.navigation.NavHostController,
     container: AppContainer
 ) {
+    val S = LocalStrings.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var createDialog by remember { mutableStateOf(false) }
     var mergeDialog by remember { mutableStateOf(false) }
@@ -72,7 +74,7 @@ fun BranchTab(
     LazyColumn(Modifier.fillMaxSize()) {
 
         item {
-            SectionHeader("当前分支")
+            SectionHeader(S.currentBranch)
             Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                 Text(
                     if (st?.detached == true) "(detached) ${st.branch.take(10)}" else st?.branch ?: "",
@@ -81,7 +83,7 @@ fun BranchTab(
                 Text(
                     buildString {
                         if (st != null && !st.detached) {
-                            append("领先远端 ${st.ahead} · 落后 ${st.behind}")
+                            append(S.aheadBehind(st.ahead, st.behind))
                         }
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -91,20 +93,20 @@ fun BranchTab(
             Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                 TextButton(onClick = { createDialog = true }) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text("新建分支", modifier = Modifier.padding(start = 4.dp))
+                    Text(S.newBranch, modifier = Modifier.padding(start = 4.dp))
                 }
                 TextButton(onClick = { mergeDialog = true }) {
                     Icon(Icons.Filled.CallMerge, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text("合并到当前", modifier = Modifier.padding(start = 4.dp))
+                    Text(S.mergeToCurrent, modifier = Modifier.padding(start = 4.dp))
                 }
                 TextButton(onClick = { tagDialog = true }) {
                     Icon(Icons.Filled.Sell, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text("打标签", modifier = Modifier.padding(start = 4.dp))
+                    Text(S.createTagAction, modifier = Modifier.padding(start = 4.dp))
                 }
                 if (isGithub) {
                     TextButton(onClick = { prDialog = true }) {
                         Icon(Icons.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Text("创建 PR", modifier = Modifier.padding(start = 4.dp))
+                        Text(S.createPRAction, modifier = Modifier.padding(start = 4.dp))
                     }
                 }
             }
@@ -112,7 +114,7 @@ fun BranchTab(
         }
 
         // 本地分支
-        item { SectionHeader("本地分支 (${locals.size})") }
+        item { SectionHeader(S.localBranches(locals.size)) }
         items(locals, key = { "l_" + it.name }) { b ->
             Row(
                 Modifier
@@ -143,7 +145,7 @@ fun BranchTab(
         }
 
         // 远程分支
-        item { SectionHeader("远程分支 (${remotes.size}) · 点击创建跟踪分支") }
+        item { SectionHeader(S.remoteBranches(remotes.size)) }
         items(remotes, key = { "r_" + it.name }) { b ->
             Row(
                 Modifier
@@ -173,7 +175,7 @@ fun BranchTab(
         }
 
         // 标签
-        item { SectionHeader("标签 (${vm.tags.size})") }
+        item { SectionHeader(S.tags(vm.tags.size)) }
         items(vm.tags, key = { "t_" + it.name }) { tag ->
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
@@ -204,11 +206,11 @@ fun BranchTab(
     branchMenu?.let { name ->
         DropdownMenu(expanded = true, onDismissRequest = { branchMenu = null }) {
             DropdownMenuItem(
-                text = { Text("合并 $name 到当前分支") },
+                text = { Text(S.mergeBranchInto(name)) },
                 onClick = { branchMenu = null; vm.merge(name) }
             )
             DropdownMenuItem(
-                text = { Text("删除分支", color = MaterialTheme.colorScheme.error) },
+                text = { Text(S.deleteBranch, color = MaterialTheme.colorScheme.error) },
                 onClick = { branchMenu = null; deleteTarget = name }
             )
         }
@@ -217,14 +219,14 @@ fun BranchTab(
     if (deleteTarget != null) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("删除分支") },
-            text = { Text("确定删除分支 $deleteTarget 吗？（未合并的提交将被丢弃）") },
+            title = { Text(S.deleteBranch) },
+            text = { Text(S.deleteBranchConfirm(deleteTarget ?: "")) },
             confirmButton = {
                 TextButton(onClick = { vm.deleteBranch(deleteTarget!!); deleteTarget = null }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(S.delete, color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(S.cancel) } }
         )
     }
 
@@ -233,19 +235,19 @@ fun BranchTab(
         var from by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { createDialog = false },
-            title = { Text("新建分支", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.newBranch, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("分支名") },
+                        label = { Text(S.branchName) },
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = from,
                         onValueChange = { from = it },
-                        label = { Text("基于（可选：分支名 / 提交哈希）") },
+                        label = { Text(S.branchFrom) },
                         singleLine = true
                     )
                 }
@@ -257,9 +259,9 @@ fun BranchTab(
                         createDialog = false
                     },
                     enabled = name.isNotBlank()
-                ) { Text("创建") }
+                ) { Text(S.create) }
             },
-            dismissButton = { TextButton(onClick = { createDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { createDialog = false }) { Text(S.cancel) } }
         )
     }
 
@@ -267,25 +269,25 @@ fun BranchTab(
         var ref by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { mergeDialog = false },
-            title = { Text("合并到当前分支", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.mergeTitle, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column {
-                    Text("将指定分支合并进当前分支：", style = MaterialTheme.typography.bodySmall)
+                    Text(S.mergeDesc, style = MaterialTheme.typography.bodySmall)
                     locals.filter { !it.isCurrent }.forEach { b ->
                         TextButton(onClick = { ref = b.name }) { Text(if (ref == b.name) "✓ ${b.name}" else b.name) }
                     }
                     OutlinedTextField(
                         value = ref,
                         onValueChange = { ref = it },
-                        label = { Text("或输入任意引用") },
+                        label = { Text(S.orAnyRef) },
                         singleLine = true
                     )
                 }
             },
             confirmButton = {
-                TextButton(onClick = { vm.merge(ref); mergeDialog = false }, enabled = ref.isNotBlank()) { Text("合并") }
+                TextButton(onClick = { vm.merge(ref); mergeDialog = false }, enabled = ref.isNotBlank()) { Text(S.merge) }
             },
-            dismissButton = { TextButton(onClick = { mergeDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { mergeDialog = false }) { Text(S.cancel) } }
         )
     }
 
@@ -294,19 +296,19 @@ fun BranchTab(
         var message by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { tagDialog = false },
-            title = { Text("创建标签", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.createTagAction, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("标签名（如 v1.0.0）") },
+                        label = { Text(S.tagName) },
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = message,
                         onValueChange = { message = it },
-                        label = { Text("附注信息（可选，留空为轻量标签）") }
+                        label = { Text(S.tagMessage) }
                     )
                 }
             },
@@ -314,9 +316,9 @@ fun BranchTab(
                 TextButton(
                     onClick = { vm.createTag(name, message.takeIf { it.isNotBlank() }); tagDialog = false },
                     enabled = name.isNotBlank()
-                ) { Text("创建") }
+                ) { Text(S.create) }
             },
-            dismissButton = { TextButton(onClick = { tagDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { tagDialog = false }) { Text(S.cancel) } }
         )
     }
 
@@ -328,7 +330,7 @@ fun BranchTab(
         val (owner, repo) = GitHubApi.githubOwnerRepo(vm.repo?.remoteUrl) ?: ("") to ("")
         AlertDialog(
             onDismissRequest = { if (!creating) prDialog = false },
-            title = { Text("创建 Pull Request", style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.prTitle, style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column {
                     Text(
@@ -339,20 +341,20 @@ fun BranchTab(
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        label = { Text("PR 标题") },
+                        label = { Text(S.prTitleField) },
                         singleLine = true,
                         modifier = Modifier.padding(top = 6.dp)
                     )
                     OutlinedTextField(
                         value = base,
                         onValueChange = { base = it },
-                        label = { Text("目标分支") },
+                        label = { Text(S.prBase) },
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = body,
                         onValueChange = { body = it },
-                        label = { Text("描述（可选）") },
+                        label = { Text(S.prDesc) },
                         minLines = 2
                     )
                 }
@@ -367,19 +369,19 @@ fun BranchTab(
                                 head = st?.branch ?: "", base = base,
                                 title = title, body = body
                             ).onSuccess { url ->
-                                vm.toast("PR 已创建：$url")
+                                vm.toast(S.prCreated(url))
                                 creating = false
                                 prDialog = false
                             }.onFailure {
-                                vm.toast(it.message ?: "创建 PR 失败")
+                                vm.toast(it.message ?: S.prCreateFailed)
                                 creating = false
                             }
                         }
                     },
                     enabled = title.isNotBlank() && !creating
-                ) { Text(if (creating) "创建中…" else "创建") }
+                ) { Text(if (creating) S.creating else S.create) }
             },
-            dismissButton = { TextButton(onClick = { prDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { prDialog = false }) { Text(S.cancel) } }
         )
     }
 }

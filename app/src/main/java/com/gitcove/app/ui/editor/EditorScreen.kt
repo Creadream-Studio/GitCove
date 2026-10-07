@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.theme.MonoFont
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -47,6 +48,7 @@ fun EditorScreen(
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val S = LocalStrings.current
     var content by remember { mutableStateOf("") }
     var original by remember { mutableStateOf("") }
     var loaded by remember { mutableStateOf(false) }
@@ -81,7 +83,7 @@ fun EditorScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
                     }
                 },
                 actions = {
@@ -95,20 +97,20 @@ fun EditorScreen(
                                         if (isConflict) {
                                             container.gitCore.markResolved(dir, path)
                                             withContext(Dispatchers.Main) {
-                                                snackbar.showSnackbar("已保存并标记为已解决")
+                                                snackbar.showSnackbar(S.savedResolved)
                                             }
                                         } else {
-                                            withContext(Dispatchers.Main) { snackbar.showSnackbar("已保存") }
+                                            withContext(Dispatchers.Main) { snackbar.showSnackbar(S.saved) }
                                         }
                                         original = content
                                     }
                                     .onFailure {
-                                        withContext(Dispatchers.Main) { snackbar.showSnackbar(it.message ?: "保存失败") }
+                                        withContext(Dispatchers.Main) { snackbar.showSnackbar(it.message ?: S.saveFailed) }
                                     }
                             }
                         }
                     ) {
-                        Icon(Icons.Filled.Save, contentDescription = "保存")
+                        Icon(Icons.Filled.Save, contentDescription = S.save)
                     }
                 }
             )
@@ -118,7 +120,7 @@ fun EditorScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (isConflict) {
                 Text(
-                    "⚠ 该文件存在冲突标记（<<<<<<< / ======= / >>>>>>>），编辑完成后保存将自动标记为已解决。",
+                    S.conflictEditorHint,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
@@ -126,7 +128,7 @@ fun EditorScreen(
             }
             HorizontalDivider()
             if (!loaded) {
-                Text("加载中…", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp))
+                Text(S.loading, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp))
             } else {
                 androidx.compose.material3.OutlinedTextField(
                     value = content,

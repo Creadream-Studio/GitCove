@@ -104,7 +104,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
             c.gitCore.status(dir).onSuccess {
                 status = it
                 c.repoStore.updateCurrentBranch(repoId, it.branch)
-            }.onFailure { msg.tryEmit("状态获取失败：${it.message}") }
+            }.onFailure { msg.tryEmit(c.strings.statusFailed(it.message ?: "")) }
             files = listFiles(dir, currentPath, status)
             commits = c.gitCore.log(dir).getOrDefault(emptyList())
             branches = c.gitCore.branches(dir).getOrDefault(emptyList())
@@ -220,59 +220,59 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     // ─────────────── 暂存 / 提交 ───────────────
 
-    fun stage(paths: List<String>) = launchOp("已暂存 ${paths.size} 个文件") {
+    fun stage(paths: List<String>) = launchOp(c.strings.stagedN(paths.size)) {
         c.gitCore.stage(repoDir!!, paths).getOrThrow()
     }
 
-    fun unstage(paths: List<String>) = launchOp("已取消暂存 ${paths.size} 个文件") {
+    fun unstage(paths: List<String>) = launchOp(c.strings.unstagedN(paths.size)) {
         c.gitCore.unstage(repoDir!!, paths).getOrThrow()
     }
 
-    fun discard(paths: List<String>) = launchOp("已还原 ${paths.size} 个文件") {
+    fun discard(paths: List<String>) = launchOp(c.strings.discardedN(paths.size)) {
         c.gitCore.discard(repoDir!!, paths).getOrThrow()
     }
 
     /** 功能 10/11/12/13：提交，可选立即推送 */
     fun commit(message: String, amend: Boolean, pushAfter: Boolean) = launchOp {
-        require(message.isNotBlank()) { "请填写提交信息" }
+        require(message.isNotBlank()) { c.strings.commitRequired }
         c.gitCore.commit(repoDir!!, message, amend).getOrThrow()
         if (pushAfter) {
-            progress = "推送中…"
+            progress = c.strings.pushing
             c.gitCore.push(repoDir!!).getOrThrow()
             c.repoStore.updateLastSync(repoId, System.currentTimeMillis())
-            msg.tryEmit("提交并推送成功")
+            msg.tryEmit(c.strings.commitPushed)
         } else {
-            msg.tryEmit("提交成功")
+            msg.tryEmit(c.strings.committed)
         }
     }
 
     // ─────────────── 同步 ───────────────
 
-    fun fetch() = launchOp("Fetch 完成") {
+    fun fetch() = launchOp(c.strings.fetchDone) {
         c.gitCore.fetch(repoDir!!) { progress = it }.getOrThrow()
     }
 
-    fun pull() = launchOp("Pull 完成") {
+    fun pull() = launchOp(c.strings.pullDone) {
         c.gitCore.pull(repoDir!!).getOrThrow()
         c.repoStore.updateLastSync(repoId, System.currentTimeMillis())
     }
 
-    fun push(force: Boolean = false) = launchOp(if (force) "已强制推送" else "推送成功") {
+    fun push(force: Boolean = false) = launchOp(if (force) c.strings.forcePushDone else c.strings.pushDone) {
         c.gitCore.push(repoDir!!, force) { progress = it }.getOrThrow()
         c.repoStore.updateLastSync(repoId, System.currentTimeMillis())
     }
 
     // ─────────────── 分支 ───────────────
 
-    fun checkoutBranch(name: String) = launchOp("已切换到 $name") {
+    fun checkoutBranch(name: String) = launchOp(c.strings.switchedBranch(name)) {
         c.gitCore.checkout(repoDir!!, name).getOrThrow()
     }
 
-    fun createBranch(name: String, from: String?) = launchOp("已创建分支 $name") {
+    fun createBranch(name: String, from: String?) = launchOp(c.strings.branchCreated(name)) {
         c.gitCore.createBranch(repoDir!!, name, from).getOrThrow()
     }
 
-    fun deleteBranch(name: String) = launchOp("已删除分支 $name") {
+    fun deleteBranch(name: String) = launchOp(c.strings.branchDeleted(name)) {
         c.gitCore.deleteBranch(repoDir!!, name).getOrThrow()
     }
 
@@ -292,39 +292,41 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     fun clearCommitDetail() { lastCommitDetail = null }
 
-    fun revert(hash: String) = launchOp("已撤销提交 ${hash.take(8)}（生成反向提交）") {
+    fun revert(hash: String) = launchOp(c.strings.revertDone(hash.take(8))) {
         c.gitCore.revert(repoDir!!, hash).getOrThrow()
     }
 
-    fun checkoutDetached(hash: String) = launchOp("已签出版本 ${hash.take(8)}（分离头指针）") {
+    fun checkoutDetached(hash: String) = launchOp(c.strings.checkoutDone(hash.take(8))) {
         c.gitCore.checkoutDetached(repoDir!!, hash).getOrThrow()
     }
 
     // ─────────────── Stash / 标签 ───────────────
 
-    fun stash() = launchOp("改动已储藏") {
+    fun stash() = launchOp(c.strings.stashed) {
         c.gitCore.stash(repoDir!!).getOrThrow()
     }
 
-    fun stashApply(index: Int) = launchOp("储藏已恢复") {
+    fun stashApply(index: Int) = launchOp(c.strings.stashApplied) {
         c.gitCore.stashApply(repoDir!!, index).getOrThrow()
     }
 
-    fun stashDrop(index: Int) = launchOp("储藏记录已删除") {
+    fun stashDrop(index: Int) = launchOp(c.strings.stashDropped) {
         c.gitCore.stashDrop(repoDir!!, index).getOrThrow()
     }
 
-    fun createTag(name: String, message: String?) = launchOp("已创建标签 $name") {
+    fun createTag(name: String, message: String?) = launchOp(c.strings.tagCreated(name)) {
         c.gitCore.createTag(repoDir!!, name, message).getOrThrow()
     }
 
     // ─────────────── 冲突解决 ───────────────
 
-    fun resolveConflict(path: String, action: ConflictAction) = launchOp("已采用${if (action == ConflictAction.OURS) "我方" else "对方"}版本") {
+    fun resolveConflict(path: String, action: ConflictAction) = launchOp(
+        if (action == ConflictAction.OURS) c.strings.tookOurs else c.strings.tookTheirs
+    ) {
         c.gitCore.resolveConflict(repoDir!!, path, action).getOrThrow()
     }
 
-    fun markResolved(path: String) = launchOp("已标记为已解决") {
+    fun markResolved(path: String) = launchOp(c.strings.markedResolved) {
         c.gitCore.markResolved(repoDir!!, path).getOrThrow()
     }
 
@@ -342,28 +344,28 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     // ─────────────── 文件操作 ───────────────
 
-    fun createFile(path: String) = launchOp("已创建 $path") {
+    fun createFile(path: String) = launchOp(c.strings.fileCreated(path)) {
         c.gitCore.createFile(repoDir!!, path).getOrThrow()
     }
 
-    fun createDirectory(path: String) = launchOp("已创建目录 $path") {
+    fun createDirectory(path: String) = launchOp(c.strings.dirCreated(path)) {
         c.gitCore.createDirectory(repoDir!!, path).getOrThrow()
     }
 
-    fun deleteFile(path: String) = launchOp("已删除 $path") {
+    fun deleteFile(path: String) = launchOp(c.strings.fileDeleted(path)) {
         c.gitCore.deleteFile(repoDir!!, path).getOrThrow()
     }
 
-    fun saveFile(path: String, content: String) = launchOp("已保存 $path") {
+    fun saveFile(path: String, content: String) = launchOp(c.strings.fileSaved(path)) {
         c.gitCore.writeFile(repoDir!!, path, content).getOrThrow()
     }
 
     // ─────────────── Git 仓库初始化 ───────────────
 
     /** 对普通目录执行 git init，使 Git 功能可用 */
-    fun initGitRepo() = launchOp("Git 仓库已初始化，全部功能已可用") {
+    fun initGitRepo() = launchOp(c.strings.gitInited) {
         val dir = repoDir ?: return@launchOp
-        require(!c.gitCore.isValidRepo(dir)) { "该目录已是 Git 仓库" }
+        require(!c.gitCore.isValidRepo(dir)) { c.strings.alreadyGit }
         c.gitCore.init(dir).getOrThrow()
         isGitRepo = true
         c.repoStore.updateIsGitRepo(repoId, true)
@@ -380,10 +382,10 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                 op()
                 toastOnSuccess?.let { msg.tryEmit(it) }
             } catch (e: GitConflictException) {
-                msg.tryEmit("冲突：${e.message}")
+                msg.tryEmit(c.strings.conflictPrefix(e.message ?: ""))
             } catch (e: Throwable) {
                 // 捕获 Throwable：Error 类异常（如 JGit 内部 NoSuchMethodError）也转为提示，不闪退
-                msg.tryEmit(e.message ?: "操作失败：${e.javaClass.simpleName}")
+                msg.tryEmit(e.message ?: c.strings.opFailedNamed(e.javaClass.simpleName))
             } finally {
                 busy = false
                 progress = ""

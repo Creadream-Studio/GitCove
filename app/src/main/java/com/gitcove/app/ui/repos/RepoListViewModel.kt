@@ -62,8 +62,8 @@ class RepoListViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             if (deleteFiles) File(repo.path).deleteRecursively()
             c.repoStore.remove(repo.id)
-            c.opLog.append("repo", "删除仓库: ${repo.name}")
-            onDone("已删除 ${repo.name}")
+            c.opLog.append("repo", "Delete: ${repo.name}")
+            onDone(c.strings.deleted(repo.name))
             refresh()
         }
     }

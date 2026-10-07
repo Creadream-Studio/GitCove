@@ -46,6 +46,7 @@ import com.gitcove.app.di.AppContainer
 import com.gitcove.app.domain.model.DiffLine
 import com.gitcove.app.domain.model.LineType
 import com.gitcove.app.domain.model.Status
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.theme.MonoFont
 import com.gitcove.app.ui.theme.diffColors
@@ -68,6 +69,7 @@ fun DiffScreen(
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val S = LocalStrings.current
     var lines by remember { mutableStateOf<List<DiffLine>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var isConflict by remember { mutableStateOf(false) }
@@ -113,7 +115,7 @@ fun DiffScreen(
                             buildString {
                                 append(path)
                                 append("  ·  ")
-                                append(if (isConflict) "冲突" else if (cached) "已暂存" else "未暂存")
+                                append(if (isConflict) S.diffConflict else if (cached) S.diffStaged else S.diffUnstaged)
                                 if (adds + dels > 0) append("  ·  +$adds -$dels")
                             },
                             style = MaterialTheme.typography.labelSmall,
@@ -125,14 +127,14 @@ fun DiffScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
                     }
                 },
                 actions = {
                     IconButton(onClick = {
                         nav.navigate(Routes.editor(repoId, path))
                     }) {
-                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = "编辑")
+                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = S.edit)
                     }
                 }
             )
@@ -146,9 +148,9 @@ fun DiffScreen(
                     scope.launch(Dispatchers.IO) {
                         val result = repoDir?.let { container.gitCore.resolveConflict(it, path, action) }
                         val msg = when {
-                            result == null -> "仓库不可用"
+                            result == null -> S.repoUnavailable
                             result.isSuccess -> okMsg
-                            else -> result.exceptionOrNull()?.message ?: "操作失败"
+                            else -> result.exceptionOrNull()?.message ?: S.opFailed
                         }
                         withContext(Dispatchers.Main) {
                             snackbar.showSnackbar(msg)
@@ -157,8 +159,8 @@ fun DiffScreen(
                     }
                 }
                 ConflictBar(
-                    onOurs = { resolve(com.gitcove.app.domain.model.ConflictAction.OURS, "已采用我方版本") },
-                    onTheirs = { resolve(com.gitcove.app.domain.model.ConflictAction.THEIRS, "已采用对方版本") },
+                    onOurs = { resolve(com.gitcove.app.domain.model.ConflictAction.OURS, S.tookOurs) },
+                    onTheirs = { resolve(com.gitcove.app.domain.model.ConflictAction.THEIRS, S.tookTheirs) },
                     onManual = { nav.navigate(Routes.editor(repoId, path)) }
                 )
             }
@@ -167,15 +169,15 @@ fun DiffScreen(
 
             if (loading) {
                 Text(
-                    "加载差异…",
+                    S.loadingDiff,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(12.dp)
                 )
             } else if (lines.isEmpty()) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("没有差异内容", style = MaterialTheme.typography.bodyMedium)
+                    Text(S.noDiff, style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        if (cached) "（暂存区与 HEAD 一致）" else "（工作区与暂存区一致，或为未跟踪文件）",
+                        if (cached) S.noDiffStagedHint else S.noDiffUnstagedHint,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -220,17 +222,18 @@ private fun ConflictBar(
     onTheirs: () -> Unit,
     onManual: () -> Unit
 ) {
+    val S = LocalStrings.current
     Column(Modifier.fillMaxWidth().padding(8.dp)) {
         Text(
-            "该文件存在合并冲突，选择处理方式：",
+            S.conflictBarTitle,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error
         )
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onOurs) { Text("采用我方") }
-            Button(onClick = onTheirs) { Text("采用对方") }
-            OutlinedButton(onClick = onManual) { Text("手动编辑") }
+            Button(onClick = onOurs) { Text(S.takeOurs) }
+            Button(onClick = onTheirs) { Text(S.takeTheirs) }
+            OutlinedButton(onClick = onManual) { Text(S.manualEdit) }
         }
     }
 }

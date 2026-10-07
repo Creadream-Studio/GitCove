@@ -2,6 +2,8 @@ package com.gitcove.app.data.store
 
 import android.content.Context
 import android.util.Base64
+import com.gitcove.app.i18n.AppLanguage
+import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
 import java.io.File
 import java.security.MessageDigest
@@ -113,6 +115,21 @@ class AuthStore(context: Context) {
     var themeMode: ThemeMode
         get() = ThemeMode.from(prefs.getInt("theme_mode", 0))
         set(value) = prefs.edit().putInt("theme_mode", value.value).apply()
+
+    /** 应用语言：system（跟随设备语言，首次启动默认）/ zh / en */
+    var appLanguage: AppLanguage
+        get() = AppLanguage.from(prefs.getString("app_language", AppLanguage.SYSTEM.code))
+        set(value) = prefs.edit().putString("app_language", value.code).apply()
+
+    /** MD3 动态取色（Material You，Android 12+ 生效） */
+    var dynamicColor: Boolean
+        get() = prefs.getBoolean("dynamic_color", false)
+        set(value) = prefs.edit().putBoolean("dynamic_color", value).apply()
+
+    /** MD3 圆角风格：0 标准 / 1 圆润 / 2 紧凑 */
+    var shapeStyle: ShapeStyle
+        get() = ShapeStyle.from(prefs.getInt("shape_style", 0))
+        set(value) = prefs.edit().putInt("shape_style", value.value).apply()
 
     /** 自动同步（功能 19/20/21） */
     var autoSyncEnabled: Boolean

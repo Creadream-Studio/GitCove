@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.domain.model.Commit
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.EmptyView
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
@@ -44,10 +45,11 @@ import com.gitcove.app.util.relativeTime
  */
 @Composable
 fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
+    val S = LocalStrings.current
     var detailTarget by remember { mutableStateOf<Commit?>(null) }
 
     if (vm.commits.isEmpty()) {
-        EmptyView("还没有提交记录\n在「改动」页完成第一次提交吧")
+        EmptyView(S.noCommits)
         return
     }
 
@@ -93,7 +95,7 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "${commit.author} · ${relativeTime(commit.date)}",
+                            "${commit.author} · ${relativeTime(commit.date, S)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -125,6 +127,7 @@ private fun nodeColor(hash: String) = androidx.compose.ui.graphics.Color(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit) {
+    val S = LocalStrings.current
     var branchName by remember { mutableStateOf("") }
     var confirmRevert by remember { mutableStateOf(false) }
     var confirmCheckout by remember { mutableStateOf(false) }
@@ -154,7 +157,7 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
             Text(
-                "变更文件 (${vm.lastCommitDetail?.second?.size ?: 0})",
+                S.changedFiles(vm.lastCommitDetail?.second?.size ?: 0),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 6.dp)
@@ -174,14 +177,14 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
             }
             HorizontalDivider()
             Row(Modifier.padding(vertical = 8.dp)) {
-                TextButton(onClick = { confirmRevert = true }) { Text("Revert 撤销") }
-                TextButton(onClick = { confirmCheckout = true }) { Text("签出此版本") }
+                TextButton(onClick = { confirmRevert = true }) { Text(S.revertBtn) }
+                TextButton(onClick = { confirmCheckout = true }) { Text(S.checkoutVersion) }
             }
             Row(Modifier.padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = branchName,
                     onValueChange = { branchName = it },
-                    label = { Text("在此提交上创建分支") },
+                    label = { Text(S.branchOnCommit) },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -191,7 +194,7 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
                         onDismiss()
                     },
                     enabled = branchName.isNotBlank()
-                ) { Text("创建") }
+                ) { Text(S.create) }
             }
         }
     }
@@ -199,23 +202,23 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
     if (confirmRevert) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmRevert = false },
-            title = { Text("Revert 撤销提交") },
-            text = { Text("将创建一个反向提交来撤销 ${commit.shortHash}，原历史保留。继续吗？") },
+            title = { Text(S.revertTitle) },
+            text = { Text(S.revertConfirm(commit.shortHash)) },
             confirmButton = {
-                TextButton(onClick = { confirmRevert = false; vm.revert(commit.hash); onDismiss() }) { Text("撤销") }
+                TextButton(onClick = { confirmRevert = false; vm.revert(commit.hash); onDismiss() }) { Text(S.revertAction) }
             },
-            dismissButton = { TextButton(onClick = { confirmRevert = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { confirmRevert = false }) { Text(S.cancel) } }
         )
     }
     if (confirmCheckout) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmCheckout = false },
-            title = { Text("签出旧版本") },
-            text = { Text("将进入分离头指针状态（detached HEAD），可以随时切回分支。继续吗？") },
+            title = { Text(S.checkoutOldTitle) },
+            text = { Text(S.checkoutConfirmText) },
             confirmButton = {
-                TextButton(onClick = { confirmCheckout = false; vm.checkoutDetached(commit.hash); onDismiss() }) { Text("签出") }
+                TextButton(onClick = { confirmCheckout = false; vm.checkoutDetached(commit.hash); onDismiss() }) { Text(S.checkout) }
             },
-            dismissButton = { TextButton(onClick = { confirmCheckout = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { confirmCheckout = false }) { Text(S.cancel) } }
         )
     }
 }

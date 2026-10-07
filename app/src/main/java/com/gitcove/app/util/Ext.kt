@@ -1,11 +1,12 @@
 package com.gitcove.app.util
 
+import com.gitcove.app.i18n.Strings
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** 相对时间显示：刚刚 / n 分钟前 / n 小时前 / n 天前 / yyyy-MM-dd */
-fun relativeTime(epochMillis: Long): String {
+/** 相对时间显示：刚刚 / n 分钟前 / n 小时前 / n 天前 / yyyy-MM-dd（文案随 [Strings] 语言切换） */
+fun relativeTime(epochMillis: Long, s: Strings): String {
     if (epochMillis <= 0L) return ""
     val diff = System.currentTimeMillis() - epochMillis
     val sec = diff / 1000
@@ -13,10 +14,10 @@ fun relativeTime(epochMillis: Long): String {
     val hour = min / 60
     val day = hour / 24
     return when {
-        min < 1 -> "刚刚"
-        min < 60 -> "$min 分钟前"
-        hour < 24 -> "$hour 小时前"
-        day < 30 -> "$day 天前"
+        min < 1 -> s.justNow
+        min < 60 -> s.minutesAgo(min)
+        hour < 24 -> s.hoursAgo(hour)
+        day < 30 -> s.daysAgo(day)
         else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(epochMillis))
     }
 }

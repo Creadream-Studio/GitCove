@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.EmptyView
 
 /**
@@ -37,15 +38,16 @@ fun LogScreen(
     container: AppContainer,
     nav: androidx.navigation.NavHostController
 ) {
+    val S = LocalStrings.current
     var entries by remember { mutableStateOf(container.opLog.entries()) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("操作日志") },
+                title = { Text(S.opLogTitle) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
                     }
                 },
                 actions = {
@@ -53,14 +55,14 @@ fun LogScreen(
                         container.opLog.clear()
                         entries = emptyList()
                     }) {
-                        Icon(Icons.Filled.DeleteSweep, contentDescription = "清空日志")
+                        Icon(Icons.Filled.DeleteSweep, contentDescription = S.clearLogs)
                     }
                 }
             )
         }
     ) { padding ->
         if (entries.isEmpty()) {
-            EmptyView("暂无日志", modifier = Modifier.padding(padding))
+            EmptyView(S.noLogs, modifier = Modifier.padding(padding))
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(padding)) {
                 items(entries) { entry ->
