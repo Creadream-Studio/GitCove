@@ -45,6 +45,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # secrets 上下文不能直接用于 step 的 if 条件，先在 job 级 env 中转换
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
 
     steps:
       - name: 检出代码
@@ -116,7 +119,7 @@ jobs:
           if-no-files-found: error
 
       - name: 上传签名密钥（仅临时 keystore 时需要）
-        if: ${{ secrets.KEYSTORE_BASE64 == '' }}
+        if: ${{ env.HAS_KEYSTORE != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: signing-keystore-keep-this
