@@ -22,8 +22,8 @@ android {
         applicationId = "com.gitcove.app"
         minSdk = 26          // API 26+：满足 JGit 所需 java.nio.file / java.time
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.1.0"
+        versionCode = 5
+        versionName = "1.1.1"
     }
 
     signingConfigs {

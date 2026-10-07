@@ -1,5 +1,7 @@
 package com.gitcove.app.ui.clone
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.data.git.GitCredentials
 import com.gitcove.app.di.AppContainer
-import com.gitcove.app.ui.components.DirectoryPickerDialog
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.util.StorageAccess
 import com.gitcove.app.util.vmFactory
@@ -53,8 +54,9 @@ import java.io.File
  * 克隆 / 新建 / 导入仓库页（文档 5.3）
  *
  * 三种模式均支持自定义父目录 / 本地目录：
- *   - 克隆 / 新建：默认存放在应用仓库根目录，可通过目录选择器改到任意可写目录；
- *   - 导入：直接填写或选择本地目录，非 Git 目录也可导入（Git 功能置灰）。
+ *   - 克隆 / 新建：默认存放在应用仓库根目录，可通过安卓原生目录选择器
+ *     （SAF · ACTION_OPEN_DOCUMENT_TREE，系统文件管理器界面）改到任意可写目录；
+ *   - 导入：直接填写或通过原生目录选择器选择本地目录，非 Git 目录也可导入（Git 功能置灰）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,12 +74,39 @@ fun CloneScreen(
     var parentDir by remember { mutableStateOf(container.repoParent.absolutePath) }
     var nameTouched by remember { mutableStateOf(false) }
     var showGithubList by remember { mutableStateOf(false) }
-    var showDirPicker by remember { mutableStateOf(false) }
     var showPermissionHint by remember { mutableStateOf(false) }
+    // 当前系统目录选择器的写入目标：0 = 保存目录（克隆/新建），2 = 本地目录（导入）
+    var pickTarget by remember { mutableStateOf(0) }
 
     fun ensureStorageOrShowHint(): Boolean {
         return if (StorageAccess.hasAllFilesAccess(context)) true
         else { showPermissionHint = true; false }
+    }
+
+    // 安卓原生目录选择器（SAF · ACTION_OPEN_DOCUMENT_TREE，系统文件管理器界面）。
+    // 返回树 URI 后换算为真实文件路径供 JGit 使用。
+    val dirPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        val dir = uri?.let { StorageAccess.treeUriToDir(it) }
+        if (dir == null) {
+            vm.showMessage("请从系统文件管理器中选择内部存储或 SD 卡上的目录")
+            return@rememberLauncherForActivityResult
+        }
+        if (pickTarget == 2) {
+            path = dir.absolutePath
+            if (!nameTouched) name = dir.name
+        } else {
+            parentDir = dir.absolutePath
+        }
+    }
+
+    /** 打开系统目录选择器（target：0 = 保存目录，2 = 本地目录） */
+    fun pickDir(target: Int, initialPath: String) {
+        if (ensureStorageOrShowHint()) {
+            pickTarget = target
+            dirPicker.launch(StorageAccess.pathToDocumentUri(initialPath))
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -151,7 +180,7 @@ fun CloneScreen(
                     DirectoryField(
                         label = "保存目录",
                         dirPath = parentDir,
-                        onClick = { if (ensureStorageOrShowHint()) showDirPicker = true }
+                        onClick = { pickDir(0, parentDir) }
                     )
                     if (container.auth.tokenFor("github.com") != null) {
                         TextButton(onClick = {
@@ -181,7 +210,7 @@ fun CloneScreen(
                     DirectoryField(
                         label = "保存目录",
                         dirPath = parentDir,
-                        onClick = { if (ensureStorageOrShowHint()) showDirPicker = true }
+                        onClick = { pickDir(0, parentDir) }
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
@@ -210,12 +239,7 @@ fun CloneScreen(
                     DirectoryField(
                         label = "本地目录",
                         dirPath = path,
-                        onClick = {
-                            if (ensureStorageOrShowHint()) {
-                                if (path.isBlank()) path = pickRootPath()
-                                showDirPicker = true
-                            }
-                        }
+                        onClick = { pickDir(2, path.ifBlank { pickRootPath() }) }
                     )
                     OutlinedTextField(
                         value = name,
@@ -263,34 +287,14 @@ fun CloneScreen(
         )
     }
 
-    if (showDirPicker) {
-        DirectoryPickerDialog(
-            initialDir = File(if (mode == 2) (path.ifBlank { pickRootPath() }) else parentDir),
-            quickLinks = listOf(
-                "默认目录" to container.repoParent.absolutePath,
-                "内部存储" to "/storage/emulated/0"
-            ),
-            onPick = { picked ->
-                if (mode == 2) {
-                    path = picked.absolutePath
-                    if (!nameTouched) name = picked.name
-                } else {
-                    parentDir = picked.absolutePath
-                }
-                showDirPicker = false
-            },
-            onDismiss = { showDirPicker = false }
-        )
-    }
-
     if (showPermissionHint) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showPermissionHint = false },
             title = { Text("需要「所有文件」权限", style = MaterialTheme.typography.titleMedium) },
             text = {
                 Text(
-                    "浏览和访问外部存储中的目录需要授予「所有文件」权限。\n" +
-                        "未授权时应用无法读取目录内容，也无法识别其中的 Git 仓库（.git）。\n\n点击「去授权」后在系统设置中开启「允许访问所有文件」。"
+                    "在外部存储中执行 Git 操作（读写仓库、识别 .git）需要授予「所有文件」权限。\n" +
+                        "未授权时选择目录后，应用仍无法读写其中的仓库内容。\n\n点击「去授权」后在系统设置中开启「允许访问所有文件」。"
                 )
             },
             confirmButton = {

@@ -32,6 +32,11 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
     private val msg = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = msg
 
+    /** 发送一次性提示（如系统目录选择器返回了不支持的目录） */
+    fun showMessage(text: String) {
+        msg.tryEmit(text)
+    }
+
     /**
      * 完成回调（含 nav.popBackStack 等导航操作）必须回到主线程执行：
      * NavController 非线程安全，在 IO 线程调用会与 Compose 重组竞争导致闪退。
