@@ -16,7 +16,9 @@ data class Repository(
     val remoteUrl: String? = null,
     val currentBranch: String = "",
     val lastSync: Long? = null,
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    /** 目录内是否为有效 Git 仓库（false 时 Git 功能禁用，提示先初始化） */
+    val isGitRepo: Boolean = true
 )
 
 /**

@@ -22,7 +22,8 @@ class RepoListViewModel(private val c: AppContainer) : ViewModel() {
         val conflicts: Int = 0,
         val ahead: Int = 0,
         val behind: Int = 0,
-        val broken: Boolean = false
+        val broken: Boolean = false,
+        val notGit: Boolean = false
     )
 
     var items by mutableStateOf<List<Item>>(emptyList())
@@ -39,6 +40,7 @@ class RepoListViewModel(private val c: AppContainer) : ViewModel() {
             items = repos.map { repo ->
                 val dir = File(repo.path)
                 if (!dir.exists()) Item(repo, broken = true)
+                else if (!c.gitCore.isValidRepo(dir)) Item(repo, notGit = true)
                 else {
                     val st = c.gitCore.status(dir).getOrNull()
                     Item(

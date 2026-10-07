@@ -89,6 +89,8 @@ fun RepoScreen(
     val st = vm.status
     val dirty = st?.dirtyCount ?: 0
     val conflicts = st?.conflicts?.size ?: 0
+    // 非 Git 仓库：所有 Git 相关功能置灰，仅保留文件浏览 / 编辑，提示先初始化
+    val gitEnabled = vm.isGitRepo
 
     Scaffold(
         topBar = {
@@ -119,41 +121,43 @@ fun RepoScreen(
                     }
                 },
                 actions = {
-                    // 分支快速切换（功能 23）
-                    Box {
-                        TextButton(onClick = { branchMenu = true }) {
-                            Text(
-                                st?.branch?.take(14) ?: "",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        DropdownMenu(expanded = branchMenu, onDismissRequest = { branchMenu = false }) {
-                            vm.branches.filter { !it.isRemote }.forEach { b ->
-                                DropdownMenuItem(
-                                    text = { Text(if (b.isCurrent) "✓ ${b.name}" else b.name) },
-                                    onClick = {
-                                        branchMenu = false
-                                        if (!b.isCurrent) vm.checkoutBranch(b.name)
-                                    }
+                    // 分支快速切换（功能 23；非 Git 仓库置灰）
+                    if (gitEnabled) {
+                        Box {
+                            TextButton(onClick = { branchMenu = true }) {
+                                Text(
+                                    st?.branch?.take(14) ?: "",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text("分支管理…") },
-                                onClick = { branchMenu = false; tab = 3 }
-                            )
+                            DropdownMenu(expanded = branchMenu, onDismissRequest = { branchMenu = false }) {
+                                vm.branches.filter { !it.isRemote }.forEach { b ->
+                                    DropdownMenuItem(
+                                        text = { Text(if (b.isCurrent) "✓ ${b.name}" else b.name) },
+                                        onClick = {
+                                            branchMenu = false
+                                            if (!b.isCurrent) vm.checkoutBranch(b.name)
+                                        }
+                                    )
+                                }
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("分支管理…") },
+                                    onClick = { branchMenu = false; tab = 3 }
+                                )
+                            }
                         }
-                    }
-                    // 同步快捷操作
-                    IconButton(onClick = { vm.fetch() }, enabled = !vm.busy) {
-                        Icon(Icons.Filled.CloudDownload, contentDescription = "Fetch")
-                    }
-                    IconButton(onClick = { vm.pull() }, enabled = !vm.busy) {
-                        Icon(Icons.Filled.Download, contentDescription = "Pull")
-                    }
-                    IconButton(onClick = { vm.push() }, enabled = !vm.busy) {
-                        Icon(Icons.Filled.CloudUpload, contentDescription = "Push")
+                        // 同步快捷操作
+                        IconButton(onClick = { vm.fetch() }, enabled = !vm.busy) {
+                            Icon(Icons.Filled.CloudDownload, contentDescription = "Fetch")
+                        }
+                        IconButton(onClick = { vm.pull() }, enabled = !vm.busy) {
+                            Icon(Icons.Filled.Download, contentDescription = "Pull")
+                        }
+                        IconButton(onClick = { vm.push() }, enabled = !vm.busy) {
+                            Icon(Icons.Filled.CloudUpload, contentDescription = "Push")
+                        }
                     }
                     Box {
                         IconButton(onClick = { overflowMenu = true }) {
@@ -162,7 +166,8 @@ fun RepoScreen(
                         DropdownMenu(expanded = overflowMenu, onDismissRequest = { overflowMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text("强制推送（Force Push）") },
-                                onClick = { overflowMenu = false; forcePushConfirm = true }
+                                onClick = { overflowMenu = false; forcePushConfirm = true },
+                                enabled = gitEnabled
                             )
                             DropdownMenuItem(
                                 text = { Text("打开设置") },
@@ -174,30 +179,32 @@ fun RepoScreen(
             )
         },
         floatingActionButton = {
-            // 悬浮状态按钮：点击展开仓库状态面板（文档 5.4）
-            BadgedBox(badge = {
-                if (dirty > 0 || conflicts > 0) {
-                    Text(
-                        "${dirty + conflicts}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .padding(2.dp)
-                            .background(
-                                if (conflicts > 0) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.tertiary,
-                                androidx.compose.foundation.shape.CircleShape
-                            )
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                    )
-                }
-            }) {
-                FloatingActionButton(
-                    onClick = { showPanel = true },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(Icons.Filled.Fingerprint, contentDescription = "仓库状态面板")
+            // 悬浮状态按钮：点击展开仓库状态面板（非 Git 仓库不显示）
+            if (gitEnabled) {
+                BadgedBox(badge = {
+                    if (dirty > 0 || conflicts > 0) {
+                        Text(
+                            "${dirty + conflicts}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier
+                                .padding(2.dp)
+                                .background(
+                                    if (conflicts > 0) MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.tertiary,
+                                    androidx.compose.foundation.shape.CircleShape
+                                )
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                }) {
+                    FloatingActionButton(
+                        onClick = { showPanel = true },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(Icons.Filled.Fingerprint, contentDescription = "仓库状态面板")
+                    }
                 }
             }
         },
@@ -212,9 +219,13 @@ fun RepoScreen(
             }
             TabRow(selectedTabIndex = tab) {
                 Tab(tab == 0, onClick = { tab = 0 }, text = { Text("文件") })
-                Tab(tab == 1, onClick = { tab = 1 }, text = { Text("改动 $dirty") })
-                Tab(tab == 2, onClick = { tab = 2 }, text = { Text("历史") })
-                Tab(tab == 3, onClick = { tab = 3 }, text = { Text("分支") })
+                Tab(tab == 1, onClick = { tab = 1 }, enabled = gitEnabled, text = { Text("改动 $dirty") })
+                Tab(tab == 2, onClick = { tab = 2 }, enabled = gitEnabled, text = { Text("历史") })
+                Tab(tab == 3, onClick = { tab = 3 }, enabled = gitEnabled, text = { Text("分支") })
+            }
+            // 非 Git 仓库：显示初始化引导横幅
+            if (!gitEnabled && vm.repo != null) {
+                NotGitRepoBanner(onInit = { vm.initGitRepo() }, busy = vm.busy)
             }
             when (tab) {
                 0 -> FilesTab(vm = vm, nav = nav)
@@ -241,6 +252,36 @@ fun RepoScreen(
             onDismiss = { forcePushConfirm = false },
             onConfirm = { forcePushConfirm = false; vm.push(force = true) }
         )
+    }
+}
+
+/** 非 Git 仓库提示横幅：Git 功能置灰，引导初始化 */
+@Composable
+private fun NotGitRepoBanner(onInit: () -> Unit, busy: Boolean) {
+    androidx.compose.material3.Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Text(
+                "当前目录不是 Git 仓库，Git 相关功能已禁用",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+            Text(
+                "初始化 Git 仓库后即可使用提交、分支、历史等功能（文件浏览与编辑不受影响）",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+            Button(
+                onClick = onInit,
+                enabled = !busy,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Text("初始化 Git 仓库")
+            }
+        }
     }
 }
 

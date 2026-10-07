@@ -171,6 +171,7 @@ private fun RepoRow(item: Item, onClick: () -> Unit, onLongClick: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             val meta = buildString {
                 if (item.broken) append("仓库目录不可用")
+                else if (item.notGit) append("非 Git 仓库 · 待初始化")
                 else {
                     append(item.repo.currentBranch.ifBlank { "未知分支" })
                     item.repo.remoteUrl?.let { append("  ·  ").append(it.substringAfter("://").substringBefore('/')) }

@@ -29,6 +29,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,7 +52,7 @@ import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
 
 /**
- * 文件 Tab（文档 5.3）：面包屑导航 + 文件名/内容搜索 + 新建文件（功能 58/60/61/63）
+ * 文件 Tab（文档 5.3）：面包屑导航 + 文件名/内容搜索 + 新建文件/目录（功能 58/60/61/63）
  */
 @Composable
 fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
@@ -93,8 +96,11 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             ) {
                 Icon(Icons.Filled.Search, contentDescription = "搜索", modifier = Modifier.size(18.dp))
             }
-            IconButton(onClick = { createDialog = true }, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Filled.Add, contentDescription = "新建文件", modifier = Modifier.size(18.dp))
+            IconButton(
+                onClick = { createDialog = true },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = "新建文件或目录", modifier = Modifier.size(18.dp))
             }
         }
 
@@ -155,7 +161,11 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                     .fillMaxWidth()
                                     .clickable {
                                         vm.openRecent(hit.path)
-                                        nav.navigate(Routes.diff(vm.repoId, hit.path, cached = false))
+                                        if (vm.isGitRepo) {
+                                            nav.navigate(Routes.diff(vm.repoId, hit.path, cached = false))
+                                        } else {
+                                            nav.navigate(Routes.editor(vm.repoId, hit.path))
+                                        }
                                     }
                                     .padding(horizontal = 12.dp, vertical = 5.dp)
                             ) {
@@ -197,7 +207,12 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                     if (node.isDir) vm.navigateTo(node.path)
                                     else {
                                         vm.openRecent(node.path)
-                                        nav.navigate(Routes.diff(vm.repoId, node.path, cached = false))
+                                        // 非 Git 仓库无 diff 可看，直接进编辑器
+                                        if (vm.isGitRepo) {
+                                            nav.navigate(Routes.diff(vm.repoId, node.path, cached = false))
+                                        } else {
+                                            nav.navigate(Routes.editor(vm.repoId, node.path))
+                                        }
                                     }
                                 },
                                 onLongClick = { menuTarget = node }
@@ -212,24 +227,51 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
 
     if (createDialog) {
         var newName by remember { mutableStateOf("") }
+        // 类型选择：false = 文件，true = 文件夹
+        var isDirType by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { createDialog = false },
-            title = { Text("新建文件", style = MaterialTheme.typography.titleMedium) },
+            title = { Text("新建", style = MaterialTheme.typography.titleMedium) },
             text = {
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = { Text("路径（相对当前目录）") },
-                    placeholder = { Text("README.md 或 src/main.py") },
-                    singleLine = true
-                )
+                Column {
+                    // 类型选择（文件 / 文件夹）
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = !isDirType,
+                            onClick = { isDirType = false },
+                            shape = SegmentedButtonDefaults.itemShape(0, 2)
+                        ) { Text("文件") }
+                        SegmentedButton(
+                            selected = isDirType,
+                            onClick = { isDirType = true },
+                            shape = SegmentedButtonDefaults.itemShape(1, 2)
+                        ) { Text("文件夹") }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text("名称（相对当前目录）") },
+                        placeholder = {
+                            Text(if (isDirType) "docs 或 src/main" else "README.md 或 src/main.py")
+                        },
+                        supportingText = {
+                            Text(
+                                if (isDirType) "将在 ${vm.currentPath.ifBlank { "根目录" }} 下创建文件夹"
+                                else "将在 ${vm.currentPath.ifBlank { "根目录" }} 下创建空文件",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        singleLine = true
+                    )
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         val base = vm.currentPath
                         val full = if (base.isBlank()) newName.trim() else "$base/${newName.trim()}"
-                        vm.createFile(full)
+                        if (isDirType) vm.createDirectory(full) else vm.createFile(full)
                         createDialog = false
                     },
                     enabled = newName.isNotBlank()
@@ -250,7 +292,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 }
             )
             DropdownMenuItem(
-                text = { Text("删除文件", color = MaterialTheme.colorScheme.error) },
+                text = { Text("删除", color = MaterialTheme.colorScheme.error) },
                 onClick = { menuTarget = null; deleteTarget = target }
             )
         }
@@ -259,8 +301,13 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("删除文件", style = MaterialTheme.typography.titleMedium) },
-            text = { Text("确定删除 ${target.path} 吗？删除后可在改动页还原或提交。") },
+            title = { Text(if (target.isDir) "删除文件夹" else "删除文件", style = MaterialTheme.typography.titleMedium) },
+            text = {
+                Text(
+                    if (target.isDir) "确定删除文件夹 ${target.path} 及其全部内容吗？"
+                    else "确定删除 ${target.path} 吗？删除后可在改动页还原或提交。"
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { vm.deleteFile(target.path); deleteTarget = null }) {
                     Text("删除", color = MaterialTheme.colorScheme.error)

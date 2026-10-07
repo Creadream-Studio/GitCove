@@ -9,6 +9,7 @@ import com.gitcove.app.data.git.GitCredentials
 import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.data.remote.GitHubRepoInfo
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.util.StorageAccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -39,8 +40,8 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
         withContext(Dispatchers.Main.immediate) { onDone() }
     }
 
-    /** 功能 1/2：从远程克隆 */
-    fun cloneRepo(url: String, name: String, onDone: () -> Unit) {
+    /** 功能 1/2：从远程克隆到指定父目录 */
+    fun cloneRepo(url: String, name: String, parentDir: File, onDone: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             busy = true
             progress = "准备克隆…"
@@ -51,7 +52,8 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
                     cleanUrl.startsWith("git://")) { "不支持的协议，请使用 https / ssh / git 地址" }
                 val repoName = name.trim().ifBlank { GitCredentials.repoNameOf(cleanUrl) }
                 require(repoName.isNotBlank()) { "请填写仓库名称" }
-                val dir = File(c.repoParent, repoName)
+                require(parentDir.isDirectory) { "目标目录不可用：${parentDir.absolutePath}（请检查权限）" }
+                val dir = File(parentDir, repoName)
                 require(!(dir.exists() && dir.listFiles()?.isNotEmpty() == true)) { "已存在同名仓库：$repoName" }
                 dir.mkdirs()
                 c.gitCore.clone(cleanUrl, dir) { progress = it }.getOrThrow()
@@ -69,14 +71,15 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** 功能 4：创建新仓库 */
-    fun initRepo(name: String, onDone: () -> Unit) {
+    /** 功能 4：在指定父目录创建新仓库 */
+    fun initRepo(name: String, parentDir: File, onDone: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             busy = true
             try {
                 val repoName = name.trim()
                 require(repoName.isNotBlank()) { "请填写仓库名称" }
-                val dir = File(c.repoParent, repoName)
+                require(parentDir.isDirectory) { "目标目录不可用：${parentDir.absolutePath}（请检查权限）" }
+                val dir = File(parentDir, repoName)
                 require(!dir.exists()) { "已存在同名仓库：$repoName" }
                 dir.mkdirs()
                 c.gitCore.init(dir).getOrThrow()
@@ -92,18 +95,34 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** 功能 3/5：导入本地目录 / 关联外部目录 */
+    /**
+     * 功能 3/5：导入本地目录 / 关联外部目录。
+     *
+     * 任意目录均可导入：
+     *   - 有效 Git 仓库 → 全部功能可用；
+     *   - 非 Git 目录 → 也能导入，Git 功能置灰，需先在仓库页初始化 Git。
+     * 另外检测存储访问权限：Android 11+ 未授予「所有文件访问」时
+     * 目录内容不可读，会误报为空 / 无法识别 .git，此处提前拦截并提示。
+     */
     fun importRepo(path: String, name: String?, onDone: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             busy = true
             try {
                 val dir = File(path.trim())
                 require(dir.exists() && dir.isDirectory) { "目录不存在：$path" }
-                require(c.gitCore.isValidRepo(dir)) { "该目录不是有效的 Git 仓库（缺少 .git）" }
+                if (!StorageAccess.hasAllFilesAccess(c.appContext) &&
+                    dir.absolutePath.startsWith("/storage") && dir.listFiles() == null
+                ) {
+                    throw IllegalStateException("无权访问该目录，请在系统设置中授予「所有文件」权限后重试")
+                }
                 val repoName = (name ?: dir.name).trim().ifBlank { dir.name }
-                c.repoStore.add(repoName, dir.absolutePath, c.gitCore.remoteUrl(dir))
-                c.opLog.append("repo", "导入仓库: $repoName ← ${dir.absolutePath}")
-                msg.tryEmit("已导入仓库：$repoName")
+                val isGit = c.gitCore.isValidRepo(dir)
+                c.repoStore.add(repoName, dir.absolutePath, c.gitCore.remoteUrl(dir), isGit)
+                c.opLog.append("repo", "导入仓库: $repoName ← ${dir.absolutePath}${if (isGit) "" else "（非 Git）"}")
+                msg.tryEmit(
+                    if (isGit) "已导入仓库：$repoName"
+                    else "已导入：$repoName（非 Git 仓库，Git 功能需先初始化）"
+                )
                 notifyDone(onDone)
             } catch (e: Throwable) {
                 msg.tryEmit("导入失败：${e.message ?: e.javaClass.simpleName}")

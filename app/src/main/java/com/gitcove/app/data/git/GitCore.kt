@@ -146,8 +146,29 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         Result.failure(e)
     }
 
-    /** 功能 3：导入本地已有目录（校验是否为有效 Git 仓库） */
-    fun isValidRepo(dir: File): Boolean = runCatching { Git.open(dir).use { true } }.isSuccess
+    /**
+     * 功能 3：判定目录是否为有效 Git 仓库。
+     *
+     * 覆盖三种形态：
+     *   1. 常规仓库 —— .git 为目录；
+     *   2. worktree / submodule —— .git 为文件，内容以 "gitdir:" 指向真实仓库；
+     *   3. bare 仓库等特殊形态 —— 交给 JGit 判定。
+     *
+     * 注意：权限不足（Android 11+ 未授予「所有文件访问」）时 listFiles/读取
+     * 会静默失败，此时只能依赖 JGit 的最终判定。
+     */
+    fun isValidRepo(dir: File): Boolean {
+        if (!dir.isDirectory) return false
+        val dotGit = File(dir, ".git")
+        if (dotGit.isDirectory) return true
+        if (dotGit.isFile) {
+            val isGitdirPointer = runCatching {
+                dotGit.readText().trimStart().startsWith("gitdir:", ignoreCase = true)
+            }.getOrDefault(false)
+            if (isGitdirPointer) return true
+        }
+        return runCatching { Git.open(dir).use { true } }.isSuccess
+    }
 
     // ────────────────────────── 状态查询 ──────────────────────────
 
@@ -342,31 +363,58 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     // ────────────────────────── I. 查看与编辑 ──────────────────────────
 
+    /**
+     * 以下文件操作不依赖 Git 仓库（普通目录同样可用），
+     * 因此不走 withRepo（其内部 Git.open 对非 Git 目录会失败）。
+     */
+
     /** 读取仓库内文本文件（编辑器/预览） */
-    fun readFile(repoDir: File, path: String): Result<String> = withRepo(repoDir) { _ ->
+    fun readFile(repoDir: File, path: String): Result<String> = try {
         val f = safeFile(repoDir, path) ?: throw IllegalArgumentException("非法路径")
-        if (f.exists()) f.readText() else ""
+        Result.success(if (f.exists()) f.readText() else "")
+    } catch (e: Throwable) {
+        Result.failure(e)
     }
 
     /** 保存仓库内文本文件 */
-    fun writeFile(repoDir: File, path: String, content: String): Result<Unit> = withRepo(repoDir) { _ ->
+    fun writeFile(repoDir: File, path: String, content: String): Result<Unit> = try {
         val f = safeFile(repoDir, path) ?: throw IllegalArgumentException("非法路径")
         f.parentFile?.mkdirs()
         f.writeText(content)
+        Result.success(Unit)
+    } catch (e: Throwable) {
+        Result.failure(e)
     }
 
     /** 删除仓库内文件（含目录） */
-    fun deleteFile(repoDir: File, path: String): Result<Unit> = withRepo(repoDir) { _ ->
+    fun deleteFile(repoDir: File, path: String): Result<Unit> = try {
         val f = safeFile(repoDir, path) ?: throw IllegalArgumentException("非法路径")
         f.deleteRecursively()
+        Result.success(Unit)
+    } catch (e: Throwable) {
+        Result.failure(e)
     }
 
     /** 创建新文件（可含目录） */
-    fun createFile(repoDir: File, path: String, content: String = ""): Result<Unit> = withRepo(repoDir) { _ ->
+    fun createFile(repoDir: File, path: String, content: String = ""): Result<Unit> = try {
         val f = safeFile(repoDir, path) ?: throw IllegalArgumentException("非法路径")
         require(!f.exists()) { "文件已存在" }
         f.parentFile?.mkdirs()
         f.writeText(content)
+        Result.success(Unit)
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }
+
+    /** 创建新目录（可多级） */
+    fun createDirectory(repoDir: File, path: String): Result<Unit> = try {
+        val f = safeFile(repoDir, path) ?: throw IllegalArgumentException("非法路径")
+        require(!f.exists()) { "目录已存在" }
+        f.mkdirs()
+        require(f.isDirectory) { "目录创建失败（权限不足或路径非法）" }
+        Result.success(Unit)
+    } catch (e: Throwable) {
+        Result.failure(e)
     }
 
     // ────────────────────────── C. 同步 ──────────────────────────

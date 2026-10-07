@@ -30,14 +30,20 @@ class RepoStore(context: Context) {
 
     suspend fun get(id: Long): Repository? = mutex.withLock { load().repos.firstOrNull { it.id == id } }
 
-    suspend fun add(name: String, path: String, remoteUrl: String?): Repository = mutex.withLock {
+    suspend fun add(
+        name: String,
+        path: String,
+        remoteUrl: String?,
+        isGitRepo: Boolean = true
+    ): Repository = mutex.withLock {
         val db = load()
         val repo = Repository(
             id = db.nextId,
             name = name,
             path = path,
             remoteUrl = remoteUrl,
-            currentBranch = ""
+            currentBranch = "",
+            isGitRepo = isGitRepo
         )
         save(db.copy(nextId = db.nextId + 1, repos = db.repos + repo))
         repo
@@ -61,6 +67,11 @@ class RepoStore(context: Context) {
     suspend fun updateLastSync(id: Long, time: Long) = mutex.withLock {
         val db = load()
         save(db.copy(repos = db.repos.map { if (it.id == id) it.copy(lastSync = time) else it }))
+    }
+
+    suspend fun updateIsGitRepo(id: Long, isGitRepo: Boolean) = mutex.withLock {
+        val db = load()
+        save(db.copy(repos = db.repos.map { if (it.id == id) it.copy(isGitRepo = isGitRepo) else it }))
     }
 
     private fun load(): RepoDb = runCatching {

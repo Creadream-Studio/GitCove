@@ -33,6 +33,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         private set
     var status by mutableStateOf<RepoStatus?>(null)
         private set
+    /** 目录是否为有效 Git 仓库（false 时 Git 功能置灰，提示先初始化） */
+    var isGitRepo by mutableStateOf(true)
+        private set
     var currentPath by mutableStateOf("")
         private set
     var files by mutableStateOf<List<FileNode>>(emptyList())
@@ -68,6 +71,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     init {
         viewModelScope.launch(Dispatchers.IO) {
             repo = c.repoStore.get(repoId)
+            isGitRepo = repo?.isGitRepo ?: true
             refreshAll()
         }
     }
@@ -77,6 +81,26 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     fun refreshAll() {
         viewModelScope.launch(Dispatchers.IO) {
             val dir = repoDir ?: return@launch
+            // 动态校验是否为 Git 仓库（导入时可能是普通目录；也可能刚在别处被初始化）
+            val valid = c.gitCore.isValidRepo(dir)
+            if (valid != isGitRepo) {
+                isGitRepo = valid
+                c.repoStore.updateIsGitRepo(repoId, valid)
+                repo = repo?.copy(isGitRepo = valid)
+            }
+            if (!valid) {
+                // 非 Git 仓库：只刷新文件浏览，不触碰任何 Git 状态
+                status = null
+                commits = emptyList()
+                branches = emptyList()
+                tags = emptyList()
+                stashes = emptyList()
+                diffStaged = emptyList()
+                diffUnstaged = emptyList()
+                recentMsgs = emptyList()
+                files = listFiles(dir, currentPath, null)
+                return@launch
+            }
             c.gitCore.status(dir).onSuccess {
                 status = it
                 c.repoStore.updateCurrentBranch(repoId, it.branch)
@@ -322,12 +346,28 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         c.gitCore.createFile(repoDir!!, path).getOrThrow()
     }
 
+    fun createDirectory(path: String) = launchOp("已创建目录 $path") {
+        c.gitCore.createDirectory(repoDir!!, path).getOrThrow()
+    }
+
     fun deleteFile(path: String) = launchOp("已删除 $path") {
         c.gitCore.deleteFile(repoDir!!, path).getOrThrow()
     }
 
     fun saveFile(path: String, content: String) = launchOp("已保存 $path") {
         c.gitCore.writeFile(repoDir!!, path, content).getOrThrow()
+    }
+
+    // ─────────────── Git 仓库初始化 ───────────────
+
+    /** 对普通目录执行 git init，使 Git 功能可用 */
+    fun initGitRepo() = launchOp("Git 仓库已初始化，全部功能已可用") {
+        val dir = repoDir ?: return@launchOp
+        require(!c.gitCore.isValidRepo(dir)) { "该目录已是 Git 仓库" }
+        c.gitCore.init(dir).getOrThrow()
+        isGitRepo = true
+        c.repoStore.updateIsGitRepo(repoId, true)
+        repo = repo?.copy(isGitRepo = true)
     }
 
     // ─────────────── 通用执行器 ───────────────
