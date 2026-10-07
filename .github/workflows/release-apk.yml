@@ -135,9 +135,10 @@ jobs:
           TITLE: ${{ github.event.inputs.release_title }}
           DRAFT: ${{ github.event.inputs.draft }}
         run: |
-          if [ -n "$TITLE" ]; then TITLE_ARG="--title $TITLE"; else TITLE_ARG="--title $TAG"; fi
-          DRAFT_ARG=""
-          if [ "$DRAFT" = "true" ]; then DRAFT_ARG="--draft"; fi
+          # 用数组 + 规范引号，避免含空格的标题被拆分成多个参数
+          EXTRA_ARGS=(--title "$TITLE")
+          if [ -z "$TITLE" ]; then EXTRA_ARGS=(--title "$TAG"); fi
+          if [ "$DRAFT" = "true" ]; then EXTRA_ARGS+=(--draft); fi
 
           BODY=$(cat <<'EOF'
           ## GitCove 发布包
@@ -159,7 +160,7 @@ jobs:
             gh release upload "$TAG" dist/*.apk --clobber
           else
             gh release create "$TAG" dist/*.apk \
-              $TITLE_ARG $DRAFT_ARG \
+              "${EXTRA_ARGS[@]}" \
               --notes "$BODY" \
               --target "${{ github.sha }}"
           fi
