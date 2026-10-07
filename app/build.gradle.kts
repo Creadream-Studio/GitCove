@@ -22,8 +22,8 @@ android {
         applicationId = "com.gitcove.app"
         minSdk = 26          // API 26+：满足 JGit 所需 java.nio.file / java.time
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
     }
 
     signingConfigs {
@@ -70,6 +70,8 @@ android {
                 "META-INF/INDEX.LIST",
                 "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
             )
+            // jgit.ssh.jsch 与 mwiede jsch 均携带 plugin.properties（OSGi 元数据，运行时不用），保留其一
+            pickFirsts += "plugin.properties"
         }
     }
 
@@ -99,8 +101,13 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Git 内核：JGit（纯 Java，无需 NDK）
-    implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
-    implementation("org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:6.10.0.202406032230-r") {
+    // ⚠️ 必须使用 5.13.x（最后一个 Java 8 目标版本）：
+    // JGit 6.x 编译目标为 Java 11，内部调用 InputStream.readNBytes / readAllBytes /
+    // transferTo、String.strip 等 Java 9-11 API，这些 API 在 Android API 32 及以下
+    // （含 armv7 电视盒）不存在，且无 core library desugaring 覆盖，运行时必然抛出
+    // NoSuchMethodError 导致闪退。5.13.3 字节码完全兼容 Android API 26+。
+    implementation("org.eclipse.jgit:org.eclipse.jgit:5.13.3.202401111512-r")
+    implementation("org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:5.13.3.202401111512-r") {
         exclude(group = "com.jcraft", module = "jsch")
     }
     // JSch 维护版（mwiede fork）：支持 OpenSSH 新格式与 Ed25519 密钥导入

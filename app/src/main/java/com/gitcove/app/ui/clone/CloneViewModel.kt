@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -29,6 +30,14 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
 
     private val msg = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = msg
+
+    /**
+     * 完成回调（含 nav.popBackStack 等导航操作）必须回到主线程执行：
+     * NavController 非线程安全，在 IO 线程调用会与 Compose 重组竞争导致闪退。
+     */
+    private suspend fun notifyDone(onDone: () -> Unit) {
+        withContext(Dispatchers.Main.immediate) { onDone() }
+    }
 
     /** 功能 1/2：从远程克隆 */
     fun cloneRepo(url: String, name: String, onDone: () -> Unit) {
@@ -51,9 +60,9 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
                 c.repoStore.updateLastSync(repo.id, System.currentTimeMillis())
                 c.opLog.append("repo", "克隆仓库: $cleanUrl → $repoName")
                 msg.tryEmit("克隆完成：$repoName")
-                onDone()
-            } catch (e: Exception) {
-                msg.tryEmit("克隆失败：${e.message ?: "未知错误"}")
+                notifyDone(onDone)
+            } catch (e: Throwable) {
+                msg.tryEmit("克隆失败：${e.message ?: e.javaClass.simpleName}")
             } finally {
                 busy = false
             }
@@ -74,9 +83,9 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
                 c.repoStore.add(repoName, dir.absolutePath, null)
                 c.opLog.append("repo", "新建仓库: $repoName")
                 msg.tryEmit("已创建新仓库：$repoName")
-                onDone()
-            } catch (e: Exception) {
-                msg.tryEmit("创建失败：${e.message ?: "未知错误"}")
+                notifyDone(onDone)
+            } catch (e: Throwable) {
+                msg.tryEmit("创建失败：${e.message ?: e.javaClass.simpleName}")
             } finally {
                 busy = false
             }
@@ -95,9 +104,9 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
                 c.repoStore.add(repoName, dir.absolutePath, c.gitCore.remoteUrl(dir))
                 c.opLog.append("repo", "导入仓库: $repoName ← ${dir.absolutePath}")
                 msg.tryEmit("已导入仓库：$repoName")
-                onDone()
-            } catch (e: Exception) {
-                msg.tryEmit("导入失败：${e.message ?: "未知错误"}")
+                notifyDone(onDone)
+            } catch (e: Throwable) {
+                msg.tryEmit("导入失败：${e.message ?: e.javaClass.simpleName}")
             } finally {
                 busy = false
             }

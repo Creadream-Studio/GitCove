@@ -42,6 +42,10 @@ class GitConflictException(val files: List<String>) :
  * Git 内核封装（JGit）。
  * 所有方法返回 Result，IO 操作由调用方放置在 Dispatchers.IO。
  *
+ * ⚠️ 边界统一捕获 Throwable 而非 Exception：JGit 内部可能抛出 Error 类型
+ * （NoSuchMethodError / NoClassDefFoundError / OutOfMemoryError 等），
+ * 若只捕 Exception 会直接穿透到协程导致应用闪退，这里将其转为 Result.failure。
+ *
  * 路线图：保持本层接口抽象，后期可平滑替换为 libgit2 + JNI（文档 6.3）。
  */
 class GitCore(private val auth: AuthStore, private val log: OpLog) {
@@ -53,8 +57,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         Git.open(repoDir).use { git -> Result.success(block(git)) }
     } catch (e: GitConflictException) {
         Result.failure(e)
-    } catch (e: Exception) {
-        log.append("git", "操作失败: ${e.message}")
+    } catch (e: Throwable) {
+        log.append("git", "操作失败: ${e.message ?: e.javaClass.simpleName}")
         Result.failure(e)
     }
 
@@ -84,7 +88,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
         override fun endTask() {}
         override fun isCancelled(): Boolean = false
-        override fun showDuration(enabled: Boolean) {}
+        // 注：showDuration(enabled) 为 JGit 6.x 新增接口方法，5.13 无此方法，不能覆写
     }
 
     private fun creds(url: String) = GitCredentials.providerFor(url, auth)
@@ -126,8 +130,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
             log.append("git", "克隆完成: $url")
         }
         Result.success(targetDir)
-    } catch (e: Exception) {
-        log.append("git", "克隆失败: ${e.message}")
+    } catch (e: Throwable) {
+        log.append("git", "克隆失败: ${e.message ?: e.javaClass.simpleName}")
         Result.failure(e)
     }
 
@@ -138,7 +142,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
             log.append("git", "初始化仓库: ${dir.name}")
         }
         Result.success(dir)
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         Result.failure(e)
     }
 
@@ -385,8 +389,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
         log.append("sync", "fetch 完成: ${repoDir.name}")
         Result.success(Unit)
-    } catch (e: Exception) {
-        log.append("sync", "fetch 失败: ${e.message}")
+    } catch (e: Throwable) {
+        log.append("sync", "fetch 失败: ${e.message ?: e.javaClass.simpleName}")
         Result.failure(e)
     }
 
@@ -407,8 +411,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
     } catch (e: GitConflictException) {
         log.append("sync", "pull 冲突: ${e.files}")
         Result.failure(e)
-    } catch (e: Exception) {
-        log.append("sync", "pull 失败: ${e.message}")
+    } catch (e: Throwable) {
+        log.append("sync", "pull 失败: ${e.message ?: e.javaClass.simpleName}")
         Result.failure(e)
     }
 
@@ -439,8 +443,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
         log.append("sync", "push 完成${if (force) "（强制）" else ""}: ${repoDir.name}")
         Result.success(Unit)
-    } catch (e: Exception) {
-        log.append("sync", "push 失败: ${e.message}")
+    } catch (e: Throwable) {
+        log.append("sync", "push 失败: ${e.message ?: e.javaClass.simpleName}")
         Result.failure(e)
     }
 

@@ -53,11 +53,23 @@ keyPassword=你的密码
 | UI | Jetpack Compose + Material Design 3（紧凑型工具风定制）|
 | 架构 | MVVM + Repository + UseCase |
 | 异步 | Kotlin Coroutines + Flow |
-| Git 内核 | JGit 6.10（纯 Java，无需 NDK，天然全架构）|
+| Git 内核 | JGit 5.13（纯 Java，无需 NDK，天然全架构）* |
 | SSH | JSch（mwiede 维护版，支持 OpenSSH/Ed25519）|
 | 网络 | OkHttp（GitHub REST API v3）|
 | 后台 | WorkManager 定期自动同步 |
 | 测试 | JUnit + MockK + Turbine |
+
+## 🚀 手动发布（GitHub Actions）
+
+仓库内置手动发布工作流：`.github/workflows/release-apk.yml`
+
+1. GitHub 仓库页 → **Actions** → **Release APK (手动)** → **Run workflow**
+2. 可选填 Release 标签（默认自动取 `versionName`，如 `v1.0.2`）
+3. 构建签名 Release APK 并自动发布到 **Releases** 页面
+
+签名：在仓库 **Settings → Secrets → Actions** 配置 `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` 后，每次发布签名一致，可覆盖安装升级；未配置时 CI 会生成临时 keystore 并作为 artifact 上传，下载后可转为 secrets 固定。
+
+\* 为什么是 JGit 5.13 而不是 6.x：JGit 6.x 编译目标为 Java 11，内部调用 `InputStream.readNBytes` / `readAllBytes` / `transferTo`、`String.strip` 等 API，这些 API 在 Android API 32 及以下不存在（core library desugaring 也不覆盖），运行时必抛 `NoSuchMethodError` —— 这正是 v1.0.1 在创建/克隆仓库后闪退的根因。5.13 是最后一个以 Java 8 编译的版本，字节码完全兼容 Android API 26+。
 
 ## 🗺️ 路线图
 

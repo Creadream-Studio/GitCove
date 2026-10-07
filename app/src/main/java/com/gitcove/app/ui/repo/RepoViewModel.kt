@@ -341,8 +341,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                 toastOnSuccess?.let { msg.tryEmit(it) }
             } catch (e: GitConflictException) {
                 msg.tryEmit("冲突：${e.message}")
-            } catch (e: Exception) {
-                msg.tryEmit(e.message ?: "操作失败")
+            } catch (e: Throwable) {
+                // 捕获 Throwable：Error 类异常（如 JGit 内部 NoSuchMethodError）也转为提示，不闪退
+                msg.tryEmit(e.message ?: "操作失败：${e.javaClass.simpleName}")
             } finally {
                 busy = false
                 progress = ""

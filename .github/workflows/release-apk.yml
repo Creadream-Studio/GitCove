@@ -1,0 +1,159 @@
+# GitCove 手动发布工作流
+# 用法：GitHub 仓库页 → Actions → "Release APK (手动)" → Run workflow
+#
+# 功能：
+#   1. 手动触发，构建签名 Release APK（全架构通用包，含 armeabi-v7a，适配 armv7 电视盒）
+#   2. 自动发布到 GitHub Releases（Draft/正式可选）
+#
+# 签名说明（二选一）：
+#   A. 推荐：在仓库 Settings → Secrets and variables → Actions 配置：
+#        KEYSTORE_BASE64    keystore 文件的 base64（生成：base64 -w0 gitcove-release.jks）
+#        KEYSTORE_PASSWORD  keystore 密码
+#        KEY_ALIAS          key 别名
+#        KEY_PASSWORD       key 密码
+#      配置后每次发布签名一致，用户可覆盖安装升级。
+#   B. 未配置 secrets 时：CI 每次自动生成临时 keystore 并签名，
+#      同时把 keystore 作为 artifact 上传（可下载后转为 secrets 固定下来）。
+
+name: Release APK (手动)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release 标签（留空则自动取 versionName，如 v1.0.2）'
+        required: false
+        default: ''
+      release_title:
+        description: 'Release 标题（留空则用标签名）'
+        required: false
+        default: ''
+      draft:
+        description: '创建为 Draft（先检查再手动发布）'
+        type: boolean
+        required: false
+        default: false
+      run_tests:
+        description: '构建前跑单元测试（失败不阻塞发布）'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17（AGP 8.x 要求）
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 读取版本号
+        id: ver
+        run: |
+          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [ -z "$TAG" ]; then TAG="v$VERSION"; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "版本: $VERSION，标签: $TAG"
+
+      - name: 配置签名（secrets 优先，否则生成临时 keystore）
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "使用仓库 secrets 中的正式 keystore"
+            echo "$KEYSTORE_BASE64" | base64 -d > gitcove-release.jks
+            printf 'storeFile=gitcove-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > keystore.properties
+          else
+            echo "::warning::未配置签名 secrets，本次使用临时生成的 keystore（每次签名不同，不能覆盖升级安装；建议把下方 signing-keystore artifact 下载后配置为 secrets）"
+            keytool -genkeypair -v \
+              -keystore gitcove-release.jks -alias gitcove \
+              -keyalg RSA -keysize 2048 -validity 10950 \
+              -storepass gitcove123456 -keypass gitcove123456 \
+              -dname "CN=GitCove, OU=Creadream Studio, O=Creadream Studio, C=CN"
+            printf 'storeFile=gitcove-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "gitcove123456" "gitcove" "gitcove123456" > keystore.properties
+          fi
+
+      - name: 授权 gradlew
+        run: chmod +x gradlew
+
+      - name: 单元测试（可选）
+        if: ${{ github.event.inputs.run_tests == 'true' }}
+        continue-on-error: true
+        run: ./gradlew :app:testReleaseUnitTest --no-daemon --stacktrace
+
+      - name: 构建 Release APK
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+
+      - name: 整理产物
+        run: |
+          mkdir -p dist
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          cp "$APK" "dist/GitCove-${{ steps.ver.outputs.version }}-universal.apk"
+          ls -la dist/
+
+      - name: 上传构建产物（artifact 备份）
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitCove-APK-${{ steps.ver.outputs.tag }}
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: 上传签名密钥（仅临时 keystore 时需要）
+        if: ${{ secrets.KEYSTORE_BASE64 == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: signing-keystore-keep-this
+          path: |
+            gitcove-release.jks
+            keystore.properties
+          retention-days: 7
+
+      - name: 发布到 GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          TITLE: ${{ github.event.inputs.release_title }}
+          DRAFT: ${{ github.event.inputs.draft }}
+        run: |
+          if [ -n "$TITLE" ]; then TITLE_ARG="--title $TITLE"; else TITLE_ARG="--title $TAG"; fi
+          DRAFT_ARG=""
+          if [ "$DRAFT" = "true" ]; then DRAFT_ARG="--draft"; fi
+
+          BODY=$(cat <<'EOF'
+          ## GitCove 发布包
+
+          - `GitCove-*.apk`：全架构通用签名包（arm64-v8a / armeabi-v7a / x86 / x86_64 通用，纯 Java 实现，适配 armv7 电视盒）
+          - 安装要求：Android 8.0（API 26）及以上
+
+          > 修复说明：升级 JGit 内核兼容性，解决创建/克隆仓库后闪退问题。
+          EOF
+          )
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG 已存在，追加产物"
+            gh release upload "$TAG" dist/*.apk --clobber
+          else
+            gh release create "$TAG" dist/*.apk \
+              $TITLE_ARG $DRAFT_ARG \
+              --notes "$BODY" \
+              --target "${{ github.sha }}"
+          fi
+
+          echo "发布完成：https://github.com/${{ github.repository }}/releases/tag/$TAG"
