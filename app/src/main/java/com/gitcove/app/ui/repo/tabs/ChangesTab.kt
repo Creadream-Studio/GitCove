@@ -1,5 +1,6 @@
 package com.gitcove.app.ui.repo.tabs
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +54,8 @@ import com.gitcove.app.ui.theme.MonoFont
 
 /**
  * 改动 Tab（文档 5.3）：暂存/取消暂存、冲突区、提交信息历史、Amend、提交并推送、Stash
+ *
+ * 已暂存（缓存）文件支持复选框多选：每行前有复选框，区块头有全选，可批量取消暂存。
  */
 @Composable
 fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
@@ -66,6 +71,13 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     val conflicts = st?.conflicts.orEmpty()
     val staged = st?.staged.orEmpty()
     val unstaged = st?.unstaged.orEmpty()
+
+    // ── 已暂存（缓存）文件多选：复选框 + 全选 + 批量取消暂存 ──
+    var selectedStaged by remember { mutableStateOf(setOf<String>()) }
+    val stagedPaths = remember(staged) { staged.map { it.path }.toSet() }
+    // 只保留仍处于已暂存状态的路径，避免暂存区变化后残留旧选择
+    val selectedInStaged = selectedStaged intersect stagedPaths
+    val allStagedSelected = staged.isNotEmpty() && selectedInStaged.size == staged.size
 
     Column(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
@@ -105,14 +117,51 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             // ── 已暂存 ──
             if (staged.isNotEmpty()) {
                 item {
-                    SectionHeader(S.stagedSection(staged.size))
+                    // 区块头：全选复选框 + 标题 + 批量取消暂存按钮
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(start = 2.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = allStagedSelected,
+                            onCheckedChange = { on ->
+                                selectedStaged = if (on) stagedPaths else emptySet()
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .semantics { contentDescription = S.selectAll }
+                        )
+                        Text(
+                            S.stagedSection(staged.size),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (selectedInStaged.isNotEmpty()) {
+                            TextButton(onClick = {
+                                val targets = selectedInStaged.toList()
+                                selectedStaged = emptySet()
+                                vm.unstage(targets)
+                            }) { Text(S.unstageSelected(selectedInStaged.size)) }
+                        }
+                    }
                 }
                 items(staged, key = { "s_" + it.path }) { f ->
                     ChangeRow(
                         file = f,
+                        checked = f.path in selectedInStaged,
+                        onCheckedChange = { on ->
+                            selectedStaged = if (on) selectedInStaged + f.path else selectedInStaged - f.path
+                        },
                         onClick = { nav.navigate(Routes.diff(vm.repoId, f.path, cached = true)) },
                         trailing = {
-                            TextButton(onClick = { vm.unstage(listOf(f.path)) }) { Text(S.unstage) }
+                            TextButton(onClick = {
+                                selectedStaged = selectedInStaged - f.path
+                                vm.unstage(listOf(f.path))
+                            }) { Text(S.unstage) }
                         }
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -292,7 +341,9 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
 private fun ChangeRow(
     file: FileStatus,
     onClick: () -> Unit,
-    trailing: @Composable () -> Unit
+    trailing: @Composable () -> Unit,
+    checked: Boolean? = null,
+    onCheckedChange: ((Boolean) -> Unit)? = null
 ) {
     Row(
         Modifier
@@ -301,6 +352,15 @@ private fun ChangeRow(
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // 可选的行首复选框（已暂存/缓存文件多选用）
+        if (checked != null && onCheckedChange != null) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(Modifier.width(2.dp))
+        }
         StatusLetterBadge(file.status)
         Spacer(Modifier.width(8.dp))
         Text(

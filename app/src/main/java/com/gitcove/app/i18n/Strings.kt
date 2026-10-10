@@ -163,8 +163,8 @@ open class Strings {
     open val noReposFound get() = "未获取到仓库，请检查令牌权限"
     open val privateBadge get() = "私有"
     open val pickDirFailed get() = "请从系统文件管理器中选择内部存储或 SD 卡上的目录"
-    open val placeholderNameDocs get() = "docs 或 src/main"
-    open val placeholderNameReadme get() = "README.md 或 src/main.py"
+    open val placeholderNameDocs get() = "docs 或 assets"
+    open val placeholderNameReadme get() = "README.md 或 main.py"
 
     // ── 仓库详情页 ───────────────────────────────────────────────────────
     open val branchManager get() = "分支管理…"
@@ -260,7 +260,8 @@ open class Strings {
     open val newTitle get() = "新建"
     open val file get() = "文件"
     open val folder get() = "文件夹"
-    open val nameRel get() = "名称（相对当前目录）"
+    open val nameRel get() = "名称（相对当前目录，不支持 / 多级路径）"
+    open val nameNoSlash get() = "名称不能包含 /（不支持一次创建多级目录）"
     open fun willCreateFolder(base: String) = "将在 $base 下创建文件夹"
     open fun willCreateFile(base: String) = "将在 $base 下创建空文件"
     open val openInEditor get() = "用编辑器打开"
@@ -268,6 +269,10 @@ open class Strings {
     open val deleteFile get() = "删除文件"
     open fun deleteFolderConfirm(path: String) = "确定删除文件夹 $path 及其全部内容吗？"
     open fun deleteFileConfirm(path: String) = "确定删除 $path 吗？删除后可在改动页还原或提交。"
+
+    // ── 改动 Tab：已暂存（缓存）文件多选 ──
+    open val selectAll get() = "全选"
+    open fun unstageSelected(n: Int) = "取消暂存所选（$n）"
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
     open val diffConflict get() = "冲突"
@@ -474,8 +479,8 @@ object EnStrings : Strings() {
     override val noReposFound get() = "No repos found. Check your token permissions."
     override val privateBadge get() = "Private"
     override val pickDirFailed get() = "Please pick a folder on internal storage or SD card"
-    override val placeholderNameDocs get() = "docs or src/main"
-    override val placeholderNameReadme get() = "README.md or src/main.py"
+    override val placeholderNameDocs get() = "docs or assets"
+    override val placeholderNameReadme get() = "README.md or main.py"
 
     // ── 仓库详情页 ───────────────────────────────────────────────────────
     override val branchManager get() = "Manage branches…"
@@ -568,7 +573,8 @@ object EnStrings : Strings() {
     override val newTitle get() = "New"
     override val file get() = "File"
     override val folder get() = "Folder"
-    override val nameRel get() = "Name (relative to current folder)"
+    override val nameRel get() = "Name (relative to current folder, no \"/\" paths)"
+    override val nameNoSlash get() = "Name cannot contain \"/\" (multi-level creation is not supported)"
     override fun willCreateFolder(base: String) = "Create a folder under $base"
     override fun willCreateFile(base: String) = "Create an empty file under $base"
     override val openInEditor get() = "Open in editor"
@@ -576,6 +582,10 @@ object EnStrings : Strings() {
     override val deleteFile get() = "Delete file"
     override fun deleteFolderConfirm(path: String) = "Delete folder $path and everything inside it?"
     override fun deleteFileConfirm(path: String) = "Delete $path? You can restore or commit it in Changes."
+
+    // ── 改动 Tab：已暂存（缓存）文件多选 ──
+    override val selectAll get() = "Select all"
+    override fun unstageSelected(n: Int) = "Unstage selected ($n)"
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
     override val diffConflict get() = "Conflict"

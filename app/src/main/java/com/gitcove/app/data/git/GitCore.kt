@@ -395,22 +395,24 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         Result.failure(e)
     }
 
-    /** 创建新文件（可含目录） */
+    /** 创建新文件（仅当前层级，不通过 / 自动创建多级目录） */
     fun createFile(repoDir: File, path: String, content: String = ""): Result<Unit> = try {
         val f = safeFile(repoDir, path) ?: throw IllegalArgumentException("非法路径")
         require(!f.exists()) { "文件已存在" }
-        f.parentFile?.mkdirs()
+        // 不递归创建父目录：上级目录必须已存在（需多级目录请逐层创建）
+        require(f.parentFile?.isDirectory == true) { "上级目录不存在（不支持通过 / 创建多级目录）" }
         f.writeText(content)
         Result.success(Unit)
     } catch (e: Throwable) {
         Result.failure(e)
     }
 
-    /** 创建新目录（可多级） */
+    /** 创建新目录（仅单级，不递归创建多级） */
     fun createDirectory(repoDir: File, path: String): Result<Unit> = try {
         val f = safeFile(repoDir, path) ?: throw IllegalArgumentException("非法路径")
         require(!f.exists()) { "目录已存在" }
-        f.mkdirs()
+        // mkdir()：父目录缺失时不会递归创建（mkdirs() 才会），保证一次只建一层
+        require(f.mkdir()) { "目录创建失败（上级目录可能不存在，不支持通过 / 创建多级目录）" }
         require(f.isDirectory) { "目录创建失败（权限不足或路径非法）" }
         Result.success(Unit)
     } catch (e: Throwable) {

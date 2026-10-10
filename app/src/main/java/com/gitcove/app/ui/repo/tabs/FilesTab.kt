@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -54,6 +57,9 @@ import com.gitcove.app.ui.theme.MonoFont
 
 /**
  * 文件 Tab（文档 5.3）：面包屑导航 + 文件名/内容搜索 + 新建文件/目录（功能 58/60/61/63）
+ *
+ * 文件列表借鉴 MP-Manager：默认双列展示（双面板浏览风格，信息密度高）；
+ * 点击“添加”新建文件/目录时切换为单列，便于完整查看与核对新条目。
  */
 @Composable
 fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
@@ -201,7 +207,12 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 if (nodes.isEmpty()) {
                     EmptyView(S.emptyDir)
                 } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
+                    // 默认双列；打开“添加（新建）”对话框时变单列
+                    val gridCols = if (createDialog) 1 else 2
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(gridCols),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                         items(nodes, key = { it.path }) { node ->
                             FileRow(
                                 node = node,
@@ -219,7 +230,10 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                 },
                                 onLongClick = { menuTarget = node }
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                            // 双列时去掉行分隔线，避免列间断线观感；单列（添加模式）保留分隔线
+                            if (gridCols == 1) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                            }
                         }
                     }
                 }
@@ -231,6 +245,10 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
         var newName by remember { mutableStateOf("") }
         // 类型选择：false = 文件，true = 文件夹
         var isDirType by remember { mutableStateOf(false) }
+        // 名称校验：不允许包含路径分隔符，不支持通过 / 一次创建多级目录
+        val trimmedName = newName.trim()
+        val nameInvalid = trimmedName.contains('/') || trimmedName.contains('\\') ||
+            trimmedName == ".." || trimmedName == "."
         AlertDialog(
             onDismissRequest = { createDialog = false },
             title = { Text(S.newTitle, style = MaterialTheme.typography.titleMedium) },
@@ -257,11 +275,17 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         placeholder = {
                             Text(if (isDirType) S.placeholderNameDocs else S.placeholderNameReadme)
                         },
+                        isError = nameInvalid,
                         supportingText = {
                             Text(
-                                if (isDirType) S.willCreateFolder(vm.currentPath.ifBlank { S.rootDir })
-                                else S.willCreateFile(vm.currentPath.ifBlank { S.rootDir }),
-                                style = MaterialTheme.typography.labelSmall
+                                when {
+                                    nameInvalid -> S.nameNoSlash
+                                    isDirType -> S.willCreateFolder(vm.currentPath.ifBlank { S.rootDir })
+                                    else -> S.willCreateFile(vm.currentPath.ifBlank { S.rootDir })
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (nameInvalid) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         singleLine = true
@@ -272,11 +296,11 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 TextButton(
                     onClick = {
                         val base = vm.currentPath
-                        val full = if (base.isBlank()) newName.trim() else "$base/${newName.trim()}"
+                        val full = if (base.isBlank()) trimmedName else "$base/$trimmedName"
                         if (isDirType) vm.createDirectory(full) else vm.createFile(full)
                         createDialog = false
                     },
-                    enabled = newName.isNotBlank()
+                    enabled = trimmedName.isNotBlank() && !nameInvalid
                 ) { Text(S.create) }
             },
             dismissButton = { TextButton(onClick = { createDialog = false }) { Text(S.cancel) } }
