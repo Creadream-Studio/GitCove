@@ -64,7 +64,7 @@ val DiffMetaFgLight = Color(0xFF8A939B)
 
 // ── 状态徽章色 ──────────────────────────────────────────────────────────────
 val StatusAddedColor = Color(0xFF57C46B)       // 新增：绿
-val StatusModifiedColor = Color(0xFFEFB35C)    // 修改：琥珀
+val StatusModifiedColor = Color(0xFFFFC107)    // 修改：黄
 val StatusDeletedColor = Color(0xFFF2766B)     // 删除：红
 val StatusUntrackedColor = Color(0xFF9AA6B4)   // 未跟踪：灰
 val StatusConflictColor = Color(0xFFE067D3)    // 冲突：品红

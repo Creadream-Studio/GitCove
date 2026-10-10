@@ -199,13 +199,23 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         }
     }
 
+    /**
+     * 状态聚合（用于名称后的彩色圆点标记）：
+     * - 文件：冲突品红；新增（含未跟踪）绿；修改黄；删除红（提交后消失）
+     * - 文件夹：内部有文件被修改或删除，或同时存在多种改动 → 黄；
+     *   内部全部为新增（含未跟踪）→ 绿
+     */
     private fun statusFor(rel: String, st: RepoStatus?, isDir: Boolean): Status? {
         if (st == null) return null
         return if (isDir) {
+            val inner = (st.staged + st.unstaged).filter { it.path.startsWith("$rel/") }
             when {
                 st.conflicts.any { it.startsWith("$rel/") } -> Status.CONFLICT
-                (st.staged + st.unstaged).any { it.path.startsWith("$rel/") } -> Status.MODIFIED
-                else -> null
+                inner.isEmpty() -> null
+                // 内部全部为新增（含未跟踪）：文件夹本身是新添加的 → 绿
+                inner.all { it.status == Status.ADDED || it.status == Status.UNTRACKED } -> Status.ADDED
+                // 内部有修改或删除，或多种改动混合 → 黄
+                else -> Status.MODIFIED
             }
         } else {
             st.conflicts.firstOrNull { it == rel }?.let { return Status.CONFLICT }

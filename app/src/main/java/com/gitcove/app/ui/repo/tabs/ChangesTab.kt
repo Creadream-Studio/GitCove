@@ -47,6 +47,7 @@ import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.ConfirmDialog
 import com.gitcove.app.ui.components.EmptyView
 import com.gitcove.app.ui.components.SectionHeader
+import com.gitcove.app.ui.components.StatusDot
 import com.gitcove.app.ui.components.StatusLetterBadge
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.repo.RepoViewModel
@@ -369,8 +370,14 @@ private fun ChangeRow(
             fontFamily = MonoFont,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f, fill = false)
         )
+        // 路径后的状态圆点：新增绿 / 修改黄 / 删除红（提交后消失）
+        file.status?.let {
+            Spacer(Modifier.width(4.dp))
+            StatusDot(it)
+        }
+        Spacer(Modifier.weight(1f))
         trailing()
     }
 }

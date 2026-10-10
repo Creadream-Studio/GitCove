@@ -13,9 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -50,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.gitcove.app.domain.model.FileNode
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.EmptyView
+import com.gitcove.app.ui.components.StatusDot
 import com.gitcove.app.ui.components.StatusLetterBadge
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.repo.RepoViewModel
@@ -58,8 +56,8 @@ import com.gitcove.app.ui.theme.MonoFont
 /**
  * 文件 Tab（文档 5.3）：面包屑导航 + 文件名/内容搜索 + 新建文件/目录（功能 58/60/61/63）
  *
- * 文件列表借鉴 MP-Manager：默认双列展示（双面板浏览风格，信息密度高）；
- * 点击“添加”新建文件/目录时切换为单列，便于完整查看与核对新条目。
+ * 文件列表始终单列显示；名称后按 Git 状态追加彩色圆点标记：
+ * 新增（含未跟踪）绿 ⬤、修改黄 ⬤、删除红 ⬤（提交后消失）。
  */
 @Composable
 fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
@@ -207,12 +205,8 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 if (nodes.isEmpty()) {
                     EmptyView(S.emptyDir)
                 } else {
-                    // 默认双列；打开“添加（新建）”对话框时变单列
-                    val gridCols = if (createDialog) 1 else 2
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(gridCols),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
+                    // 始终单列显示
+                    LazyColumn(Modifier.fillMaxSize()) {
                         items(nodes, key = { it.path }) { node ->
                             FileRow(
                                 node = node,
@@ -230,10 +224,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                 },
                                 onLongClick = { menuTarget = node }
                             )
-                            // 双列时去掉行分隔线，避免列间断线观感；单列（添加模式）保留分隔线
-                            if (gridCols == 1) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                         }
                     }
                 }
@@ -366,8 +357,14 @@ private fun FileRow(node: FileNode, onClick: () -> Unit, onLongClick: () -> Unit
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f, fill = false)
         )
+        // 名称后的状态圆点：新增/未跟踪绿、修改黄、删除红
+        node.status?.let {
+            Spacer(Modifier.width(4.dp))
+            StatusDot(it)
+        }
+        Spacer(Modifier.weight(1f))
         node.status?.let { StatusLetterBadge(it) }
     }
 }

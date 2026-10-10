@@ -42,14 +42,16 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** 文件状态圆点徽章 */
+/**
+ * 文件状态圆点标记（显示在文件/文件夹名称后）：
+ * 新增（含未跟踪）绿 ⬤、修改黄 ⬤、删除红 ⬤、冲突品红 ⬤
+ */
 @Composable
 fun StatusDot(status: Status, modifier: Modifier = Modifier) {
     val color = when (status) {
-        Status.ADDED -> StatusAddedColor
-        Status.MODIFIED -> StatusModifiedColor
-        Status.DELETED -> StatusDeletedColor
-        Status.UNTRACKED -> StatusUntrackedColor
+        Status.ADDED, Status.UNTRACKED -> StatusAddedColor       // 新增：绿
+        Status.MODIFIED -> StatusModifiedColor                   // 修改：黄
+        Status.DELETED -> StatusDeletedColor                     // 删除：红
         Status.CONFLICT -> StatusConflictColor
     }
     Box(
