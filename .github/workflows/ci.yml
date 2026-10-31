@@ -1,0 +1,44 @@
+# 持续集成：推送到 main 或提交 PR 时自动跑单元测试 + 构建 Debug APK
+# 失败时上传测试报告，方便在 Actions 页面直接看哪个用例挂了
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17（AGP 8.x 要求）
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 授权 gradlew
+        run: chmod +x gradlew
+
+      - name: 单元测试
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: 构建 Debug APK（验证可打包）
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: 上传测试报告（仅失败时）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.run_number }}
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
