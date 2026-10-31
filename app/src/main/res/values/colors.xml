@@ -2,5 +2,5 @@
 <resources>
     <!-- 启动背景：浅色（MD2 蓝灰白） -->
     <color name="launch_bg">#F6F8FA</color>
-    <color name="ic_launcher_background">#0B1E23</color>
+    <color name="ic_launcher_background">#101418</color>
 </resources>
