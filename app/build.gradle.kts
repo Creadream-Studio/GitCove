@@ -26,10 +26,16 @@ android {
         versionName = "2.1.0"
 
         // GitHub OAuth 浏览器授权：Custom Scheme 回调（gitcove://callback）+ PKCE。
-        // OAuth App 换 token 需要 client_secret：经 gradle.properties（GITHUB_CLIENT_SECRET=…）
-        // 或环境变量注入，不提交仓库；为空时浏览器授权会在换 token 阶段报错并提示。
+        // OAuth App 换 token 需要 client_secret：优先级 gradle.properties →
+        // local.properties（GITHUB_CLIENT_SECRET=…，不入库）→ 环境变量（CI）。
+        // 为空时浏览器授权会在换 token 阶段报错并提示。
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"Ov23liD2nxHTxbHyEPW0\"")
+        val localProps = Properties().apply {
+            val f = rootProject.file("local.properties")
+            if (f.exists()) FileInputStream(f).use { load(it) }
+        }
         val ghSecret = (project.findProperty("GITHUB_CLIENT_SECRET") as String?)
+            ?: localProps.getProperty("GITHUB_CLIENT_SECRET")
             ?: System.getenv("GITHUB_CLIENT_SECRET") ?: ""
         buildConfigField("String", "GITHUB_CLIENT_SECRET", "\"$ghSecret\"")
         buildConfigField("String", "OAUTH_REDIRECT_URI", "\"gitcove://callback\"")
