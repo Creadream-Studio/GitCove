@@ -2,6 +2,8 @@ package com.gitcove.app.ui.repo.tabs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,6 +53,7 @@ import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
 import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.components.CoveButton
+import com.gitcove.app.ui.components.CoveChip
 import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveOutlinedButton
 import com.gitcove.app.ui.components.CoveTextField
@@ -207,6 +210,27 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
 
         // ── 提交区 ──
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+            // Conventional Commits 类型推荐：输入字母即时过滤（如 f → feat/fix），
+            // 点击套用「type: 」前缀；已有前缀再点其它类型则替换，正文不丢
+            val typed = message.trimStart()
+            val recTypes = if (typed.isBlank() || typed.contains(':') || typed.contains(' ')) {
+                CC_TYPES
+            } else {
+                CC_TYPES.filter { it.startsWith(typed, ignoreCase = true) }.ifEmpty { CC_TYPES }
+            }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)
+            ) {
+                recTypes.forEach { t ->
+                    CoveChip(
+                        label = t,
+                        selected = CC_PREFIX_RE.find(message)?.value?.trimEnd(':', ' ')?.startsWith(t, ignoreCase = true) == true,
+                        onClick = { message = applyCcType(t, message) }
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
             CoveTextField(
                 value = message,
                 onValueChange = { message = it },
@@ -381,4 +405,20 @@ private fun ChangeRow(
         Spacer(Modifier.weight(1f))
         trailing()
     }
+}
+
+// ─────────────── Conventional Commits 类型推荐 ───────────────
+
+/** 常用提交类型（Conventional Commits 规范） */
+private val CC_TYPES = listOf(
+    "feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"
+)
+
+/** 匹配消息开头的类型前缀：type: / type(scope): / type!: */
+private val CC_PREFIX_RE = Regex("^[A-Za-z]+(?:\\([^)]*\\))?!?:\\s*")
+
+/** 套用提交类型：已有前缀则替换（正文保留），否则在开头新建前缀 */
+private fun applyCcType(type: String, msg: String): String {
+    val body = if (CC_PREFIX_RE.containsMatchIn(msg)) msg.replace(CC_PREFIX_RE, "") else msg
+    return if (body.isBlank()) "$type: " else "$type: $body"
 }
