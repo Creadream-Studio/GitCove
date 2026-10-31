@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,16 +26,20 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
@@ -256,11 +261,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                         .fillMaxWidth()
                                         .clickable {
                                             vm.openRecent(hit.path)
-                                            if (vm.isGitRepo) {
-                                                nav.navigate(Routes.diff(vm.repoId, hit.path, cached = false))
-                                            } else {
-                                                nav.navigate(Routes.editor(vm.repoId, hit.path))
-                                            }
+                                            nav.navigate(Routes.file(vm.repoId, hit.path))
                                         }
                                         .padding(horizontal = 12.dp, vertical = 5.dp)
                                 ) {
@@ -317,12 +318,8 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                                 vm.navigateTo(node.path)
                                             } else {
                                                 vm.openRecent(node.path)
-                                                // 非 Git 仓库无 diff 可看，直接进编辑器
-                                                if (vm.isGitRepo) {
-                                                    nav.navigate(Routes.diff(vm.repoId, node.path, cached = false))
-                                                } else {
-                                                    nav.navigate(Routes.editor(vm.repoId, node.path))
-                                                }
+                                                // 点击文件进入查看页（内容/差异/历史三标签）
+                                                nav.navigate(Routes.file(vm.repoId, node.path))
                                             }
                                         },
                                         onLongClick = { menuTarget = node }
@@ -419,62 +416,84 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     // ── 长按操作菜单（MP 管理器 dialog_file_menu 底部抽屉） ──
     menuTarget?.let { target ->
         CoveBottomSheet(onDismiss = { menuTarget = null }) {
-            Text(
-                target.name,
-                style = MaterialTheme.typography.subtitle1,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
-            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val (mi, mt) = fileIcon(target, c.onSurfaceVariant)
+                Icon(mi, contentDescription = null, tint = mt, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    target.name,
+                    style = MaterialTheme.typography.subtitle1,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             val actions = buildList {
                 if (!target.isDir) {
-                    add(MenuAction(S.openInEditor) {
+                    add(MenuAction(Icons.Filled.OpenInNew, S.viewerOpen) {
                         menuTarget = null
-                        nav.navigate(Routes.editor(vm.repoId, target.path))
+                        nav.navigate(Routes.file(vm.repoId, target.path))
                     })
                 }
                 if (target.isDir && vm.fileClip != null) {
-                    add(MenuAction(S.pasteHere) {
+                    add(MenuAction(Icons.Filled.ContentPaste, S.pasteHere) {
                         menuTarget = null
                         vm.clipPaste(target.path)
                     })
                 }
-                add(MenuAction(S.copy) { menuTarget = null; vm.clipCopy(listOf(target.path)) })
-                add(MenuAction(S.cut) { menuTarget = null; vm.clipCut(listOf(target.path)) })
-                add(MenuAction(S.rename) { renameTarget = target; menuTarget = null })
-                add(MenuAction(S.delete) { deleteTargets = listOf(target); menuTarget = null })
-                add(MenuAction(S.properties) { propsTarget = target; menuTarget = null })
-                add(MenuAction(S.copyPath) {
+                add(MenuAction(Icons.Filled.ContentCopy, S.copy) { menuTarget = null; vm.clipCopy(listOf(target.path)) })
+                add(MenuAction(Icons.Filled.ContentCut, S.cut) { menuTarget = null; vm.clipCut(listOf(target.path)) })
+                add(MenuAction(Icons.Filled.DriveFileRenameOutline, S.rename) { renameTarget = target; menuTarget = null })
+                add(MenuAction(Icons.Filled.Delete, S.delete) { deleteTargets = listOf(target); menuTarget = null })
+                add(MenuAction(Icons.Filled.Info, S.properties) { propsTarget = target; menuTarget = null })
+                add(MenuAction(Icons.Filled.Link, S.copyPath) {
                     clipboard.setText(AnnotatedString(target.path))
                     vm.toast(S.pathCopied)
                     menuTarget = null
                 })
-                add(MenuAction(S.multiSelect) { selectionMode = true; selected = setOf(target.path); menuTarget = null })
+                add(MenuAction(Icons.Filled.DoneAll, S.multiSelect) { selectionMode = true; selected = setOf(target.path); menuTarget = null })
             }
+            // MP 式网格卡片：图标在上、文字在下，固定卡片高度
+            // （不可用 fillMaxSize 撑开：Dialog 有界高度会被它整个吃掉，只显示一行且按钮拉成竖长条）
             actions.chunked(3).forEach { rowActions ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
                     rowActions.forEach { action ->
                         Surface(
                             onClick = action.onClick,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = c.surfaceVariant,
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(6.dp)
-                                .heightIn(min = 48.dp)
+                                .padding(5.dp)
+                                .height(72.dp)
                         ) {
-                            Box(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
+                            Column(
+                                Modifier.fillMaxSize().padding(4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    action.icon,
+                                    contentDescription = action.label,
+                                    tint = c.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.height(5.dp))
                                 Text(
                                     action.label,
-                                    style = MaterialTheme.typography.body2,
-                                    maxLines = 2,
+                                    style = MaterialTheme.typography.caption.copy(fontSize = 11.sp),
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
                     }
-                    repeat(3 - rowActions.size) { Spacer(Modifier.weight(1f).padding(6.dp)) }
+                    repeat(3 - rowActions.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
@@ -568,8 +587,8 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     }
 }
 
-/** 长按菜单操作项 */
-private class MenuAction(val label: String, val onClick: () -> Unit)
+/** 长按菜单操作项（MP 管理器 dialog_file_menu：图标 + 文字网格卡片） */
+private class MenuAction(val icon: ImageVector, val label: String, val onClick: () -> Unit)
 
 /** 「..」上级行（MP 管理器风格：固定导航，不参与选择） */
 @Composable
