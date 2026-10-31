@@ -96,8 +96,7 @@ fun RepoScreen(
     val st = vm.status
     val dirty = st?.dirtyCount ?: 0
     val conflicts = st?.conflicts?.size ?: 0
-    // 非 Git 仓库：所有 Git 相关功能置灰，仅保留文件浏览 / 编辑，提示先初始化
-    val gitEnabled = vm.isGitRepo
+    // 非 Git 仓库：仅保留文件浏览 / 编辑，并提示先初始化（读取见使用处，保证随状态重组）
 
     Scaffold(
         topBar = {
@@ -111,7 +110,7 @@ fun RepoScreen(
                 navigationIcon = { CoveBackButton { nav.popBackStack() } },
                 actions = {
                     // 分支快速切换（功能 23；非 Git 仓库置灰）
-                    if (gitEnabled) {
+                    if (vm.isGitRepo) {
                         Box {
                             TextButton(onClick = { branchMenu = true }) {
                                 Text(
@@ -156,7 +155,7 @@ fun RepoScreen(
                         DropdownMenu(expanded = overflowMenu, onDismissRequest = { overflowMenu = false }) {
                             DropdownMenuItem(
                                 onClick = { overflowMenu = false; forcePushConfirm = true },
-                                enabled = gitEnabled
+                                enabled = vm.isGitRepo
                             ) { Text(S.forcePushMenu, style = MaterialTheme.typography.body2) }
                             DropdownMenuItem(onClick = { overflowMenu = false; nav.navigate(Routes.SETTINGS) }) {
                                 Text(S.openSettings, style = MaterialTheme.typography.body2)
@@ -168,7 +167,7 @@ fun RepoScreen(
         },
         floatingActionButton = {
             // 悬浮状态按钮：点击展开仓库状态面板（非 Git 仓库不显示）
-            if (gitEnabled) {
+            if (vm.isGitRepo) {
                 Box {
                     FloatingActionButton(
                         onClick = { showPanel = true },
@@ -197,13 +196,19 @@ fun RepoScreen(
             if (vm.busy) {
                 CoveProgressBar(progress = if (vm.progress.isBlank()) 0.3f else 0.7f)
             }
+            // 非 Git 仓库只保留「文件」Tab（其余功能无意义，MD2 下不做灰色禁用态堆叠）
+            val tabs = if (vm.isGitRepo) {
+                listOf(S.tabFiles, S.tabChanges(dirty), S.tabHistory, S.tabBranches)
+            } else {
+                listOf(S.tabFiles)
+            }
             CoveTabRow(
-                tabs = listOf(S.tabFiles, S.tabChanges(dirty), S.tabHistory, S.tabBranches),
-                selectedIndex = tab,
-                onSelect = { if (it == 0 || gitEnabled) tab = it }
+                tabs = tabs,
+                selectedIndex = tab.coerceIn(0, tabs.lastIndex),
+                onSelect = { tab = it }
             )
             // 非 Git 仓库：显示初始化引导横幅
-            if (!gitEnabled && vm.repo != null) {
+            if (!vm.isGitRepo && vm.repo != null) {
                 NotGitRepoBanner(onInit = { vm.initGitRepo() }, busy = vm.busy)
             }
             when (tab) {
