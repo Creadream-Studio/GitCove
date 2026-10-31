@@ -144,7 +144,13 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
-            Text(commit.message, style = MaterialTheme.typography.subtitle1)
+            // 超长提交信息限行：抽屉不整体滚动，无限高的文本会把按钮顶出屏幕
+            Text(
+                commit.message,
+                style = MaterialTheme.typography.subtitle1,
+                maxLines = 6,
+                overflow = TextOverflow.Ellipsis
+            )
             Spacer(Modifier.height(4.dp))
             Text(
                 "${commit.shortHash} · ${commit.author} <${commit.email}>",

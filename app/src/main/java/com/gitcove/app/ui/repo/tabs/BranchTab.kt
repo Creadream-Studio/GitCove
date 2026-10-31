@@ -2,6 +2,7 @@ package com.gitcove.app.ui.repo.tabs
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,10 +17,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MergeType
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CallMerge
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.outlined.Tag
-import androidx.compose.material.AlertDialog
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
@@ -40,6 +41,7 @@ import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.SectionHeader
+import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
 import kotlinx.coroutines.launch
@@ -127,11 +129,18 @@ fun BranchTab(
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    if (b.isCurrent) "✓ " else "  ",
-                    style = MaterialTheme.typography.body2,
-                    color = CoveTheme.colors.primary
-                )
+                // 当前分支对勾用固定宽槽位：避免「✓ 」与「  」宽度不等导致名称参差
+                Box(Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+                    if (b.isCurrent) {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = CoveTheme.colors.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
                 Text(b.name, style = MaterialTheme.typography.body2, modifier = Modifier.weight(1f))
                 b.lastCommitHash?.let {
                     Text(
@@ -216,50 +225,48 @@ fun BranchTab(
     }
 
     if (deleteTarget != null) {
-        AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            title = { Text(S.deleteBranch) },
-            text = { Text(S.deleteBranchConfirm(deleteTarget ?: "")) },
-            confirmButton = {
-                TextButton(onClick = { vm.deleteBranch(deleteTarget!!); deleteTarget = null }) {
-                    Text(S.delete, color = CoveTheme.colors.error)
-                }
+        CoveAlertDialog(
+            onDismiss = { deleteTarget = null },
+            title = S.deleteBranch,
+            content = { Text(S.deleteBranchConfirm(deleteTarget ?: ""), style = MaterialTheme.typography.body2) },
+            confirmLabel = S.delete,
+            danger = true,
+            onConfirm = {
+                vm.deleteBranch(deleteTarget!!)
+                deleteTarget = null
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(S.cancel) } }
+            dismissLabel = S.cancel
         )
     }
 
     if (createDialog) {
         var name by remember { mutableStateOf("") }
         var from by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { createDialog = false },
-            title = { Text(S.newBranch, style = MaterialTheme.typography.subtitle1) },
-            text = {
+        CoveAlertDialog(
+            onDismiss = { createDialog = false },
+            title = S.newBranch,
+            content = {
                 Column {
                     CoveTextField(value = name, onValueChange = { name = it }, label = S.branchName, singleLine = true, modifier = Modifier.fillMaxWidth())
                     CoveTextField(value = from, onValueChange = { from = it }, label = S.branchFrom, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        vm.createBranch(name, from.takeIf { it.isNotBlank() })
-                        createDialog = false
-                    },
-                    enabled = name.isNotBlank()
-                ) { Text(S.create) }
+            confirmLabel = S.create,
+            confirmEnabled = name.isNotBlank(),
+            onConfirm = {
+                vm.createBranch(name, from.takeIf { it.isNotBlank() })
+                createDialog = false
             },
-            dismissButton = { TextButton(onClick = { createDialog = false }) { Text(S.cancel) } }
+            dismissLabel = S.cancel
         )
     }
 
     if (mergeDialog) {
         var ref by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { mergeDialog = false },
-            title = { Text(S.mergeTitle, style = MaterialTheme.typography.subtitle1) },
-            text = {
+        CoveAlertDialog(
+            onDismiss = { mergeDialog = false },
+            title = S.mergeTitle,
+            content = {
                 Column {
                     Text(S.mergeDesc, style = MaterialTheme.typography.caption)
                     locals.filter { !it.isCurrent }.forEach { b ->
@@ -268,32 +275,35 @@ fun BranchTab(
                     CoveTextField(value = ref, onValueChange = { ref = it }, label = S.orAnyRef, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { vm.merge(ref); mergeDialog = false }, enabled = ref.isNotBlank()) { Text(S.merge) }
+            confirmLabel = S.merge,
+            confirmEnabled = ref.isNotBlank(),
+            onConfirm = {
+                vm.merge(ref)
+                mergeDialog = false
             },
-            dismissButton = { TextButton(onClick = { mergeDialog = false }) { Text(S.cancel) } }
+            dismissLabel = S.cancel
         )
     }
 
     if (tagDialog) {
         var name by remember { mutableStateOf("") }
         var message by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { tagDialog = false },
-            title = { Text(S.createTagAction, style = MaterialTheme.typography.subtitle1) },
-            text = {
+        CoveAlertDialog(
+            onDismiss = { tagDialog = false },
+            title = S.createTagAction,
+            content = {
                 Column {
                     CoveTextField(value = name, onValueChange = { name = it }, label = S.tagName, singleLine = true, modifier = Modifier.fillMaxWidth())
                     CoveTextField(value = message, onValueChange = { message = it }, label = S.tagMessage, modifier = Modifier.fillMaxWidth())
                 }
             },
-            confirmButton = {
-                TextButton(
-                    onClick = { vm.createTag(name, message.takeIf { it.isNotBlank() }); tagDialog = false },
-                    enabled = name.isNotBlank()
-                ) { Text(S.create) }
+            confirmLabel = S.create,
+            confirmEnabled = name.isNotBlank(),
+            onConfirm = {
+                vm.createTag(name, message.takeIf { it.isNotBlank() })
+                tagDialog = false
             },
-            dismissButton = { TextButton(onClick = { tagDialog = false }) { Text(S.cancel) } }
+            dismissLabel = S.cancel
         )
     }
 
@@ -303,13 +313,13 @@ fun BranchTab(
         var body by remember { mutableStateOf("") }
         var creating by remember { mutableStateOf(false) }
         val (owner, repo) = GitHubApi.githubOwnerRepo(vm.repo?.remoteUrl) ?: ("") to ("")
-        AlertDialog(
-            onDismissRequest = { if (!creating) prDialog = false },
-            title = { Text(S.prTitle, style = MaterialTheme.typography.subtitle1) },
-            text = {
+        CoveAlertDialog(
+            onDismiss = { if (!creating) prDialog = false },
+            title = S.prTitle,
+            content = {
                 Column {
                     Text(
-                        "$owner/$repo · ${st?.branch} → $base",
+                        "$owner/$repo · ${st?.branch ?: "—"} → $base",
                         style = MaterialTheme.typography.caption,
                         fontFamily = MonoFont
                     )
@@ -318,29 +328,26 @@ fun BranchTab(
                     CoveTextField(value = body, onValueChange = { body = it }, label = S.prDesc, minLines = 2, modifier = Modifier.fillMaxWidth())
                 }
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        creating = true
-                        scope.launch {
-                            container.githubApi.createPullRequest(
-                                owner, repo,
-                                head = st?.branch ?: "", base = base,
-                                title = title, body = body
-                            ).onSuccess { url ->
-                                vm.toast(S.prCreated(url))
-                                creating = false
-                                prDialog = false
-                            }.onFailure {
-                                vm.toast(it.message ?: S.prCreateFailed)
-                                creating = false
-                            }
-                        }
-                    },
-                    enabled = title.isNotBlank() && !creating
-                ) { Text(if (creating) S.creating else S.create) }
+            confirmLabel = if (creating) S.creating else S.create,
+            confirmEnabled = title.isNotBlank() && !creating,
+            onConfirm = {
+                creating = true
+                scope.launch {
+                    container.githubApi.createPullRequest(
+                        owner, repo,
+                        head = st?.branch ?: "", base = base,
+                        title = title, body = body
+                    ).onSuccess { url ->
+                        vm.toast(S.prCreated(url))
+                        creating = false
+                        prDialog = false
+                    }.onFailure {
+                        vm.toast(it.message ?: S.prCreateFailed)
+                        creating = false
+                    }
+                }
             },
-            dismissButton = { TextButton(onClick = { prDialog = false }) { Text(S.cancel) } }
+            dismissLabel = S.cancel
         )
     }
 }

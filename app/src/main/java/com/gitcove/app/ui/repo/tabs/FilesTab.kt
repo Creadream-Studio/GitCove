@@ -644,12 +644,12 @@ private fun FileRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            // 副行：时间 · 大小/子项数；时间为空（如索引态条目）时不留孤立「·」前缀
             Text(
-                if (node.isDir) {
-                    formatDate(node.lastModified) + " · " + S.itemCount(node.childCount)
-                } else {
-                    formatDate(node.lastModified) + " · " + humanSize(node.size)
-                },
+                listOfNotNull(
+                    formatDate(node.lastModified).ifBlank { null },
+                    if (node.isDir) S.itemCount(node.childCount) else humanSize(node.size)
+                ).joinToString(" · ").ifBlank { " " },
                 style = MaterialTheme.typography.caption.copy(fontSize = 10.sp),
                 color = c.onSurfaceVariant,
                 maxLines = 1,

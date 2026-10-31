@@ -415,7 +415,9 @@ private fun DiffTab(
     var ui by remember { mutableStateOf<FileDiffUi?>(null) }
     var loading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(selectedCommit?.hash, refreshTick) {
+    // isConflict 入 key：status 异步加载晚于本页首帧时，冲突态就绪后重算差异，
+    // 否则首次进入差异页可能按非冲突渲染直到其它事件触发重载
+    LaunchedEffect(selectedCommit?.hash, refreshTick, isConflict) {
         loading = true
         withContext(Dispatchers.IO) {
             ui = loadFileDiff(container, context, dir, path, name, kind, file, selectedCommit, isConflict)
