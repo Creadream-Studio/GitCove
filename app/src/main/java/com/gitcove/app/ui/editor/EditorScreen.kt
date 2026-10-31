@@ -5,18 +5,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,11 +29,18 @@ import com.gitcove.app.ui.theme.MonoFont
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.unit.sp
+import com.gitcove.app.ui.components.CoveBackButton
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveTopAppBar
+import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 文本编辑器（功能 53 部分）：编辑仓库文件；冲突文件保存后自动标记已解决
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     container: AppContainer,
@@ -67,25 +70,10 @@ fun EditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            path.substringAfterLast('/'),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            path,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
-                    }
-                },
+            CoveTopAppBar(
+                title = path.substringAfterLast('/'),
+                subtitle = path,
+                navigationIcon = { CoveBackButton { nav.popBackStack() } },
                 actions = {
                     IconButton(
                         onClick = {
@@ -115,28 +103,37 @@ fun EditorScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) }
+        snackbarHost = { SnackbarHost(snackbar) },
+        backgroundColor = CoveTheme.colors.background
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (isConflict) {
                 Text(
                     S.conflictEditorHint,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.tertiary,
+                    style = MaterialTheme.typography.caption,
+                    color = CoveTheme.colors.tertiary,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
-            HorizontalDivider()
+            CoveDivider()
             if (!loaded) {
-                Text(S.loading, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp))
+                Text(S.loading, style = MaterialTheme.typography.caption, modifier = Modifier.padding(12.dp))
             } else {
-                androidx.compose.material3.OutlinedTextField(
+                // MD2 代码编辑区：surface 底 + 等宽字体 + 主色光标（不用带边框的输入框样式）
+                BasicTextField(
                     value = content,
                     onValueChange = { content = it },
-                    textStyle = TextStyle(fontFamily = MonoFont, fontSize = MaterialTheme.typography.bodySmall.fontSize),
+                    textStyle = TextStyle(
+                        fontFamily = MonoFont,
+                        fontSize = 12.5.sp,
+                        lineHeight = 17.sp,
+                        color = CoveTheme.colors.onSurface
+                    ),
+                    cursorBrush = SolidColor(CoveTheme.colors.primary),
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(8.dp)
+                        .background(CoveTheme.colors.surface)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                 )
             }
         }
