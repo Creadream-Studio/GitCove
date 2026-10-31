@@ -16,14 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +34,11 @@ import com.gitcove.app.ui.components.EmptyView
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
 import com.gitcove.app.util.relativeTime
+import com.gitcove.app.ui.components.CoveAlertDialog
+import com.gitcove.app.ui.components.CoveBottomSheet
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveTextField
+import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 历史 Tab（功能 29/34）：提交列表 + 图形化节点连线 + 提交详情（变更文件 / Revert / 建分支 / 签出）
@@ -74,7 +74,7 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             Modifier
                                 .width(2.dp)
                                 .height(34.dp)
-                                .background(MaterialTheme.colorScheme.outline)
+                                .background(CoveTheme.colors.outline)
                         )
                     }
                 }
@@ -82,22 +82,22 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 Column(Modifier.weight(1f)) {
                     Text(
                         commit.message,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.subtitle2,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Row {
                         Text(
                             commit.shortHash,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.overline,
                             fontFamily = MonoFont,
-                            color = MaterialTheme.colorScheme.primary
+                            color = CoveTheme.colors.primary
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             "${commit.author} · ${relativeTime(commit.date, S)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.overline,
+                            color = CoveTheme.colors.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -124,7 +124,6 @@ private fun nodeColor(hash: String) = androidx.compose.ui.graphics.Color(
     alpha = 0xFF
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit) {
     val S = LocalStrings.current
@@ -135,31 +134,31 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
     // 加载变更文件
     androidx.compose.runtime.LaunchedEffect(commit.hash) { vm.loadCommitDetail(commit) }
 
-    ModalBottomSheet(onDismissRequest = { vm.clearCommitDetail(); onDismiss() }) {
+    CoveBottomSheet(onDismiss = { vm.clearCommitDetail(); onDismiss() }) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
-            Text(commit.message, style = MaterialTheme.typography.titleMedium)
+            Text(commit.message, style = MaterialTheme.typography.subtitle1)
             Spacer(Modifier.height(4.dp))
             Text(
                 "${commit.shortHash} · ${commit.author} <${commit.email}>",
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.overline,
                 fontFamily = MonoFont,
-                color = MaterialTheme.colorScheme.primary
+                color = CoveTheme.colors.primary
             )
             Text(
                 com.gitcove.app.util.fullTime(commit.date),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.overline,
+                color = CoveTheme.colors.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
-            HorizontalDivider()
+            CoveDivider()
             Text(
                 S.changedFiles(vm.lastCommitDetail?.second?.size ?: 0),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.button,
+                color = CoveTheme.colors.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 6.dp)
             )
             val files = vm.lastCommitDetail?.second.orEmpty()
@@ -167,7 +166,7 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
                 items(files) { f ->
                     Text(
                         "[${f.changeType.take(1)}] ${f.path}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.caption,
                         fontFamily = MonoFont,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -175,16 +174,16 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
                     )
                 }
             }
-            HorizontalDivider()
+            CoveDivider()
             Row(Modifier.padding(vertical = 8.dp)) {
                 TextButton(onClick = { confirmRevert = true }) { Text(S.revertBtn) }
                 TextButton(onClick = { confirmCheckout = true }) { Text(S.checkoutVersion) }
             }
             Row(Modifier.padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
+                CoveTextField(
                     value = branchName,
                     onValueChange = { branchName = it },
-                    label = { Text(S.branchOnCommit) },
+                    label = S.branchOnCommit,
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -200,25 +199,23 @@ private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -
     }
 
     if (confirmRevert) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { confirmRevert = false },
-            title = { Text(S.revertTitle) },
-            text = { Text(S.revertConfirm(commit.shortHash)) },
-            confirmButton = {
-                TextButton(onClick = { confirmRevert = false; vm.revert(commit.hash); onDismiss() }) { Text(S.revertAction) }
-            },
-            dismissButton = { TextButton(onClick = { confirmRevert = false }) { Text(S.cancel) } }
+        CoveAlertDialog(
+            onDismiss = { confirmRevert = false },
+            title = S.revertTitle,
+            content = { Text(S.revertConfirm(commit.shortHash), style = MaterialTheme.typography.body2) },
+            confirmLabel = S.revertAction,
+            onConfirm = { confirmRevert = false; vm.revert(commit.hash); onDismiss() },
+            dismissLabel = S.cancel
         )
     }
     if (confirmCheckout) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { confirmCheckout = false },
-            title = { Text(S.checkoutOldTitle) },
-            text = { Text(S.checkoutConfirmText) },
-            confirmButton = {
-                TextButton(onClick = { confirmCheckout = false; vm.checkoutDetached(commit.hash); onDismiss() }) { Text(S.checkout) }
-            },
-            dismissButton = { TextButton(onClick = { confirmCheckout = false }) { Text(S.cancel) } }
+        CoveAlertDialog(
+            onDismiss = { confirmCheckout = false },
+            title = S.checkoutOldTitle,
+            content = { Text(S.checkoutConfirmText, style = MaterialTheme.typography.body2) },
+            confirmLabel = S.checkout,
+            onConfirm = { confirmCheckout = false; vm.checkoutDetached(commit.hash); onDismiss() },
+            dismissLabel = S.cancel
         )
     }
 }
