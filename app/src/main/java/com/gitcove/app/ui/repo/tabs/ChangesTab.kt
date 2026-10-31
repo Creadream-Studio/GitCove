@@ -60,8 +60,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 /**
  * 改动 Tab（文档 5.3）：暂存/取消暂存、冲突区、提交信息历史、Amend、提交并推送、Stash
  *
- * 暂存/取消暂存全部通过复选框完成：每个文件行前有复选框，区块头有全选，
- * 选中后点区块头的批量按钮执行；另提供手动刷新按钮。
+ * 勾选即暂存：勾选某个文件 = 立即暂存，取消勾选 = 立即取消暂存；
+ * 区块头的全选框同理作用于整组文件，无额外按钮。
  */
 @Composable
 fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
@@ -77,20 +77,6 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     val conflicts = st?.conflicts.orEmpty()
     val staged = st?.staged.orEmpty()
     val unstaged = st?.unstaged.orEmpty()
-
-    // ── 已暂存（缓存）文件多选：复选框 + 全选 + 批量取消暂存 ──
-    var selectedStaged by remember { mutableStateOf(setOf<String>()) }
-    val stagedPaths = remember(staged) { staged.map { it.path }.toSet() }
-    // 只保留仍处于已暂存状态的路径，避免暂存区变化后残留旧选择
-    val selectedInStaged = selectedStaged intersect stagedPaths
-    val allStagedSelected = staged.isNotEmpty() && selectedInStaged.size == staged.size
-
-    // ── 未暂存文件多选：复选框 + 全选 + 批量暂存 ──
-    var selectedUnstaged by remember { mutableStateOf(setOf<String>()) }
-    val unstagedPaths = remember(unstaged) { unstaged.map { it.path }.toSet() }
-    // 只保留仍未暂存的路径，文件被暂存后旧选择自动失效
-    val selectedInUnstaged = selectedUnstaged intersect unstagedPaths
-    val allUnstagedSelected = unstaged.isNotEmpty() && selectedInUnstaged.size == unstaged.size
 
     Column(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
@@ -127,10 +113,9 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 }
             }
 
-            // ── 已暂存 ──
+            // ── 已暂存：勾选态表示在暂存区，取消勾选立即取消暂存；区块头全选框 = 全部取消暂存 ──
             if (staged.isNotEmpty()) {
                 item {
-                    // 区块头：全选复选框 + 标题 + 批量取消暂存按钮
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -139,9 +124,9 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = allStagedSelected,
+                            checked = true,
                             onCheckedChange = { on ->
-                                selectedStaged = if (on) stagedPaths else emptySet()
+                                if (!on && !vm.busy) vm.unstage(staged.map { it.path })
                             },
                             modifier = Modifier
                                 .size(36.dp)
@@ -153,21 +138,14 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             color = CoveTheme.colors.primary,
                             modifier = Modifier.weight(1f)
                         )
-                        if (selectedInStaged.isNotEmpty()) {
-                            TextButton(onClick = {
-                                val targets = selectedInStaged.toList()
-                                selectedStaged = emptySet()
-                                vm.unstage(targets)
-                            }) { Text(S.unstageSelected(selectedInStaged.size)) }
-                        }
                     }
                 }
                 items(staged, key = { "s_" + it.path }) { f ->
                     ChangeRow(
                         file = f,
-                        checked = f.path in selectedInStaged,
+                        checked = true,
                         onCheckedChange = { on ->
-                            selectedStaged = if (on) selectedInStaged + f.path else selectedInStaged - f.path
+                            if (!on && !vm.busy) vm.unstage(listOf(f.path))
                         },
                         onClick = { nav.navigate(Routes.diff(vm.repoId, f.path, cached = true)) }
                     )
@@ -175,7 +153,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 }
             }
 
-            // ── 未暂存：区块头全选 + 复选框多选，勾选后批量暂存 ──
+            // ── 未暂存：勾选立即暂存；区块头全选框 = 全部暂存 ──
             if (unstaged.isNotEmpty()) {
                 item {
                     Row(
@@ -186,9 +164,9 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = allUnstagedSelected,
+                            checked = false,
                             onCheckedChange = { on ->
-                                selectedUnstaged = if (on) unstagedPaths else emptySet()
+                                if (on && !vm.busy) vm.stage(unstaged.map { it.path })
                             },
                             modifier = Modifier
                                 .size(36.dp)
@@ -200,21 +178,14 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             color = CoveTheme.colors.primary,
                             modifier = Modifier.weight(1f)
                         )
-                        if (selectedInUnstaged.isNotEmpty()) {
-                            TextButton(onClick = {
-                                val targets = selectedInUnstaged.toList()
-                                selectedUnstaged = emptySet()
-                                vm.stage(targets)
-                            }) { Text(S.stageSelected(selectedInUnstaged.size)) }
-                        }
                     }
                 }
                 items(unstaged, key = { "u_" + it.path }) { f ->
                     ChangeRow(
                         file = f,
-                        checked = f.path in selectedInUnstaged,
+                        checked = false,
                         onCheckedChange = { on ->
-                            selectedUnstaged = if (on) selectedInUnstaged + f.path else selectedInUnstaged - f.path
+                            if (on && !vm.busy) vm.stage(listOf(f.path))
                         },
                         onClick = { nav.navigate(Routes.diff(vm.repoId, f.path, cached = false)) }
                     )

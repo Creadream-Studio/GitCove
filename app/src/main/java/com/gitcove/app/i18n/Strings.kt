@@ -306,10 +306,8 @@ open class Strings {
     open fun deleteFolderConfirm(path: String) = "确定删除文件夹 $path 及其全部内容吗？"
     open fun deleteFileConfirm(path: String) = "确定删除 $path 吗？删除后可在改动页还原或提交。"
 
-    // ── 改动 Tab：文件多选（复选框暂存/取消暂存）──
+    // ── 改动 Tab：勾选即暂存 ──
     open val selectAll get() = "全选"
-    open fun stageSelected(n: Int) = "暂存所选（$n）"
-    open fun unstageSelected(n: Int) = "取消暂存所选（$n）"
     open val refresh get() = "刷新"
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
@@ -657,10 +655,8 @@ object EnStrings : Strings() {
     override fun deleteFolderConfirm(path: String) = "Delete folder $path and everything inside it?"
     override fun deleteFileConfirm(path: String) = "Delete $path? You can restore or commit it in Changes."
 
-    // ── 改动 Tab：文件多选（复选框暂存/取消暂存）──
+    // ── 改动 Tab：勾选即暂存 ──
     override val selectAll get() = "Select all"
-    override fun stageSelected(n: Int) = "Stage selected ($n)"
-    override fun unstageSelected(n: Int) = "Unstage selected ($n)"
     override val refresh get() = "Refresh"
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
