@@ -628,7 +628,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
     fun fetch(repoDir: File, onProgress: (String) -> Unit = {}): Result<Unit> = try {
         gitFor(repoDir).use { git ->
             val url = git.repository.config.getString("remote", "origin", "url")
-                ?: return@use
+                // 与 pull/push 一致明确报错：静默返回会提示「完成」，用户误以为拉取成功
+                ?: throw IllegalStateException("未配置远端 origin")
             val cmd = git.fetch().setProgressMonitor(monitor(onProgress))
             creds(url)?.let { cmd.setCredentialsProvider(it) }
             cmd.call()

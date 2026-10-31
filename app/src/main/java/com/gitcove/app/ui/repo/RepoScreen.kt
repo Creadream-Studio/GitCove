@@ -165,14 +165,15 @@ fun RepoScreen(
                                 }
                             }
                         }
-                        // 同步快捷操作
+                        // 同步快捷操作（detached HEAD 下 pull/push 无分支可言，置灰防怪异失败）
+                        val detached = st?.detached == true
                         IconButton(onClick = { vm.fetch() }, enabled = !vm.busy) {
                             Icon(Icons.Filled.CloudDownload, contentDescription = "Fetch", modifier = Modifier.size(20.dp))
                         }
-                        IconButton(onClick = { vm.pull() }, enabled = !vm.busy) {
+                        IconButton(onClick = { vm.pull() }, enabled = !vm.busy && !detached) {
                             Icon(Icons.Filled.Download, contentDescription = "Pull", modifier = Modifier.size(20.dp))
                         }
-                        IconButton(onClick = { vm.push() }, enabled = !vm.busy) {
+                        IconButton(onClick = { vm.push() }, enabled = !vm.busy && !detached) {
                             Icon(Icons.Filled.CloudUpload, contentDescription = "Push", modifier = Modifier.size(20.dp))
                         }
                     }
