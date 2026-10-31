@@ -72,9 +72,29 @@ import java.util.Locale
 class SyncTransform {
     var scale by mutableStateOf(1f)
     var offset by mutableStateOf(Offset.Zero)
-    fun apply(zoom: Float, pan: Offset) {
+
+    /**
+     * 应用一次缩放/平移增量。
+     *
+     * @param zoom 缩放倍率增量（1f = 不变）
+     * @param pan 平移增量（组件本地坐标）
+     * @param focus 缩放焦点（组件本地坐标；null = 以中心缩放）。
+     *  捏合/滚轮时保持焦点处内容不动，否则缩放围绕组件中心进行，
+     *  手指所在位置的内容会「滑走」，观感像缩不动
+     * @param center 组件中心坐标（焦点修正用）
+     */
+    fun apply(zoom: Float, pan: Offset, focus: Offset? = null, center: Offset = Offset.Zero) {
+        val oldScale = scale
         scale = (scale * zoom).coerceIn(1f, 12f)
         offset += pan
+        val eff = if (oldScale > 0f) scale / oldScale else 1f
+        if (focus != null && eff != 1f) {
+            // graphicsLayer 以中心为变换原点：p' = C + (p-C)*s + T。
+            // 要求焦点 f 渲染位置不变 → T += (f - C) * (s_old - s_new)
+            offset += (focus - center) * (oldScale - scale)
+        }
+        // 缩回 1x 时复位偏移：此时图片已是原尺寸，任何平移都只会把它推出视口
+        if (scale <= 1f) offset = Offset.Zero
     }
     fun reset() { scale = 1f; offset = Offset.Zero }
 }
@@ -107,20 +127,25 @@ private fun Zoomable(bitmap: ImageBitmap, t: SyncTransform, modifier: Modifier =
         modifier = modifier
             .clipToBounds()
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ -> t.apply(zoom, pan) }
+                detectTransformGestures { centroid, pan, zoom, _ ->
+                    val c = Offset(size.width / 2f, size.height / 2f)
+                    t.apply(zoom, pan, centroid, c)
+                }
             }
             .pointerInput(Unit) {
                 detectTapGestures(onDoubleTap = { t.reset() })
             }
             .pointerInput(Unit) {
-                // 鼠标滚轮缩放（触摸事件 scrollDelta 恒为 0，不会误触发）
+                // 鼠标滚轮缩放（触摸事件 scrollDelta 恒为 0，不会误触发）；围绕光标位置缩放
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
                         if (event.type == PointerEventType.Scroll) {
-                            val dy = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
-                            if (dy != 0f) {
-                                t.apply(1f - dy * 0.1f, Offset.Zero)
+                            val change = event.changes.firstOrNull()
+                            val dy = change?.scrollDelta?.y ?: 0f
+                            if (change != null && dy != 0f) {
+                                val c = Offset(size.width / 2f, size.height / 2f)
+                                t.apply(1f - dy * 0.1f, Offset.Zero, change.position, c)
                                 event.changes.forEach { it.consume() }
                             }
                         }
