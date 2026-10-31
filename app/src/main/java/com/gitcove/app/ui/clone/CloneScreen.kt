@@ -10,28 +10,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,26 +38,32 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.data.git.GitCredentials
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
+import com.gitcove.app.ui.components.CoveAlertDialog
+import com.gitcove.app.ui.components.CoveBackButton
+import com.gitcove.app.ui.components.CoveButton
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveProgressBar
+import com.gitcove.app.ui.components.CoveSectionTitle
+import com.gitcove.app.ui.components.CoveSegmentedRow
+import com.gitcove.app.ui.components.CoveTextField
+import com.gitcove.app.ui.components.CoveTopAppBar
 import com.gitcove.app.ui.nav.Routes
+import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.util.StorageAccess
 import com.gitcove.app.util.vmFactory
 import java.io.File
 
 /**
- * 克隆 / 新建 / 导入仓库页（文档 5.3）
- *
- * 三种模式均支持自定义父目录 / 本地目录：
- *   - 克隆 / 新建：默认存放在应用仓库根目录，可通过安卓原生目录选择器
- *     （SAF · ACTION_OPEN_DOCUMENT_TREE，系统文件管理器界面）改到任意可写目录；
- *   - 导入：直接填写或通过原生目录选择器选择本地目录，非 Git 目录也可导入（Git 功能置灰）。
+ * 克隆 / 新建 / 导入仓库页（MD2）：
+ * 分段按钮切模式 + filler 风格文本字段 + 底部主按钮，密集表单自上而下。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CloneScreen(
     container: AppContainer,
     nav: androidx.navigation.NavHostController
 ) {
     val S = LocalStrings.current
+    val c = CoveTheme.colors
     val vm: CloneViewModel = viewModel(factory = vmFactory { CloneViewModel(container) })
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -117,167 +115,158 @@ fun CloneScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(S.addRepo) },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
-                    }
-                }
+            CoveTopAppBar(
+                title = S.addRepo,
+                navigationIcon = { CoveBackButton { nav.popBackStack() } }
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) }
+        snackbarHost = { SnackbarHost(snackbar) },
+        backgroundColor = c.background
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = mode == 0,
-                    onClick = { mode = 0 },
-                    shape = SegmentedButtonDefaults.itemShape(0, 3)
-                ) { Text(S.modeClone) }
-                SegmentedButton(
-                    selected = mode == 1,
-                    onClick = { mode = 1 },
-                    shape = SegmentedButtonDefaults.itemShape(1, 3)
-                ) { Text(S.modeNew) }
-                SegmentedButton(
-                    selected = mode == 2,
-                    onClick = { mode = 2 },
-                    shape = SegmentedButtonDefaults.itemShape(2, 3)
-                ) { Text(S.modeImport) }
-            }
-
-            Spacer(Modifier.height(16.dp))
+            // 模式切换（MD2 分段按钮）
+            CoveSegmentedRow(
+                options = listOf(S.modeClone, S.modeNew, S.modeImport),
+                selectedIndex = mode,
+                onSelect = { mode = it },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+            )
 
             when (mode) {
                 0 -> {
-                    OutlinedTextField(
-                        value = url,
-                        onValueChange = {
-                            url = it
-                            if (!nameTouched) name = GitCredentials.repoNameOf(it)
-                        },
-                        label = { Text(S.remoteUrlLabel) },
-                        placeholder = { Text("https://github.com/user/repo.git") },
-                        singleLine = true,
-                        supportingText = {
-                            if (url.isNotBlank()) Text(S.platformOf(GitCredentials.platformOf(url)))
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it; nameTouched = true },
-                        label = { Text(S.repoName) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    // 目标目录选择（默认仓库根目录，可改任意目录）
-                    DirectoryField(
-                        label = S.saveDir,
-                        dirPath = parentDir,
-                        hint = S.tapToPick,
-                        supporting = S.pickDirDesc,
-                        onClick = { pickDir(0, parentDir) }
-                    )
-                    if (container.auth.tokenFor("github.com") != null) {
-                        TextButton(onClick = {
-                            vm.loadMyGithubRepos()
-                            showGithubList = true
-                        }) { Text(S.pickFromGithub) }
+                    CoveSectionTitle(S.modeClone)
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        CoveTextField(
+                            value = url,
+                            onValueChange = {
+                                url = it
+                                if (!nameTouched) name = GitCredentials.repoNameOf(it)
+                            },
+                            label = S.remoteUrlLabel,
+                            placeholder = "https://github.com/user/repo.git",
+                            singleLine = true,
+                            supporting = if (url.isNotBlank()) S.platformOf(GitCredentials.platformOf(url)) else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        CoveTextField(
+                            value = name,
+                            onValueChange = { name = it; nameTouched = true },
+                            label = S.repoName,
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        // 目标目录选择（默认仓库根目录，可改任意目录）
+                        DirectoryField(
+                            label = S.saveDir,
+                            dirPath = parentDir,
+                            hint = S.tapToPick,
+                            supporting = S.pickDirDesc,
+                            onClick = { pickDir(0, parentDir) }
+                        )
+                        if (container.auth.tokenFor("github.com") != null) {
+                            TextButton(onClick = {
+                                vm.loadMyGithubRepos()
+                                showGithubList = true
+                            }) { Text(S.pickFromGithub, style = MaterialTheme.typography.button, color = c.primary) }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        CoveButton(
+                            text = S.startClone,
+                            onClick = { vm.cloneRepo(url, name, File(parentDir)) { nav.popBackStack() } },
+                            enabled = !vm.busy && url.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            vm.cloneRepo(url, name, File(parentDir)) { nav.popBackStack() }
-                        },
-                        enabled = !vm.busy && url.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(S.startClone) }
                 }
 
                 1 -> {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text(S.repoName) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    // 目标目录选择
-                    DirectoryField(
-                        label = S.saveDir,
-                        dirPath = parentDir,
-                        hint = S.tapToPick,
-                        supporting = S.pickDirDesc,
-                        onClick = { pickDir(0, parentDir) }
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = { vm.initRepo(name, File(parentDir)) { nav.popBackStack() } },
-                        enabled = !vm.busy && name.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(S.createNewRepo) }
+                    CoveSectionTitle(S.modeNew)
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        CoveTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = S.repoName,
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        DirectoryField(
+                            label = S.saveDir,
+                            dirPath = parentDir,
+                            hint = S.tapToPick,
+                            supporting = S.pickDirDesc,
+                            onClick = { pickDir(0, parentDir) }
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        CoveButton(
+                            text = S.createNewRepo,
+                            onClick = { vm.initRepo(name, File(parentDir)) { nav.popBackStack() } },
+                            enabled = !vm.busy && name.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
 
                 2 -> {
-                    OutlinedTextField(
-                        value = path,
-                        onValueChange = { path = it },
-                        label = { Text(S.localDirPath) },
-                        placeholder = { Text("/storage/emulated/0/...") },
-                        singleLine = true,
-                        supportingText = {
-                            Text(
-                                S.importHint,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    DirectoryField(
-                        label = S.localDir,
-                        dirPath = path,
-                        hint = S.tapToPick,
-                        supporting = S.pickDirDesc,
-                        onClick = { pickDir(2, path.ifBlank { pickRootPath() }) }
-                    )
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it; nameTouched = true },
-                        label = { Text(S.displayNameOptional) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            vm.importRepo(path, name.takeIf { nameTouched && it.isNotBlank() }) { nav.popBackStack() }
-                        },
-                        enabled = !vm.busy && path.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(S.importDir) }
+                    CoveSectionTitle(S.modeImport)
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        CoveTextField(
+                            value = path,
+                            onValueChange = { path = it },
+                            label = S.localDirPath,
+                            placeholder = "/storage/emulated/0/...",
+                            singleLine = true,
+                            supporting = S.importHint,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        DirectoryField(
+                            label = S.localDir,
+                            dirPath = path,
+                            hint = S.tapToPick,
+                            supporting = S.pickDirDesc,
+                            onClick = { pickDir(2, path.ifBlank { pickRootPath() }) }
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        CoveTextField(
+                            value = name,
+                            onValueChange = { name = it; nameTouched = true },
+                            label = S.displayNameOptional,
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        CoveButton(
+                            text = S.importDir,
+                            onClick = {
+                                vm.importRepo(path, name.takeIf { nameTouched && it.isNotBlank() }) { nav.popBackStack() }
+                            },
+                            enabled = !vm.busy && path.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 
             if (vm.busy) {
-                Spacer(Modifier.height(12.dp))
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(14.dp))
+                CoveProgressBar(modifier = Modifier.padding(horizontal = 12.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     vm.progress,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.caption,
+                    color = c.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
         }
     }
 
@@ -296,21 +285,16 @@ fun CloneScreen(
     }
 
     if (showPermissionHint) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showPermissionHint = false },
-            title = { Text(S.permissionTitle, style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Text(S.permissionText)
+        CoveAlertDialog(
+            onDismiss = { showPermissionHint = false },
+            title = S.permissionTitle,
+            content = { Text(S.permissionText, style = MaterialTheme.typography.body2) },
+            confirmLabel = S.grantAccess,
+            onConfirm = {
+                showPermissionHint = false
+                StorageAccess.requestAllFilesAccess(context)
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPermissionHint = false
-                    StorageAccess.requestAllFilesAccess(context)
-                }) { Text(S.grantAccess) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPermissionHint = false }) { Text(S.cancel) }
-            }
+            dismissLabel = S.cancel
         )
     }
 }
@@ -319,7 +303,7 @@ fun CloneScreen(
 private fun pickRootPath(): String =
     android.os.Environment.getExternalStorageDirectory()?.absolutePath ?: "/storage/emulated/0"
 
-/** 目录选择字段：只读展示 + 点击选择 */
+/** 目录选择字段：只读展示 + 点击选择（MD2 只读文本字段 + 尾部图标按钮） */
 @Composable
 private fun DirectoryField(
     label: String,
@@ -328,22 +312,26 @@ private fun DirectoryField(
     supporting: String,
     onClick: () -> Unit
 ) {
-    OutlinedTextField(
+    val c = CoveTheme.colors
+    CoveTextField(
         value = dirPath,
         onValueChange = { },
         readOnly = true,
-        label = { Text(label) },
-        placeholder = { Text(hint) },
+        label = label,
+        placeholder = hint,
         singleLine = true,
+        supporting = supporting,
+        textStyle = MaterialTheme.typography.body2,
         trailingIcon = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onClick) {
-                    Icon(Icons.Filled.Folder, contentDescription = hint)
-                }
+            IconButton(onClick = onClick) {
+                Icon(
+                    Icons.Filled.Folder,
+                    contentDescription = hint,
+                    tint = c.primary,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         },
-        supportingText = { Text(supporting, style = MaterialTheme.typography.labelSmall) },
-        textStyle = MaterialTheme.typography.bodySmall,
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp)
@@ -359,50 +347,50 @@ private fun GithubRepoPickerDialog(
     onDismiss: () -> Unit
 ) {
     val S = LocalStrings.current
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(S.githubPickerTitle, style = MaterialTheme.typography.titleMedium) },
-        text = {
+    val c = CoveTheme.colors
+    CoveAlertDialog(
+        onDismiss = onDismiss,
+        title = S.githubPickerTitle,
+        content = {
             if (loading && repos.isEmpty()) {
-                Text(S.loading)
+                Text(S.loading, style = MaterialTheme.typography.body2)
             } else if (repos.isEmpty()) {
-                Text(S.noReposFound)
+                Text(S.noReposFound, style = MaterialTheme.typography.body2)
             } else {
                 Column(Modifier.height(360.dp).verticalScroll(rememberScrollState())) {
                     repos.forEach { repo ->
                         Column(
                             Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 6.dp)
                                 .clickable { onPick(repo) }
+                                .padding(vertical = 6.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    repo.full_name,
-                                    style = MaterialTheme.typography.titleSmall
-                                )
+                                Text(repo.full_name, style = MaterialTheme.typography.subtitle2)
                                 Spacer(Modifier.width(6.dp))
                                 if (repo.isPrivate) {
                                     Text(
                                         S.privateBadge,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.tertiary
+                                        style = MaterialTheme.typography.overline,
+                                        color = c.tertiary
                                     )
                                 }
                             }
                             repo.description?.let {
                                 Text(
                                     it,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.caption,
+                                    color = c.onSurfaceVariant,
                                     maxLines = 1
                                 )
                             }
                         }
+                        CoveDivider()
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(S.close) } }
+        confirmLabel = S.close,
+        onConfirm = onDismiss
     )
 }

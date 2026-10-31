@@ -593,3 +593,39 @@ fun CoveEmptyState(text: String, modifier: Modifier = Modifier, icon: (@Composab
         action?.let { Spacer(Modifier.height(12.dp)); it() }
     }
 }
+
+/** MD2 通用对话框：4dp 圆角、24dp 投影、surface 底 + 标题/内容/双按钮 */
+@Composable
+fun CoveAlertDialog(
+    onDismiss: () -> Unit,
+    title: String,
+    confirmLabel: String? = null,
+    onConfirm: (() -> Unit)? = null,
+    dismissLabel: String? = null,
+    onDismissClick: (() -> Unit)? = null,
+    content: (@Composable ColumnScope.() -> Unit)? = null
+) {
+    val c = CoveTheme.colors
+    androidx.compose.material.AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(4.dp),
+        backgroundColor = c.surface,
+        contentColor = c.onSurface,
+        title = { Text(title, style = MaterialTheme.typography.subtitle1) },
+        text = content?.let { body -> { Column { body() } } },
+        confirmButton = {
+            if (confirmLabel != null && onConfirm != null) {
+                androidx.compose.material.TextButton(onClick = onConfirm) {
+                    Text(confirmLabel, style = MaterialTheme.typography.button, color = c.primary)
+                }
+            }
+        },
+        dismissButton = if (dismissLabel != null) {
+            {
+                androidx.compose.material.TextButton(onClick = onDismissClick ?: onDismiss) {
+                    Text(dismissLabel, style = MaterialTheme.typography.button, color = c.onSurfaceVariant)
+                }
+            }
+        } else null
+    )
+}
