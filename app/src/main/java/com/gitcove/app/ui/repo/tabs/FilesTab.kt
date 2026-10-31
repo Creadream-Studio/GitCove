@@ -1,6 +1,7 @@
 package com.gitcove.app.ui.repo.tabs
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
@@ -20,20 +21,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.InsertDriveFile
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +46,15 @@ import com.gitcove.app.ui.components.StatusLetterBadge
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
+import com.gitcove.app.ui.components.CoveAlertDialog
+import com.gitcove.app.ui.components.CoveButton
+import com.gitcove.app.ui.components.CoveChip
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveEmptyState
+import com.gitcove.app.ui.components.CoveSectionTitle
+import com.gitcove.app.ui.components.CoveSegmentedRow
+import com.gitcove.app.ui.components.CoveTextField
+import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 文件 Tab（文档 5.3）：面包屑导航 + 文件名/内容搜索 + 新建文件/目录（功能 58/60/61/63）
@@ -71,26 +74,27 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
 
     Column(Modifier.fillMaxSize()) {
 
-        // 面包屑
+        // 面包屑（MD2 工具条：surfaceVariant 底 + 主色可点路径）
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .background(CoveTheme.colors.surfaceVariant)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val parts = vm.currentPath.split("/").filter { it.isNotBlank() }
             Text(
                 S.rootDir,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.caption,
+                color = CoveTheme.colors.primary,
                 modifier = Modifier.clickable { vm.navigateTo("") }
             )
             parts.forEachIndexed { idx, part ->
-                Text(" / ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(" / ", style = MaterialTheme.typography.caption, color = CoveTheme.colors.onSurfaceVariant)
                 Text(
                     part,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (idx == parts.lastIndex) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.caption,
+                    color = if (idx == parts.lastIndex) CoveTheme.colors.onBackground else CoveTheme.colors.primary,
                     fontWeight = if (idx == parts.lastIndex) FontWeight.Medium else FontWeight.Normal,
                     modifier = Modifier.clickable { vm.navigateTo(parts.take(idx + 1).joinToString("/")) }
                 )
@@ -112,7 +116,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
 
         if (searchOpen) {
             Column(Modifier.padding(horizontal = 12.dp)) {
-                OutlinedTextField(
+                CoveTextField(
                     value = keyword,
                     onValueChange = {
                         keyword = it
@@ -120,7 +124,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             if (contentMode) vm.searchContent(it) else vm.searchFiles(it)
                         } else vm.navigateTo(vm.currentPath)
                     },
-                    placeholder = { Text(if (contentMode) S.searchContentPh else S.searchNamePh) },
+                    placeholder = if (contentMode) S.searchContentPh else S.searchNamePh,
                     singleLine = true,
                     trailingIcon = {
                         if (keyword.isNotBlank()) {
@@ -129,26 +133,25 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             }
                         }
                     },
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Row(Modifier.padding(vertical = 4.dp)) {
-                    FilterChip(
+                Row(Modifier.padding(vertical = 6.dp)) {
+                    CoveChip(
+                        label = S.byName,
                         selected = !contentMode,
                         onClick = {
                             contentMode = false
                             if (keyword.isNotBlank()) vm.searchFiles(keyword)
-                        },
-                        label = { Text(S.byName) }
+                        }
                     )
                     Spacer(Modifier.width(8.dp))
-                    FilterChip(
+                    CoveChip(
+                        label = S.byContent,
                         selected = contentMode,
                         onClick = {
                             contentMode = true
                             if (keyword.isNotBlank()) vm.searchContent(keyword)
-                        },
-                        label = { Text(S.byContent) }
+                        }
                     )
                 }
             }
@@ -177,24 +180,24 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             ) {
                                 Text(
                                     hit.path,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.caption,
                                     fontFamily = MonoFont,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = CoveTheme.colors.primary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 if (hit.text.isNotBlank()) {
                                     Text(
                                         "${hit.line}: ${hit.text}",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.caption,
                                         fontFamily = MonoFont,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = CoveTheme.colors.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                            CoveDivider()
                         }
                     }
                 }
@@ -224,7 +227,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                 },
                                 onLongClick = { menuTarget = node }
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                            CoveDivider()
                         }
                     }
                 }
@@ -240,97 +243,70 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
         val trimmedName = newName.trim()
         val nameInvalid = trimmedName.contains('/') || trimmedName.contains('\\') ||
             trimmedName == ".." || trimmedName == "."
-        AlertDialog(
-            onDismissRequest = { createDialog = false },
-            title = { Text(S.newTitle, style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Column {
-                    // 类型选择（文件 / 文件夹）
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = !isDirType,
-                            onClick = { isDirType = false },
-                            shape = SegmentedButtonDefaults.itemShape(0, 2)
-                        ) { Text(S.file) }
-                        SegmentedButton(
-                            selected = isDirType,
-                            onClick = { isDirType = true },
-                            shape = SegmentedButtonDefaults.itemShape(1, 2)
-                        ) { Text(S.folder) }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it },
-                        label = { Text(S.nameRel) },
-                        placeholder = {
-                            Text(if (isDirType) S.placeholderNameDocs else S.placeholderNameReadme)
-                        },
-                        isError = nameInvalid,
-                        supportingText = {
-                            Text(
-                                when {
-                                    nameInvalid -> S.nameNoSlash
-                                    isDirType -> S.willCreateFolder(vm.currentPath.ifBlank { S.rootDir })
-                                    else -> S.willCreateFile(vm.currentPath.ifBlank { S.rootDir })
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (nameInvalid) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        singleLine = true
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val base = vm.currentPath
-                        val full = if (base.isBlank()) trimmedName else "$base/$trimmedName"
-                        if (isDirType) vm.createDirectory(full) else vm.createFile(full)
-                        createDialog = false
+        CoveAlertDialog(
+            onDismiss = { createDialog = false },
+            title = S.newTitle,
+            content = {
+                // 类型选择（文件 / 文件夹）
+                CoveSegmentedRow(
+                    options = listOf(S.file, S.folder),
+                    selectedIndex = if (isDirType) 1 else 0,
+                    onSelect = { isDirType = it == 1 }
+                )
+                Spacer(Modifier.height(12.dp))
+                CoveTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = S.nameRel,
+                    placeholder = if (isDirType) S.placeholderNameDocs else S.placeholderNameReadme,
+                    isError = nameInvalid,
+                    supporting = when {
+                        nameInvalid -> S.nameNoSlash
+                        isDirType -> S.willCreateFolder(vm.currentPath.ifBlank { S.rootDir })
+                        else -> S.willCreateFile(vm.currentPath.ifBlank { S.rootDir })
                     },
-                    enabled = trimmedName.isNotBlank() && !nameInvalid
-                ) { Text(S.create) }
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
             },
-            dismissButton = { TextButton(onClick = { createDialog = false }) { Text(S.cancel) } }
+            confirmLabel = S.create,
+            onConfirm = {
+                val base = vm.currentPath
+                val full = if (base.isBlank()) trimmedName else "$base/$trimmedName"
+                if (isDirType) vm.createDirectory(full) else vm.createFile(full)
+                createDialog = false
+            },
+            dismissLabel = S.cancel
         )
     }
 
     // 长按菜单：编辑 / 删除
     menuTarget?.let { target ->
         DropdownMenu(expanded = true, onDismissRequest = { menuTarget = null }) {
-            DropdownMenuItem(
-                text = { Text(S.openInEditor) },
-                onClick = {
-                    menuTarget = null
-                    nav.navigate(Routes.editor(vm.repoId, target.path))
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(S.delete, color = MaterialTheme.colorScheme.error) },
-                onClick = { menuTarget = null; deleteTarget = target }
-            )
+            DropdownMenuItem(onClick = {
+                menuTarget = null
+                nav.navigate(Routes.editor(vm.repoId, target.path))
+            }) { Text(S.openInEditor, style = MaterialTheme.typography.body2) }
+            DropdownMenuItem(onClick = { menuTarget = null; deleteTarget = target }) {
+                Text(S.delete, style = MaterialTheme.typography.body2, color = CoveTheme.colors.error)
+            }
         }
     }
 
     deleteTarget?.let { target ->
-        AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            title = { Text(if (target.isDir) S.deleteFolder else S.deleteFile, style = MaterialTheme.typography.titleMedium) },
-            text = {
+        CoveAlertDialog(
+            onDismiss = { deleteTarget = null },
+            title = if (target.isDir) S.deleteFolder else S.deleteFile,
+            content = {
                 Text(
                     if (target.isDir) S.deleteFolderConfirm(target.path)
-                    else S.deleteFileConfirm(target.path)
+                    else S.deleteFileConfirm(target.path),
+                    style = MaterialTheme.typography.body2
                 )
             },
-            confirmButton = {
-                TextButton(onClick = { vm.deleteFile(target.path); deleteTarget = null }) {
-                    Text(S.delete, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(S.cancel) } }
+            confirmLabel = S.delete,
+            onConfirm = { vm.deleteFile(target.path); deleteTarget = null },
+            dismissLabel = S.cancel
         )
     }
 }
@@ -348,13 +324,13 @@ private fun FileRow(node: FileNode, onClick: () -> Unit, onLongClick: () -> Unit
         Icon(
             if (node.isDir) Icons.Outlined.Folder else Icons.Outlined.InsertDriveFile,
             contentDescription = null,
-            tint = if (node.isDir) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (node.isDir) CoveTheme.colors.secondary else CoveTheme.colors.onSurfaceVariant,
             modifier = Modifier.size(16.dp)
         )
         Spacer(Modifier.width(8.dp))
         Text(
             node.name,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.body2,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false)
