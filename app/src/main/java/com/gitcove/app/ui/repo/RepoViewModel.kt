@@ -60,6 +60,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         private set
     var searchResults by mutableStateOf<List<SearchHit>?>(null)
         private set
+    /** 文件剪贴板（MP 管理器式复制/剪切/粘贴）；cut=false 复制、true 剪切 */
+    var fileClip by mutableStateOf<FileClip?>(null)
+        private set
     var lastCommitDetail by mutableStateOf<Pair<Commit, List<DiffEntryInfo>>?>(null)
         private set
 
@@ -200,10 +203,17 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         fun relOf(name: String) = if (path.isBlank()) name else "$path/$name"
         return dirs.map { d ->
             val rel = relOf(d.name)
-            FileNode(d.name, rel, true, statusFor(rel, st, isDir = true))
+            FileNode(
+                d.name, rel, true, statusFor(rel, st, isDir = true),
+                size = 0, lastModified = d.lastModified(),
+                childCount = d.listFiles()?.size ?: 0
+            )
         } + filesOnly.map { f ->
             val rel = relOf(f.name)
-            FileNode(f.name, rel, false, statusFor(rel, st, isDir = false))
+            FileNode(
+                f.name, rel, false, statusFor(rel, st, isDir = false),
+                size = f.length(), lastModified = f.lastModified()
+            )
         }
     }
 
@@ -374,6 +384,50 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         c.gitCore.deleteFile(repoDir!!, path).getOrThrow()
     }
 
+    /** 批量删除（多选模式） */
+    fun deleteFiles(paths: List<String>) = launchOp(c.strings.deletedN(paths.size)) {
+        paths.forEach { c.gitCore.deleteFile(repoDir!!, it).getOrThrow() }
+    }
+
+    /** 重命名（同目录内改名字） */
+    fun renameEntry(oldPath: String, newName: String) = launchOp(c.strings.renamedDone(newName)) {
+        val parent = oldPath.substringBeforeLast('/', "")
+        val newPath = if (parent.isBlank()) newName else "$parent/$newName"
+        c.gitCore.renameEntry(repoDir!!, oldPath, newPath).getOrThrow()
+    }
+
+    // ─────────────── 文件剪贴板（复制 / 剪切 / 粘贴） ───────────────
+
+    fun clipCopy(paths: List<String>) {
+        fileClip = FileClip(paths.toList(), cut = false)
+        msg.tryEmit(c.strings.clipCopiedN(paths.size))
+    }
+
+    fun clipCut(paths: List<String>) {
+        fileClip = FileClip(paths.toList(), cut = true)
+        msg.tryEmit(c.strings.clipCutN(paths.size))
+    }
+
+    /** 粘贴到指定目录（默认当前目录）；剪切粘贴后清空剪贴板，复制粘贴保留 */
+    fun clipPaste(targetDir: String? = null) = launchOp {
+        val clip = fileClip ?: return@launchOp
+        val target = targetDir ?: currentPath
+        if (clip.cut) {
+            val n = c.gitCore.moveEntries(repoDir!!, clip.paths, target).getOrThrow()
+            fileClip = null
+            msg.tryEmit(c.strings.movedN(n))
+        } else {
+            val n = c.gitCore.copyEntries(repoDir!!, clip.paths, target).getOrThrow()
+            msg.tryEmit(c.strings.pastedN(n))
+        }
+    }
+
+    /** 目录递归大小（属性页展示，IO 线程调用） */
+    suspend fun dirSize(rel: String): Long = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        val base = repoDir?.let { d -> if (rel.isBlank()) d else File(d, rel) } ?: return@withContext 0L
+        runCatching { base.walkBottomUp().filter { it.isFile }.sumOf { it.length() } }.getOrDefault(0L)
+    }
+
     fun saveFile(path: String, content: String) = launchOp(c.strings.fileSaved(path)) {
         c.gitCore.writeFile(repoDir!!, path, content).getOrThrow()
     }
@@ -412,6 +466,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         }
     }
 }
+
+/** 文件剪贴板：一组路径 + 是否剪切 */
+data class FileClip(val paths: List<String>, val cut: Boolean)
 
 /** 冲突版本读取（index stage 2 = ours，stage 3 = theirs） */
 private object GitConflictVersions {

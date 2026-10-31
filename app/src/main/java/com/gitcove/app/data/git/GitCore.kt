@@ -450,6 +450,92 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         Result.failure(e)
     }
 
+    /** 重命名 / 移动（同仓库内，文件或目录） */
+    fun renameEntry(repoDir: File, oldPath: String, newPath: String): Result<Unit> = try {
+        val src = safeFile(repoDir, oldPath) ?: throw IllegalArgumentException("非法路径")
+        require(src.exists()) { "原文件不存在" }
+        val dst = safeFile(repoDir, newPath) ?: throw IllegalArgumentException("非法路径")
+        require(!dst.exists()) { "目标名称已存在" }
+        require(src.renameTo(dst)) { "重命名失败" }
+        Result.success(Unit)
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }
+
+    /**
+     * 递归复制多个条目到目标目录（MP 管理器式粘贴）。
+     * 目标重名时自动改名为「名称 (1)」「名称 (2)」…，绝不覆盖已有文件。
+     * 返回成功复制的条目数。
+     */
+    fun copyEntries(repoDir: File, paths: List<String>, targetDirRel: String): Result<Int> = try {
+        val targetBase = dirOrThrow(repoDir, targetDirRel)
+        var copied = 0
+        for (p in paths) {
+            val src = safeFile(repoDir, p) ?: throw IllegalArgumentException("非法路径")
+            require(src.exists()) { "文件不存在：$p" }
+            require(!targetBase.canonicalPath.startsWith(src.canonicalPath + File.separator) &&
+                targetBase.canonicalPath != src.canonicalPath
+            ) { "不能把文件夹粘贴到其自身内部" }
+            copyRecursive(src, uniqueChild(targetBase, src.name))
+            copied++
+        }
+        Result.success(copied)
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }
+
+    /**
+     * 移动（剪切粘贴）多个条目到目标目录，规则同 [copyEntries]：
+     * 重名自动改名，禁止把文件夹移进其自身内部。返回成功移动的条目数。
+     */
+    fun moveEntries(repoDir: File, paths: List<String>, targetDirRel: String): Result<Int> = try {
+        val targetBase = dirOrThrow(repoDir, targetDirRel)
+        var moved = 0
+        for (p in paths) {
+            val src = safeFile(repoDir, p) ?: throw IllegalArgumentException("非法路径")
+            require(src.exists()) { "文件不存在：$p" }
+            require(!targetBase.canonicalPath.startsWith(src.canonicalPath + File.separator) &&
+                targetBase.canonicalPath != src.canonicalPath
+            ) { "不能把文件夹移动到其自身内部" }
+            val dst = uniqueChild(targetBase, src.name)
+            // renameTo 同仓库目录内必在同一存储卷；万一失败退化为复制+删除
+            if (!src.renameTo(dst)) {
+                copyRecursive(src, dst)
+                src.deleteRecursively()
+            }
+            moved++
+        }
+        Result.success(moved)
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }
+
+    private fun dirOrThrow(repoDir: File, rel: String): File {
+        val d = if (rel.isBlank()) repoDir else safeFile(repoDir, rel) ?: throw IllegalArgumentException("非法目标目录")
+        require(d.isDirectory) { "目标不是文件夹" }
+        return d
+    }
+
+    /** 目标目录内的唯一名称：重名自动追加 (1)、(2)…（保留扩展名） */
+    private fun uniqueChild(dir: File, name: String): File {
+        if (!File(dir, name).exists()) return File(dir, name)
+        val dot = name.lastIndexOf('.')
+        val base = if (dot > 0) name.substring(0, dot) else name
+        val ext = if (dot > 0) name.substring(dot) else ""
+        var n = 1
+        while (File(dir, "$base ($n)$ext").exists()) n++
+        return File(dir, "$base ($n)$ext")
+    }
+
+    private fun copyRecursive(src: File, dst: File) {
+        if (src.isDirectory) {
+            require(dst.mkdirs() || dst.isDirectory) { "无法创建目录：${dst.name}" }
+            src.listFiles()?.forEach { copyRecursive(it, File(dst, it.name)) }
+        } else {
+            src.copyTo(dst, overwrite = false)
+        }
+    }
+
     // ────────────────────────── C. 同步 ──────────────────────────
 
     /** 远端 origin URL */

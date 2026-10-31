@@ -80,7 +80,11 @@ data class FileNode(
     val name: String,
     val path: String,          // 相对仓库根路径
     val isDir: Boolean,
-    val status: Status? = null  // Git 状态徽章
+    val status: Status? = null,  // Git 状态徽章
+    // MP 管理器风格副标题元数据：文件显示大小，文件夹显示子项数
+    val size: Long = 0,
+    val lastModified: Long = 0,
+    val childCount: Int = 0
 )
 
 /** 内容搜索命中 */
