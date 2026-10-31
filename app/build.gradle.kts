@@ -96,6 +96,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
+    // Material Design 2（MD2）：应用主界面全部组件基于此
+    implementation("androidx.compose.material:material")
+    // Material Design 3：迁移期保留（Md3Bridge 提供同色令牌），迁移完成后移除
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")

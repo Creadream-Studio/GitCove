@@ -10,6 +10,7 @@ import com.gitcove.app.data.store.RepoStore
 import com.gitcove.app.i18n.AppLanguage
 import com.gitcove.app.i18n.Strings
 import com.gitcove.app.i18n.resolveStrings
+import com.gitcove.app.ui.theme.Md2Accent
 import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
 import java.io.File
@@ -43,14 +44,21 @@ class AppContainer(context: Context) {
         appLanguage.value = lang
     }
 
-    /** MD3 动态取色（响应式 + 持久化） */
+    /** MD2 强调色（响应式 + 持久化） */
+    val accent = mutableStateOf(auth.accent)
+    fun setAccent(value: Md2Accent) {
+        auth.accent = value
+        accent.value = value
+    }
+
+    /** MD3 动态取色（响应式 + 持久化；MD2 主题下仅作为可选兼容开关） */
     val dynamicColor = mutableStateOf(auth.dynamicColor)
     fun setDynamicColor(enabled: Boolean) {
         auth.dynamicColor = enabled
         dynamicColor.value = enabled
     }
 
-    /** MD3 圆角风格（响应式 + 持久化） */
+    /** 圆角风格（响应式 + 持久化） */
     val shapeStyle = mutableStateOf(auth.shapeStyle)
     fun setShapeStyle(style: ShapeStyle) {
         auth.shapeStyle = style

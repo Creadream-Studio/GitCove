@@ -1,27 +1,32 @@
 package com.gitcove.app.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
+import androidx.compose.material3.MaterialTheme as M3MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import android.os.Build
+import com.gitcove.app.ui.theme.Md2ShapesCompact
+import com.gitcove.app.ui.theme.Md2ShapesRounded
+import com.gitcove.app.ui.theme.Md2ShapesStandard
 
 /**
- * GitCove 主题（开发文档 5.2）：
- * - 紧凑排版
- * - 深湾蓝绿品牌色，支持跟随系统 / 强制深色 / 强制浅色
- * - MD3 风格可在设置中修改：圆角风格（标准 / 圆润 / 紧凑）+ Android 12+ 动态取色
+ * GitCove 主题（MD2）：整体风格对齐 MP 管理器那类 Android 工具应用。
+ *
+ * - 颜色：MD2 双色系（primary / primaryVariant + secondary / secondaryVariant）+ 扩展令牌
+ * - 字体：MD2 标尺（h6 / subtitle1 / body2 / caption / overline），略收紧行高
+ * - 圆角：默认 4dp（MD2 规范），设置里可选紧凑 / 标准 / 圆润三档
+ * - 强调色：MD2 无 Material You 动态取色，改为设置页显式选择强调色
  */
 
-/** MD3 圆角风格：0 标准（4/6/8/12） / 1 圆润（8/12/16/24） / 2 紧凑（2/4/6/8） */
+/** MD2 圆角风格：0 标准（2/4/4/8） / 1 圆润（4/8/12/16） / 2 紧凑（2/3/4/6） */
 enum class ShapeStyle(val value: Int) {
     STANDARD(0), ROUNDED(1), COMPACT(2);
 
@@ -29,73 +34,6 @@ enum class ShapeStyle(val value: Int) {
         fun from(value: Int) = entries.firstOrNull { it.value == value } ?: STANDARD
     }
 }
-
-private fun shapesFor(style: ShapeStyle): Shapes = when (style) {
-    ShapeStyle.STANDARD -> Shapes(
-        extraSmall = RoundedCornerShape(4.dp),
-        small = RoundedCornerShape(6.dp),
-        medium = RoundedCornerShape(8.dp),
-        large = RoundedCornerShape(12.dp)
-    )
-    ShapeStyle.ROUNDED -> Shapes(
-        extraSmall = RoundedCornerShape(8.dp),
-        small = RoundedCornerShape(12.dp),
-        medium = RoundedCornerShape(16.dp),
-        large = RoundedCornerShape(24.dp)
-    )
-    ShapeStyle.COMPACT -> Shapes(
-        extraSmall = RoundedCornerShape(2.dp),
-        small = RoundedCornerShape(4.dp),
-        medium = RoundedCornerShape(6.dp),
-        large = RoundedCornerShape(8.dp)
-    )
-}
-
-private val GitCoveDarkColors = darkColorScheme(
-    primary = CovePrimaryDark,
-    onPrimary = CoveOnPrimaryDark,
-    primaryContainer = CovePrimaryContainerDark,
-    onPrimaryContainer = CoveOnPrimaryContainerDark,
-    secondary = CoveSecondaryDark,
-    onSecondary = CoveOnSecondaryDark,
-    tertiary = CoveTertiaryDark,
-    onTertiary = CoveOnTertiaryDark,
-    background = CoveBackgroundDark,
-    onBackground = CoveOnBackgroundDark,
-    surface = CoveSurfaceDark,
-    onSurface = CoveOnSurfaceDark,
-    surfaceVariant = CoveSurfaceVariantDark,
-    onSurfaceVariant = CoveOnSurfaceVariantDark,
-    outline = CoveOutlineDark,
-    error = CoveErrorDark,
-    onError = CoveOnErrorDark,
-    errorContainer = CoveErrorContainerDark,
-    onErrorContainer = CoveOnErrorContainerDark,
-    inverseSurface = CoveInverseSurfaceDark,
-    inverseOnSurface = CoveInverseOnSurfaceDark
-)
-
-private val GitCoveLightColors = lightColorScheme(
-    primary = CovePrimaryLight,
-    onPrimary = CoveOnPrimaryLight,
-    primaryContainer = CovePrimaryContainerLight,
-    onPrimaryContainer = CoveOnPrimaryContainerLight,
-    secondary = CoveSecondaryLight,
-    onSecondary = CoveOnSecondaryLight,
-    tertiary = CoveTertiaryLight,
-    onTertiary = CoveOnTertiaryLight,
-    background = CoveBackgroundLight,
-    onBackground = CoveOnBackgroundLight,
-    surface = CoveSurfaceLight,
-    onSurface = CoveOnSurfaceLight,
-    surfaceVariant = CoveSurfaceVariantLight,
-    onSurfaceVariant = CoveOnSurfaceVariantLight,
-    outline = CoveOutlineLight,
-    error = CoveErrorLight,
-    onError = CoveOnErrorLight,
-    errorContainer = CoveErrorContainerLight,
-    onErrorContainer = CoveOnErrorContainerLight
-)
 
 /** 主题模式：0 跟随系统 / 1 深色 / 2 浅色（展示文案见 Strings.themeSystem/themeDark/themeLight） */
 enum class ThemeMode(val value: Int) {
@@ -107,10 +45,19 @@ enum class ThemeMode(val value: Int) {
 }
 
 @Composable
+private fun m2Shapes(style: ShapeStyle) = when (style) {
+    ShapeStyle.STANDARD -> Md2ShapesStandard
+    ShapeStyle.ROUNDED -> Md2ShapesRounded
+    ShapeStyle.COMPACT -> Md2ShapesCompact
+}
+
+@Composable
 fun GitCoveTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = false,
+    accent: Md2Accent = Md2Accent.BLUE,
     shapeStyle: ShapeStyle = ShapeStyle.STANDARD,
+    /** 兼容旧调用：MD2 下由 [accent] 决定主色，动态取色不再生效 */
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val dark = when (themeMode) {
@@ -119,25 +66,47 @@ fun GitCoveTheme(
         ThemeMode.LIGHT -> false
     }
     val context = LocalContext.current
-    // MD3 动态取色（Material You）：Android 12+ 可跟随壁纸配色，否则回退品牌色
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        dark -> GitCoveDarkColors
-        else -> GitCoveLightColors
+    val palette = remember(dark, accent, dynamicColor) {
+        when {
+            // 兼容开关：Android 12+ 仍允许跟随壁纸取色（Material You），否则用 MD2 强调色
+            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> null
+            dark -> darkPalette(accent)
+            else -> lightPalette(accent)
+        }
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = GitCoveTypography,
-        shapes = shapesFor(shapeStyle),
-        content = content
-    )
+
+    if (palette == null) {
+        val scheme = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        M3MaterialTheme(colorScheme = scheme, typography = GitCoveTypography, shapes = m2Shapes(shapeStyle).toM3Shapes()) {
+            CompositionLocalProvider(LocalCovePalette provides (if (dark) darkPalette(accent) else lightPalette(accent))) {
+                content()
+            }
+        }
+        return
+    }
+
+    CompositionLocalProvider(LocalCovePalette provides palette) {
+        MaterialTheme(
+            colors = palette.toMaterialColors(),
+            typography = Md2Typography,
+            shapes = m2Shapes(shapeStyle)
+        ) {
+            // ── 迁移期桥接：仍在使用 Material3 组件的界面用同一套 MD2 颜色渲染 ──
+            M3MaterialTheme(
+                colorScheme = palette.toM3Scheme(),
+                typography = GitCoveTypography,
+                shapes = m2Shapes(shapeStyle).toM3Shapes()
+            ) {
+                content()
+            }
+        }
+    }
 }
 
 /** 按当前主题取差异对比配色 */
 @Composable
 fun diffColors(): DiffColors =
-    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) DiffColors.dark() else DiffColors.light()
+    if (CoveTheme.colors.isDark) DiffColors.dark() else DiffColors.light()
 
 data class DiffColors(
     val addBg: Color,
@@ -152,5 +121,3 @@ data class DiffColors(
         fun light() = DiffColors(DiffAddBgLight, DiffDelBgLight, DiffAddFgLight, DiffDelFgLight, DiffHunkFgLight, DiffMetaFgLight)
     }
 }
-
-private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue

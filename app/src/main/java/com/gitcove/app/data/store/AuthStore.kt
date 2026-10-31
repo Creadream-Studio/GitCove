@@ -3,6 +3,7 @@ package com.gitcove.app.data.store
 import android.content.Context
 import android.util.Base64
 import com.gitcove.app.i18n.AppLanguage
+import com.gitcove.app.ui.theme.Md2Accent
 import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
 import java.io.File
@@ -126,7 +127,12 @@ class AuthStore(context: Context) {
         get() = prefs.getBoolean("dynamic_color", false)
         set(value) = prefs.edit().putBoolean("dynamic_color", value).apply()
 
-    /** MD3 圆角风格：0 标准 / 1 圆润 / 2 紧凑 */
+    /** MD2 强调色：0 天蓝 / 1 湾青 / 2 靛紫 / 3 珊瑚 / 4 琥珀 */
+    var accent: Md2Accent
+        get() = Md2Accent.from(prefs.getInt("accent", 0))
+        set(value) = prefs.edit().putInt("accent", value.value).apply()
+
+    /** 圆角风格：0 标准 / 1 圆润 / 2 紧凑 */
     var shapeStyle: ShapeStyle
         get() = ShapeStyle.from(prefs.getInt("shape_style", 0))
         set(value) = prefs.edit().putInt("shape_style", value.value).apply()
