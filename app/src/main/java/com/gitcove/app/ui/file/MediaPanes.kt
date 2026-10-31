@@ -136,16 +136,16 @@ private fun Zoomable(bitmap: ImageBitmap, t: SyncTransform, modifier: Modifier =
     )
 }
 
-/** 图片查看：双击/双指缩放 + 底部尺寸信息 */
+/** 图片查看：双击/双指缩放 + 底部尺寸信息；reloadKey 变化时重新解码（外部修改后自动刷新） */
 @Composable
-fun ImagePane(file: File, modifier: Modifier = Modifier) {
+fun ImagePane(file: File, modifier: Modifier = Modifier, reloadKey: Int = 0) {
     val S = LocalStrings.current
     val c = CoveTheme.colors
     var result by remember { mutableStateOf<DecodedImage?>(null) }
     var failed by remember { mutableStateOf(false) }
     val t = remember { SyncTransform() }
 
-    LaunchedEffect(file.path) {
+    LaunchedEffect(file.path, reloadKey) {
         withContext(Dispatchers.IO) {
             result = decodeImage(file)
             failed = result == null

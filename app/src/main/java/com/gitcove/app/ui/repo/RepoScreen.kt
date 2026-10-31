@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -69,6 +70,7 @@ import com.gitcove.app.ui.repo.tabs.FilesTab
 import com.gitcove.app.ui.repo.tabs.HistoryTab
 import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.ui.theme.MonoFont
+import com.gitcove.app.util.findLifecycleOwner
 import com.gitcove.app.util.vmFactory
 
 /**
@@ -101,10 +103,22 @@ fun RepoScreen(
     val backEntry = nav.currentBackStackEntry
     DisposableEffect(backEntry) {
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) vm.refreshAll()
+            if (event == Lifecycle.Event.ON_RESUME) vm.refreshQuick()
         }
         backEntry?.lifecycle?.addObserver(obs)
         onDispose { backEntry?.lifecycle?.removeObserver(obs) }
+    }
+
+    // 应用切后台再回到前台（例如去 MT 管理器改完文件切回来）时自动轻量刷新：
+    // 导航栈条目的生命周期覆盖不到 Activity 级别的暂停/恢复，必须观察 Activity 本身
+    val hostContext = LocalContext.current
+    val hostLifecycle = remember(hostContext) { hostContext.findLifecycleOwner() }
+    DisposableEffect(hostLifecycle) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) vm.refreshQuick()
+        }
+        hostLifecycle?.lifecycle?.addObserver(obs)
+        onDispose { hostLifecycle?.lifecycle?.removeObserver(obs) }
     }
 
     val st = vm.status

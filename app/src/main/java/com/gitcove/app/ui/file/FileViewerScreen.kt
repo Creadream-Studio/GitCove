@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +51,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.domain.model.Commit
 import com.gitcove.app.domain.model.ConflictAction
@@ -72,6 +75,7 @@ import com.gitcove.app.ui.theme.MonoFont
 import com.gitcove.app.util.FileKind
 import com.gitcove.app.util.FileTypes
 import com.gitcove.app.util.fileSizeText
+import com.gitcove.app.util.findLifecycleOwner
 import com.gitcove.app.util.relativeTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -117,6 +121,31 @@ fun FileViewerScreen(
     var refreshTick by remember { mutableStateOf(0) }
 
     val file: File? = repo?.let { safeRepoFile(File(it.path), path) }
+
+    // 应用切后台再回到前台时从磁盘重读（外部应用如 MT 管理器改完文件切回即见最新内容）。
+    // 文本正在编辑（有未保存改动）时不动用户内容；图片/视频等让差异页重新计算。
+    val hostContext = LocalContext.current
+    val hostLifecycle = remember(hostContext) { hostContext.findLifecycleOwner() }
+    DisposableEffect(hostLifecycle) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
+            val k = kind ?: return@LifecycleEventObserver
+            val dir0 = repo?.let { File(it.path) } ?: return@LifecycleEventObserver
+            if (k == FileKind.TEXT) {
+                if (textLoaded && textContent != textOriginal) return@LifecycleEventObserver
+                scope.launch(Dispatchers.IO) {
+                    val content = container.gitCore.readFile(dir0, path).getOrDefault("")
+                    textContent = content
+                    textOriginal = content
+                    refreshTick++
+                }
+            } else {
+                refreshTick++
+            }
+        }
+        hostLifecycle?.lifecycle?.addObserver(obs)
+        onDispose { hostLifecycle?.lifecycle?.removeObserver(obs) }
+    }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -237,7 +266,8 @@ fun FileViewerScreen(
                         textLoaded = textLoaded,
                         textContent = textContent,
                         onTextChange = { textContent = it },
-                        isConflict = isConflict
+                        isConflict = isConflict,
+                        reloadKey = refreshTick
                     )
                 }
             }
@@ -265,14 +295,15 @@ private fun ContentTab(
     textLoaded: Boolean,
     textContent: String,
     onTextChange: (String) -> Unit,
-    isConflict: Boolean
+    isConflict: Boolean,
+    reloadKey: Int = 0
 ) {
     val S = LocalStrings.current
     val c = CoveTheme.colors
     when {
         file == null || !file.exists() ->
             EmptyView(S.fileNotExist, icon = Icons.Filled.InsertDriveFile)
-        kind == FileKind.IMAGE -> ImagePane(file)
+        kind == FileKind.IMAGE -> ImagePane(file, reloadKey = reloadKey)
         kind == FileKind.VIDEO -> VideoPane(file)
         kind == FileKind.AUDIO -> AudioPane(file)
         !textLoaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

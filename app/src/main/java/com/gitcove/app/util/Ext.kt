@@ -1,9 +1,25 @@
 package com.gitcove.app.util
 
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.lifecycle.LifecycleOwner
 import com.gitcove.app.i18n.Strings
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/**
+ * 从 Compose 的 LocalContext 沿 ContextWrapper 包装链解包出宿主 LifecycleOwner
+ * （即 ComponentActivity，用于监听应用前台/后台切换），找不到返回 null。
+ */
+fun Context.findLifecycleOwner(): LifecycleOwner? {
+    var ctx: Context = this
+    while (ctx is ContextWrapper) {
+        if (ctx is LifecycleOwner) return ctx
+        ctx = ctx.baseContext ?: return null
+    }
+    return null
+}
 
 /** 相对时间显示：刚刚 / n 分钟前 / n 小时前 / n 天前 / yyyy-MM-dd（文案随 [Strings] 语言切换） */
 fun relativeTime(epochMillis: Long, s: Strings): String {

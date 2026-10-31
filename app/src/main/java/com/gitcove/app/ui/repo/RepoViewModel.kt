@@ -21,6 +21,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 /**
@@ -79,6 +81,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     private val msg = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val messages: SharedFlow<String> = msg
 
+    /** 刷新串行锁：全量/轻量刷新并发时避免旧结果覆盖新结果 */
+    private val refreshMutex = Mutex()
+
     init {
         viewModelScope.launch(Dispatchers.IO) {
             repo = c.repoStore.get(repoId)
@@ -91,39 +96,71 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     fun refreshAll() {
         viewModelScope.launch(Dispatchers.IO) {
-            val dir = repoDir ?: return@launch
-            // 动态校验是否为 Git 仓库（导入时可能是普通目录；也可能刚在别处被初始化）
-            val valid = c.gitCore.isValidRepo(dir)
-            if (valid != isGitRepo) {
-                isGitRepo = valid
-                c.repoStore.updateIsGitRepo(repoId, valid)
-                repo = repo?.copy(isGitRepo = valid)
+            refreshMutex.withLock {
+                val dir = repoDir ?: return@withLock
+                // 动态校验是否为 Git 仓库（导入时可能是普通目录；也可能刚在别处被初始化）
+                val valid = c.gitCore.isValidRepo(dir)
+                if (valid != isGitRepo) {
+                    isGitRepo = valid
+                    c.repoStore.updateIsGitRepo(repoId, valid)
+                    repo = repo?.copy(isGitRepo = valid)
+                }
+                if (!valid) {
+                    // 非 Git 仓库：只刷新文件浏览，不触碰任何 Git 状态
+                    status = null
+                    commits = emptyList()
+                    branches = emptyList()
+                    tags = emptyList()
+                    stashes = emptyList()
+                    diffStaged = emptyList()
+                    diffUnstaged = emptyList()
+                    recentMsgs = emptyList()
+                    files = listFiles(dir, currentPath, null)
+                    return@withLock
+                }
+                // 先更新状态与文件列表（界面立即反映外部改动），历史/分支等次要信息随后补充
+                c.gitCore.status(dir).onSuccess {
+                    status = it
+                    c.repoStore.updateCurrentBranch(repoId, it.branch)
+                }.onFailure { msg.tryEmit(c.strings.statusFailed(it.message ?: "")) }
+                files = listFiles(dir, currentPath, status)
+                commits = c.gitCore.log(dir).getOrDefault(emptyList())
+                branches = c.gitCore.branches(dir).getOrDefault(emptyList())
+                tags = c.gitCore.tags(dir).getOrDefault(emptyList())
+                stashes = c.gitCore.stashList(dir).getOrDefault(emptyList())
+                diffStaged = c.gitCore.diffEntries(dir, cached = true).getOrDefault(emptyList())
+                diffUnstaged = c.gitCore.diffEntries(dir, cached = false).getOrDefault(emptyList())
+                recentMsgs = c.gitCore.recentMessages(dir)
             }
-            if (!valid) {
-                // 非 Git 仓库：只刷新文件浏览，不触碰任何 Git 状态
-                status = null
-                commits = emptyList()
-                branches = emptyList()
-                tags = emptyList()
-                stashes = emptyList()
-                diffStaged = emptyList()
-                diffUnstaged = emptyList()
-                recentMsgs = emptyList()
-                files = listFiles(dir, currentPath, null)
-                return@launch
+        }
+    }
+
+    /**
+     * 轻量刷新：仅 Git 状态 + 当前目录文件列表（毫秒级，不拉历史/分支/差异）。
+     * 用于回到应用前台、从子页面返回时自动拉取外部改动（如 MT 管理器修改文件后切回），
+     * 避免全量刷新带来的等待。
+     */
+    fun refreshQuick() {
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshMutex.withLock {
+                val dir = repoDir ?: return@withLock
+                val valid = c.gitCore.isValidRepo(dir)
+                if (valid != isGitRepo) {
+                    isGitRepo = valid
+                    c.repoStore.updateIsGitRepo(repoId, valid)
+                    repo = repo?.copy(isGitRepo = valid)
+                }
+                if (!valid) {
+                    status = null
+                    files = listFiles(dir, currentPath, null)
+                    return@withLock
+                }
+                c.gitCore.status(dir).onSuccess {
+                    status = it
+                    c.repoStore.updateCurrentBranch(repoId, it.branch)
+                }
+                files = listFiles(dir, currentPath, status)
             }
-            c.gitCore.status(dir).onSuccess {
-                status = it
-                c.repoStore.updateCurrentBranch(repoId, it.branch)
-            }.onFailure { msg.tryEmit(c.strings.statusFailed(it.message ?: "")) }
-            files = listFiles(dir, currentPath, status)
-            commits = c.gitCore.log(dir).getOrDefault(emptyList())
-            branches = c.gitCore.branches(dir).getOrDefault(emptyList())
-            tags = c.gitCore.tags(dir).getOrDefault(emptyList())
-            stashes = c.gitCore.stashList(dir).getOrDefault(emptyList())
-            diffStaged = c.gitCore.diffEntries(dir, cached = true).getOrDefault(emptyList())
-            diffUnstaged = c.gitCore.diffEntries(dir, cached = false).getOrDefault(emptyList())
-            recentMsgs = c.gitCore.recentMessages(dir)
         }
     }
 
