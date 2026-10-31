@@ -515,7 +515,7 @@ fun CoveBottomSheet(
                 modifier = modifier.fillMaxWidth(),
                 color = c.surface,
                 contentColor = c.onSurface,
-                elevation = 16.dp,
+                elevation = 8.dp,
                 shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
             ) {
                 Column(Modifier.fillMaxWidth()) {
