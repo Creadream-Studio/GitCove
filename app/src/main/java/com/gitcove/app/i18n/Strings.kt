@@ -132,7 +132,7 @@ open class Strings {
     open val sectionOpLog get() = "操作日志"
     open val viewLogs get() = "查看日志"
     open val sectionAbout get() = "关于"
-    open val aboutTitle get() = "码湾 GitCove v1.0.0"
+    open val aboutTitle get() = "码湾 GitCove v${com.gitcove.app.BuildConfig.VERSION_NAME}（MD2）"
     open val aboutDesc get() = "Android 端最好用的图形化 Git 客户端\n基于 JGit · Kotlin + Compose · Apache 2.0 开源"
     open val aboutLink get() = "github.com/Creadream-Studio/GitCove"
 
@@ -449,7 +449,7 @@ object EnStrings : Strings() {
     override val sectionOpLog get() = "Operation log"
     override val viewLogs get() = "View logs"
     override val sectionAbout get() = "About"
-    override val aboutTitle get() = "GitCove v1.0.0"
+    override val aboutTitle get() = "GitCove v${com.gitcove.app.BuildConfig.VERSION_NAME} (MD2)"
     override val aboutDesc get() = "The best graphical Git client for Android\nPowered by JGit · Kotlin + Compose · Apache 2.0"
     override val aboutLink get() = "github.com/Creadream-Studio/GitCove"
 
