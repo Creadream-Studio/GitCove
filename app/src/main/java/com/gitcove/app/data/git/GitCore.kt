@@ -234,12 +234,32 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     // ────────────────────────── B. 日常提交 ──────────────────────────
 
-    /** 功能 8：暂存（文件级） */
+    /**
+     * 功能 8：暂存（文件级）。
+     * 注意：JGit 的 add() 对工作区已删除的文件不会暂存删除（实测 5.13 静默忽略），
+     * 必须按「存在→add / 不存在→rm --cached」分流，删除才能进入暂存区。
+     */
     fun stage(repoDir: File, paths: List<String>): Result<Unit> = withRepo(repoDir) { git ->
         if (paths.isNotEmpty()) {
             val add = git.add()
-            paths.forEach { add.addFilepattern(it) }
-            add.call()
+            val rm = git.rm().setCached(true)
+            val inIndex = runCatching {
+                val dc = git.repository.readDirCache()
+                buildSet {
+                    for (i in 0 until dc.entryCount) add(dc.getEntry(i).pathString)
+                }
+            }.getOrDefault(emptySet())
+            var hasAdd = false
+            var hasRm = false
+            paths.forEach { p ->
+                when {
+                    safeFile(repoDir, p)?.exists() == true -> { add.addFilepattern(p); hasAdd = true }
+                    p in inIndex -> { rm.addFilepattern(p); hasRm = true }
+                    // 既不存在也不在索引：陈旧路径，静默跳过
+                }
+            }
+            if (hasAdd) add.call()
+            if (hasRm) rm.call()
         }
     }
 
