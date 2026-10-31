@@ -1,66 +1,50 @@
 package com.gitcove.app.ui.settings
 
-import android.os.Build
-import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.AlertDialog
 import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
-import androidx.compose.material.Switch
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.gitcove.app.data.auth.SshKeyGen
 import com.gitcove.app.di.AppContainer
-import com.gitcove.app.i18n.AppLanguage
 import com.gitcove.app.i18n.LocalStrings
-import com.gitcove.app.ui.components.CoveAccentPicker
-import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.components.CoveBackButton
-import com.gitcove.app.ui.components.CoveChip
 import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveSectionTitle
-import com.gitcove.app.ui.components.CoveTextField
 import com.gitcove.app.ui.components.CoveTopAppBar
-import com.gitcove.app.ui.components.SectionHeader
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.theme.CoveTheme
-import com.gitcove.app.ui.theme.MonoFont
 import com.gitcove.app.ui.theme.Md2Accent
-import com.gitcove.app.ui.theme.ShapeStyle
-import com.gitcove.app.ui.theme.ThemeMode
-import com.gitcove.app.work.SyncWorker
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import com.gitcove.app.ui.components.CoveDivider
 
 /**
- * 设置页：Git 身份 / 语言 / MD3 风格 / 主题 / 访问令牌 / SSH 密钥 / 自动同步 / 日志 / 关于
- * （功能 45-48 / 19-21 / 79）
+ * 设置首页（一级页面）：不再把所有选项堆在一页，而是按「账号 / 应用 / 其他」分组，
+ * 每项进入对应的二级子页面 —— Git 身份、账号与令牌、SSH 密钥、外观、同步、日志、关于。
  */
 @Composable
 fun SettingsScreen(
@@ -68,26 +52,18 @@ fun SettingsScreen(
     nav: androidx.navigation.NavHostController
 ) {
     val S = LocalStrings.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val clipboard = LocalClipboardManager.current
+    val c = CoveTheme.colors
 
-    // 身份
-    var gitName by remember { mutableStateOf(container.auth.gitName) }
-    var gitEmail by remember { mutableStateOf(container.auth.gitEmail) }
-
-    // 令牌
-    var tokens by remember { mutableStateOf(container.auth.tokens()) }
-    var tokenDialog by remember { mutableStateOf(false) }
-
-    // SSH
-    var sshKeys by remember { mutableStateOf(container.auth.sshKeys()) }
-    var sshGenDialog by remember { mutableStateOf(false) }
-    var sshImportDialog by remember { mutableStateOf(false) }
-    var sshShowPub by remember { mutableStateOf<String?>(null) }
-
-    // 自动同步
-    var autoSync by remember { mutableStateOf(container.auth.autoSyncEnabled) }
-    var interval by remember { mutableStateOf(container.auth.autoSyncIntervalMin) }
+    // 各分类的副标题：直接反映当前配置状态
+    val identitySub = if (container.auth.gitName.isNotBlank()) {
+        "${container.auth.gitName} <${container.auth.gitEmail}>"
+    } else S.noIdentitySet
+    val tokenCount = container.auth.tokens().size
+    val accountsSub = if (tokenCount > 0) S.tokensCount(tokenCount) else S.noTokensSet
+    val sshCount = container.auth.sshKeys().size
+    val sshSub = if (sshCount > 0) S.sshKeyCount(sshCount) else S.noSshKeySet
+    val appearanceSub = "${themeLabel(S, container.themeMode.value)} · ${accentLabel(S, container.accent.value)}"
+    val syncSub = if (container.auth.autoSyncEnabled) S.syncOnSub(container.auth.autoSyncIntervalMin) else S.syncOffSub
 
     Scaffold(
         topBar = {
@@ -96,7 +72,7 @@ fun SettingsScreen(
                 navigationIcon = { CoveBackButton { nav.popBackStack() } }
             )
         },
-        backgroundColor = CoveTheme.colors.background
+        backgroundColor = c.background
     ) { padding ->
         Column(
             Modifier
@@ -104,421 +80,123 @@ fun SettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-
-            // ── Git 身份 ──
-            SectionHeader(S.sectionGitIdentity)
-            Column(Modifier.padding(horizontal = 12.dp)) {
-                CoveTextField(
-                    value = gitName,
-                    onValueChange = { gitName = it },
-                    label = S.username,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                CoveTextField(
-                    value = gitEmail,
-                    onValueChange = { gitEmail = it },
-                    label = S.email,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                TextButton(onClick = {
-                    container.auth.gitName = gitName.trim()
-                    container.auth.gitEmail = gitEmail.trim()
-                    Toast.makeText(container.appContext, S.identitySaved, Toast.LENGTH_SHORT).show()
-                }) { Text(S.saveIdentity) }
-            }
-
-            // ── 语言 ──
-            SectionHeader(S.sectionLanguage)
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                AppLanguage.entries.forEach { lang ->
-                    CoveChip(
-                        label = if (lang == AppLanguage.SYSTEM) S.languageSystem else lang.displayName,
-                        selected = container.appLanguage.value == lang,
-                        onClick = { container.setAppLanguage(lang) },
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }
-            }
-            Text(
-                S.languageHint,
-                style = MaterialTheme.typography.overline,
-                color = CoveTheme.colors.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp)
+            // ── 账号 ──
+            CoveSectionTitle(S.settingsSectionAccount)
+            SettingsNavItem(
+                icon = Icons.Outlined.Person,
+                title = S.sectionGitIdentity,
+                subtitle = identitySub,
+                onClick = { nav.navigate(Routes.SETTINGS_GIT) }
+            )
+            CoveDivider(insetStart = 56)
+            SettingsNavItem(
+                icon = Icons.Outlined.VpnKey,
+                title = S.navAccounts,
+                subtitle = accountsSub,
+                onClick = { nav.navigate(Routes.SETTINGS_AUTH) }
+            )
+            CoveDivider(insetStart = 56)
+            SettingsNavItem(
+                icon = Icons.Outlined.Key,
+                title = S.sectionSsh,
+                subtitle = sshSub,
+                onClick = { nav.navigate(Routes.SETTINGS_SSH) }
             )
 
-            // ── 外观 ──
-            SectionHeader(S.sectionAppearance)
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                ThemeMode.entries.forEach { mode ->
-                    CoveChip(
-                        label = when (mode) {
-                            ThemeMode.SYSTEM -> S.themeSystem
-                            ThemeMode.DARK -> S.themeDark
-                            ThemeMode.LIGHT -> S.themeLight
-                        },
-                        selected = container.themeMode.value == mode,
-                        onClick = { container.setThemeMode(mode) },
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }
-            }
-
-            // ── MD2 强调色（替代 Material You 动态取色）──
-            SectionHeader(S.sectionAccent)
-            CoveAccentPicker(
-                selected = container.accent.value,
-                onSelect = { container.setAccent(it) },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            // ── 应用 ──
+            CoveSectionTitle(S.settingsSectionApp)
+            SettingsNavItem(
+                icon = Icons.Outlined.Palette,
+                title = S.sectionAppearance,
+                subtitle = appearanceSub,
+                onClick = { nav.navigate(Routes.SETTINGS_APPEARANCE) }
             )
-            Text(
-                S.accentHint,
-                style = MaterialTheme.typography.caption,
-                color = CoveTheme.colors.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp)
+            CoveDivider(insetStart = 56)
+            SettingsNavItem(
+                icon = Icons.Outlined.Sync,
+                title = S.navSync,
+                subtitle = syncSub,
+                onClick = { nav.navigate(Routes.SETTINGS_SYNC) }
             )
 
-            // ── 圆角密度 ──
-            SectionHeader(S.shapeStyle)
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                ShapeStyle.entries.forEach { style ->
-                    CoveChip(
-                        label = when (style) {
-                            ShapeStyle.STANDARD -> S.shapeStandard
-                            ShapeStyle.ROUNDED -> S.shapeRounded
-                            ShapeStyle.COMPACT -> S.shapeCompact
-                        },
-                        selected = container.shapeStyle.value == style,
-                        onClick = { container.setShapeStyle(style) },
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }
-            }
-
-            // ── 访问令牌 ──
-            SectionHeader(S.sectionTokens)
-            tokens.forEach { t ->
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(t.host, style = MaterialTheme.typography.subtitle2)
-                        Text(
-                            t.username,
-                            style = MaterialTheme.typography.caption,
-                            color = CoveTheme.colors.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = {
-                        container.auth.removeToken(t.host)
-                        tokens = container.auth.tokens()
-                    }) {
-                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = CoveTheme.colors.error)
-                    }
-                }
-                CoveDivider()
-            }
-            TextButton(onClick = { tokenDialog = true }, modifier = Modifier.padding(horizontal = 12.dp)) {
-                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
-                Text(S.addToken)
-            }
-
-            // ── SSH 密钥 ──
-            SectionHeader(S.sectionSsh)
-            sshKeys.forEach { k ->
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .clickable { sshShowPub = k.publicKey }
-                    ) {
-                        Text(k.name, style = MaterialTheme.typography.subtitle2)
-                        Text(
-                            "${k.type} · ${container.auth.fingerprintOf(k.publicKey).take(23)}…",
-                            style = MaterialTheme.typography.caption,
-                            color = CoveTheme.colors.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = {
-                        container.auth.deleteSshKey(k.name)
-                        sshKeys = container.auth.sshKeys()
-                    }) {
-                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = CoveTheme.colors.error)
-                    }
-                }
-                CoveDivider()
-            }
-            Row(Modifier.padding(horizontal = 12.dp)) {
-                TextButton(onClick = { sshGenDialog = true }) { Text(S.generateKey) }
-                Spacer(Modifier.width(8.dp))
-                TextButton(onClick = { sshImportDialog = true }) { Text(S.importKey) }
-            }
-
-            // ── 自动同步 ──
-            SectionHeader(S.sectionAutoSync)
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(S.autoSyncDesc, style = MaterialTheme.typography.body2)
-                    Text(
-                        S.everyNMinutes(interval),
-                        style = MaterialTheme.typography.caption,
-                        color = CoveTheme.colors.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = autoSync,
-                    onCheckedChange = { enabled ->
-                        autoSync = enabled
-                        container.auth.autoSyncEnabled = enabled
-                        if (enabled) {
-                            SyncWorker.schedule(container.appContext, interval)
-                            Toast.makeText(container.appContext, S.autoSyncOn, Toast.LENGTH_SHORT).show()
-                        } else {
-                            SyncWorker.cancel(container.appContext)
-                        }
-                    }
-                )
-            }
-            Row(Modifier.padding(horizontal = 12.dp)) {
-                listOf(15, 30, 60).forEach { min ->
-                    CoveChip(label = "${min}min", selected = interval == min, onClick = {
-                            interval = min
-                            container.auth.autoSyncIntervalMin = min
-                            if (autoSync) SyncWorker.schedule(container.appContext, min)
-                        }, modifier = Modifier.padding(end = 8.dp))
-                }
-            }
-
-            // ── 日志 ──
-            SectionHeader(S.sectionOpLog)
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                TextButton(onClick = { nav.navigate(Routes.LOG) }) { Text(S.viewLogs) }
-            }
-
-            // ── 关于 ──
-            SectionHeader(S.sectionAbout)
-            Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                Text(S.aboutTitle, style = MaterialTheme.typography.subtitle2)
-                Text(
-                    S.aboutDesc,
-                    style = MaterialTheme.typography.caption,
-                    color = CoveTheme.colors.onSurfaceVariant
-                )
-                Text(
-                    S.aboutLink,
-                    style = MaterialTheme.typography.caption,
-                    color = CoveTheme.colors.secondary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-            Spacer(Modifier.padding(bottom = 32.dp))
+            // ── 其他 ──
+            CoveSectionTitle(S.settingsSectionOther)
+            SettingsNavItem(
+                icon = Icons.Outlined.ReceiptLong,
+                title = S.sectionOpLog,
+                onClick = { nav.navigate(Routes.LOG) }
+            )
+            CoveDivider(insetStart = 56)
+            SettingsNavItem(
+                icon = Icons.Outlined.Info,
+                title = S.sectionAbout,
+                onClick = { nav.navigate(Routes.SETTINGS_ABOUT) }
+            )
+            Spacer(Modifier.padding(bottom = 24.dp))
         }
     }
+}
 
-    // ── 令牌添加对话框 ──
-    if (tokenDialog) {
-        var host by remember { mutableStateOf("github.com") }
-        var username by remember { mutableStateOf("") }
-        var token by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { tokenDialog = false },
-            title = { Text(S.addTokenTitle, style = MaterialTheme.typography.subtitle1) },
-            text = {
-                Column {
-                    Text(S.hostLabel, style = MaterialTheme.typography.caption)
-                    Row {
-                        listOf("github.com", "gitlab.com", "gitea.com").forEach { h ->
-                            CoveChip(
-                                label = h.substringBefore('.'),
-                                selected = host == h,
-                                onClick = { host = h },
-                                modifier = Modifier.padding(end = 6.dp)
-                            )
-                        }
-                    }
-                    CoveTextField(
-                        value = host,
-                        onValueChange = { host = it },
-                        label = S.customHost,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    CoveTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = S.username,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-                    )
-                    CoveTextField(
-                        value = token,
-                        onValueChange = { token = it },
-                        label = S.tokenLabel,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        container.auth.setToken(host.trim(), username.trim(), token.trim())
-                        tokens = container.auth.tokens()
-                        tokenDialog = false
-                    },
-                    enabled = host.isNotBlank() && token.isNotBlank()
-                ) { Text(S.save) }
-            },
-            dismissButton = { TextButton(onClick = { tokenDialog = false }) { Text(S.cancel) } }
-        )
-    }
+/** 主题中文名（外观副标题用） */
+internal fun themeLabel(
+    S: com.gitcove.app.i18n.Strings,
+    mode: com.gitcove.app.ui.theme.ThemeMode
+): String = when (mode) {
+    com.gitcove.app.ui.theme.ThemeMode.SYSTEM -> S.themeSystem
+    com.gitcove.app.ui.theme.ThemeMode.DARK -> S.themeDark
+    com.gitcove.app.ui.theme.ThemeMode.LIGHT -> S.themeLight
+}
 
-    // ── SSH 生成对话框 ──
-    if (sshGenDialog) {
-        var name by remember { mutableStateOf("gitcove_key") }
-        var comment by remember { mutableStateOf(container.auth.gitEmail) }
-        var type by remember { mutableStateOf(SshKeyGen.KeyType.ECDSA256) }
-        AlertDialog(
-            onDismissRequest = { sshGenDialog = false },
-            title = { Text(S.genSshTitle, style = MaterialTheme.typography.subtitle1) },
-            text = {
-                Column {
-                    CoveTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = S.keyName,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(Modifier.padding(vertical = 6.dp)) {
-                        SshKeyGen.KeyType.entries.forEach { t ->
-                            CoveChip(label = t.label, selected = type == t, onClick = { type = t }, modifier = Modifier.padding(end = 6.dp))
-                        }
-                    }
-                    CoveTextField(
-                        value = comment,
-                        onValueChange = { comment = it },
-                        label = S.keyComment,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch(Dispatchers.IO) {
-                            SshKeyGen.generate(container.auth, name, type, comment)
-                                .onSuccess { key ->
-                                    sshKeys = container.auth.sshKeys()
-                                    sshShowPub = key.publicKey
-                                    sshGenDialog = false
-                                }
-                                .onFailure { e ->
-                                    sshGenDialog = false
-                                }
-                        }
-                    },
-                    enabled = name.isNotBlank()
-                ) { Text(S.generate) }
-            },
-            dismissButton = { TextButton(onClick = { sshGenDialog = false }) { Text(S.cancel) } }
-        )
-    }
+/** 强调色中文名（外观副标题用） */
+internal fun accentLabel(S: com.gitcove.app.i18n.Strings, accent: Md2Accent): String = when (accent) {
+    Md2Accent.BLUE -> S.accentBlue
+    Md2Accent.TEAL -> S.accentTeal
+    Md2Accent.INDIGO -> S.accentIndigo
+    Md2Accent.CORAL -> S.accentCoral
+    Md2Accent.AMBER -> S.accentAmber
+}
 
-    // ── SSH 导入对话框 ──
-    if (sshImportDialog) {
-        var name by remember { mutableStateOf("") }
-        var privateKey by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { sshImportDialog = false },
-            title = { Text(S.importSshTitle, style = MaterialTheme.typography.subtitle1) },
-            text = {
-                Column {
-                    CoveTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = S.keyName,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    CoveTextField(
-                        value = privateKey,
-                        onValueChange = { privateKey = it },
-                        label = S.pastePrivateKey,
-                        textStyle = MaterialTheme.typography.caption.copy(fontFamily = MonoFont),
-                        minLines = 4,
-                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-                    )
-                    Text(
-                        S.privateKeyHint,
-                        style = MaterialTheme.typography.overline,
-                        color = CoveTheme.colors.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        // 公钥由 JSch 从私钥推导（解析公钥 blob 首字段 = 算法名）
-                        scope.launch(Dispatchers.IO) {
-                            runCatching {
-                                val jsch = com.jcraft.jsch.JSch()
-                                val tmp = java.io.File.createTempFile("import_", "_key")
-                                tmp.writeText(privateKey.trim() + "\n")
-                                val kp = com.jcraft.jsch.KeyPair.load(jsch, tmp.absolutePath)
-                                val blob = kp.getPublicKeyBlob()
-                                    ?: throw IllegalStateException(S.derivePubFailed)
-                                val bb = java.nio.ByteBuffer.wrap(blob)
-                                val len = bb.int
-                                val algo = ByteArray(len).also { bb.get(it) }.toString(Charsets.US_ASCII)
-                                val b64 = java.util.Base64.getEncoder().encodeToString(blob)
-                                val pub = "$algo $b64 ${name.trim()}"
-                                container.auth.saveSshKey(name.trim(), privateKey, pub)
-                                tmp.delete()
-                            }.onSuccess {
-                                sshKeys = container.auth.sshKeys()
-                                sshImportDialog = false
-                            }
-                        }
-                    },
-                    enabled = name.isNotBlank() && privateKey.contains("PRIVATE KEY")
-                ) { Text(S.importAction) }
-            },
-            dismissButton = { TextButton(onClick = { sshImportDialog = false }) { Text(S.cancel) } }
-        )
-    }
-
-    // ── 公钥展示对话框 ──
-    sshShowPub?.let { pub ->
-        AlertDialog(
-            onDismissRequest = { sshShowPub = null },
-            title = { Text(S.pubKeyTitle, style = MaterialTheme.typography.subtitle1) },
-            text = {
+/** 设置首页的导航行：着色圆形图标 + 标题 + 状态副标题 + 右箭头 */
+@Composable
+private fun SettingsNavItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit
+) {
+    val c = CoveTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(32.dp)
+                .background(c.primary.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = c.primary, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.subtitle2)
+            if (!subtitle.isNullOrBlank()) {
                 Text(
-                    pub,
-                    style = MaterialTheme.typography.caption.copy(fontFamily = MonoFont),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { clipboard.setText(AnnotatedString(pub)) }
+                    subtitle,
+                    style = MaterialTheme.typography.caption,
+                    color = c.onSurfaceVariant,
+                    maxLines = 1
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    clipboard.setText(AnnotatedString(pub))
-                    Toast.makeText(container.appContext, S.pubKeyCopied, Toast.LENGTH_SHORT).show()
-                }) { Text(S.copy) }
-            },
-            dismissButton = { TextButton(onClick = { sshShowPub = null }) { Text(S.close) } }
+            }
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = c.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
         )
     }
 }

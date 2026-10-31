@@ -14,13 +14,25 @@ import com.gitcove.app.ui.diff.DiffScreen
 import com.gitcove.app.ui.editor.EditorScreen
 import com.gitcove.app.ui.repo.RepoScreen
 import com.gitcove.app.ui.repos.RepoListScreen
+import com.gitcove.app.ui.settings.AboutScreen
+import com.gitcove.app.ui.settings.AccountsScreen
+import com.gitcove.app.ui.settings.AppearanceScreen
+import com.gitcove.app.ui.settings.GitIdentityScreen
 import com.gitcove.app.ui.settings.LogScreen
 import com.gitcove.app.ui.settings.SettingsScreen
+import com.gitcove.app.ui.settings.SshScreen
+import com.gitcove.app.ui.settings.SyncScreen
 
 object Routes {
     const val REPOS = "repos"
     const val CLONE = "clone"
     const val SETTINGS = "settings"
+    const val SETTINGS_GIT = "settings/git"
+    const val SETTINGS_AUTH = "settings/auth"
+    const val SETTINGS_SSH = "settings/ssh"
+    const val SETTINGS_APPEARANCE = "settings/appearance"
+    const val SETTINGS_SYNC = "settings/sync"
+    const val SETTINGS_ABOUT = "settings/about"
     const val LOG = "log"
     const val REPO = "repo/{repoId}"
     const val DIFF = "diff/{repoId}?path={path}&cached={cached}"
@@ -49,6 +61,30 @@ fun GitCoveNavHost(container: AppContainer) {
 
         composable(Routes.SETTINGS) {
             SettingsScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_GIT) {
+            GitIdentityScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_AUTH) {
+            AccountsScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_SSH) {
+            SshScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_APPEARANCE) {
+            AppearanceScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_SYNC) {
+            SyncScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_ABOUT) {
+            AboutScreen(container = container, nav = nav)
         }
 
         composable(Routes.LOG) {
