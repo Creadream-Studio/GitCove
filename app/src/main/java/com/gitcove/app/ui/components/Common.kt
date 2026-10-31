@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
+import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
@@ -111,8 +112,25 @@ fun ConfirmDialog(
     )
 }
 
-/** 空状态占位 */
+/** 空状态占位（可选 MD2 灰色图标 + 说明 + 操作） */
 @Composable
-fun EmptyView(text: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
-    CoveEmptyState(text = text, modifier = modifier, action = action)
+fun EmptyView(
+    text: String,
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    action: (@Composable () -> Unit)? = null
+) {
+    val iconSlot: (@Composable () -> Unit)? = icon?.let {
+        {
+            Box(
+                Modifier
+                    .size(56.dp)
+                    .background(CoveTheme.colors.surfaceVariant, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(it, contentDescription = null, tint = CoveTheme.colors.onSurfaceVariant, modifier = Modifier.size(26.dp))
+            }
+        }
+    }
+    CoveEmptyState(text = text, modifier = modifier, icon = iconSlot, action = action)
 }

@@ -39,6 +39,8 @@ import com.gitcove.app.ui.components.CoveBottomSheet
 import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveTextField
 import com.gitcove.app.ui.theme.CoveTheme
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.Icons
 
 /**
  * 历史 Tab（功能 29/34）：提交列表 + 图形化节点连线 + 提交详情（变更文件 / Revert / 建分支 / 签出）
@@ -49,7 +51,7 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     var detailTarget by remember { mutableStateOf<Commit?>(null) }
 
     if (vm.commits.isEmpty()) {
-        EmptyView(S.noCommits)
+        EmptyView(S.noCommits, icon = Icons.Filled.History)
         return
     }
 

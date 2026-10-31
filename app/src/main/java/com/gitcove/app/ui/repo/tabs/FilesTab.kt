@@ -55,6 +55,8 @@ import com.gitcove.app.ui.components.CoveSectionTitle
 import com.gitcove.app.ui.components.CoveSegmentedRow
 import com.gitcove.app.ui.components.CoveTextField
 import com.gitcove.app.ui.theme.CoveTheme
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.filled.SearchOff
 
 /**
  * 文件 Tab（文档 5.3）：面包屑导航 + 文件名/内容搜索 + 新建文件/目录（功能 58/60/61/63）
@@ -161,7 +163,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
         when {
             results != null -> {
                 if (results.isEmpty()) {
-                    EmptyView(S.noMatches)
+                    EmptyView(S.noMatches, icon = Icons.Filled.SearchOff)
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(results, key = { it.path + ":" + it.line }) { hit ->
@@ -206,7 +208,7 @@ fun FilesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             else -> {
                 val nodes = vm.files
                 if (nodes.isEmpty()) {
-                    EmptyView(S.emptyDir)
+                    EmptyView(S.emptyDir, icon = Icons.Outlined.FolderOpen)
                 } else {
                     // 始终单列显示
                     LazyColumn(Modifier.fillMaxSize()) {

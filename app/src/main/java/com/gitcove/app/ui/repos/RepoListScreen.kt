@@ -104,6 +104,7 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
             if (vm.items.isEmpty() && !vm.loading) {
                 EmptyView(
                     text = S.emptyRepos,
+                    icon = Icons.Outlined.AccountTree,
                     action = {
                         TextButton(onClick = { nav.navigate(Routes.CLONE) }) {
                             Text(S.cloneOrCreateRepo, style = MaterialTheme.typography.button, color = c.primary)

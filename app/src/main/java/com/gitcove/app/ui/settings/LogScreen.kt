@@ -28,6 +28,7 @@ import com.gitcove.app.ui.components.CoveBackButton
 import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveTopAppBar
 import com.gitcove.app.ui.theme.CoveTheme
+import androidx.compose.material.icons.filled.ReceiptLong
 
 /**
  * 操作日志页（功能 79）：查看 / 清空
@@ -58,7 +59,11 @@ fun LogScreen(
         backgroundColor = CoveTheme.colors.background
     ) { padding ->
         if (entries.isEmpty()) {
-            EmptyView(S.noLogs, modifier = Modifier.padding(padding))
+            EmptyView(
+                S.noLogs,
+                modifier = Modifier.padding(padding),
+                icon = Icons.Filled.ReceiptLong
+            )
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(padding)) {
                 items(entries) { entry ->

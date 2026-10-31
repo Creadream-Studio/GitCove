@@ -54,6 +54,7 @@ import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveOutlinedButton
 import com.gitcove.app.ui.components.CoveTextField
 import com.gitcove.app.ui.theme.CoveTheme
+import androidx.compose.material.icons.filled.CheckCircle
 
 /**
  * 改动 Tab（文档 5.3）：暂存/取消暂存、冲突区、提交信息历史、Amend、提交并推送、Stash
@@ -189,7 +190,12 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             }
 
             if (staged.isEmpty() && unstaged.isEmpty() && conflicts.isEmpty()) {
-                item { EmptyView(S.cleanTreeEmpty) }
+                item {
+                    EmptyView(
+                        S.cleanTreeEmpty,
+                        icon = Icons.Filled.CheckCircle
+                    )
+                }
             }
         }
 
