@@ -260,6 +260,7 @@ open class Strings {
     open fun discardConfirm(n: Int) = "将丢弃 $n 个文件的未暂存改动（未跟踪文件将被删除），此操作不可恢复！"
     open val stashListTitle get() = "储藏列表"
     open val noStashes get() = "没有储藏记录"
+    open val dropStashConfirm get() = "删除这条储藏？删除后无法恢复。"
 
     // ── 历史 Tab ─────────────────────────────────────────────────────────
     open val noCommits get() = "还没有提交记录\n在「改动」页完成第一次提交吧"
@@ -700,6 +701,7 @@ object EnStrings : Strings() {
     override fun discardConfirm(n: Int) = "Unstaged changes in $n files will be discarded (untracked files deleted). This cannot be undone!"
     override val stashListTitle get() = "Stashes"
     override val noStashes get() = "No stashes"
+    override val dropStashConfirm get() = "Delete this stash? This cannot be undone."
 
     // ── 历史 Tab ─────────────────────────────────────────────────────────
     override val noCommits get() = "No commits yet\nMake your first commit in \"Changes\""

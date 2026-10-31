@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -304,8 +305,15 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     /** 功能 10/11/12/13：提交，可选立即推送。
      *  提交成功立刻报「已提交」；如需推送，推送全程用进度文字展示，
-     *  完成后再报「推送完成」——用户 1 秒内就能看到提交结果，不必陪网络干等。 */
-    fun commit(message: String, amend: Boolean, pushAfter: Boolean) = launchOp(refresh = Refresh.QUICK_THEN_FULL) {
+     *  完成后再报「推送完成」——用户 1 秒内就能看到提交结果，不必陪网络干等。
+     *  [onDone] 在提交（含推送）全部成功后回调，UI 借此清空输入框；
+     *  失败时不回调，用户输入的提交信息得以保留，改完可直接重试。 */
+    fun commit(
+        message: String,
+        amend: Boolean,
+        pushAfter: Boolean,
+        onDone: (() -> Unit)? = null
+    ) = launchOp(refresh = Refresh.QUICK_THEN_FULL) {
         committing = true
         try {
             require(message.isNotBlank()) { c.strings.commitRequired }
@@ -320,6 +328,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                 c.repoStore.updateLastSync(repoId, System.currentTimeMillis())
                 msg.tryEmit(c.strings.pushDone)
             }
+            withContext(Dispatchers.Main) { onDone?.invoke() }
         } finally {
             committing = false
         }

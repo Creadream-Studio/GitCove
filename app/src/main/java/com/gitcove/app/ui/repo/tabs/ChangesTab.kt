@@ -75,6 +75,8 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     var overflow by remember { mutableStateOf(false) }
     var stashListDialog by remember { mutableStateOf(false) }
     var discardDialog by remember { mutableStateOf(false) }
+    // 待确认删除的储藏下标（删除不可恢复，与文件删除同级别需要确认）
+    var dropStashIdx by remember { mutableStateOf<Int?>(null) }
 
     val st = vm.status
     val conflicts = st?.conflicts.orEmpty()
@@ -264,7 +266,16 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             ) {
                 Checkbox(
                     checked = amend,
-                    onCheckedChange = { amend = it },
+                    onCheckedChange = { on ->
+                        // git commit --amend 惯例：勾选即带出上次提交信息（仅输入为空时，不覆盖用户输入）
+                        if (on) {
+                            if (message.isBlank()) message = vm.commits.firstOrNull()?.message ?: ""
+                        } else if (vm.commits.firstOrNull()?.message == message) {
+                            // 取消勾选时若内容仍是自动回填那条，一并清空防误用旧信息
+                            message = ""
+                        }
+                        amend = on
+                    },
                     colors = CheckboxDefaults.colors(checkedColor = CoveTheme.colors.primary)
                 )
                 Text(S.amend, style = MaterialTheme.typography.caption)
@@ -292,9 +303,8 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 CoveButton(
                     text = if (vm.committing) S.committing else S.commit,
                     onClick = {
-                        vm.commit(message, amend, pushAfter = false)
-                        message = ""
-                        amend = false
+                        // 成功才清空输入：失败（如未配置身份）时保留信息，改完直接重试
+                        vm.commit(message, amend, pushAfter = false) { message = ""; amend = false }
                     },
                     enabled = staged.isNotEmpty() && message.isNotBlank() && !vm.busy,
                     modifier = Modifier.weight(1f)
@@ -302,9 +312,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 CoveOutlinedButton(
                     text = if (vm.committing) S.committing else S.commitAndPush,
                     onClick = {
-                        vm.commit(message, amend, pushAfter = true)
-                        message = ""
-                        amend = false
+                        vm.commit(message, amend, pushAfter = true) { message = ""; amend = false }
                     },
                     // st?.detached != true：status 尚未加载时按可推送处理（detached 才禁用），
                     // 原写法 st?.detached!! 在 status 为 null 的首帧会 NPE
@@ -352,13 +360,29 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                                 )
                             }
                             TextButton(onClick = { vm.stashApply(idx); stashListDialog = false }) { Text(S.apply) }
-                            TextButton(onClick = { vm.stashDrop(idx) }) { Text(S.delete) }
+                            TextButton(onClick = { dropStashIdx = idx }) { Text(S.delete) }
                         }
                     }
                 }
             },
             confirmLabel = S.close,
             onConfirm = { stashListDialog = false }
+        )
+    }
+
+    // 储藏删除确认（不可恢复）
+    if (dropStashIdx != null) {
+        val idx = dropStashIdx!!
+        ConfirmDialog(
+            title = S.delete,
+            text = S.dropStashConfirm,
+            confirmLabel = S.delete,
+            danger = true,
+            onConfirm = {
+                dropStashIdx = null
+                vm.stashDrop(idx)
+            },
+            onDismiss = { dropStashIdx = null }
         )
     }
 }
