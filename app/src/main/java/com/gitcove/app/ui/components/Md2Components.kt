@@ -5,6 +5,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +55,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
@@ -498,7 +503,7 @@ fun CoveLoading(modifier: Modifier = Modifier) {
     }
 }
 
-/** MD2 底部抽屉（Dialog 实现，避免依赖 M3 ModalBottomSheet；点击外部关闭） */
+/** MD2 底部抽屉（Dialog 实现，避免依赖 M3 ModalBottomSheet；点击抽屉上方空白区域关闭） */
 @Composable
 fun CoveBottomSheet(
     onDismiss: () -> Unit,
@@ -511,6 +516,14 @@ fun CoveBottomSheet(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
+            // 抽屉上方的空白区域属于 Dialog 窗口本身，不走 onDismissRequest——
+            // 必须自己吃掉点击并关闭，否则只能按返回键退出
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }
+            )
             Surface(
                 modifier = modifier.fillMaxWidth(),
                 color = c.surface,
@@ -597,7 +610,14 @@ fun CoveEmptyState(text: String, modifier: Modifier = Modifier, icon: (@Composab
     }
 }
 
-/** MD2 通用对话框：4dp 圆角、24dp 投影、surface 底 + 标题/内容/双按钮 */
+/**
+ * MD2 通用对话框：4dp 圆角、24dp 投影、surface 底 + 标题/内容/双按钮。
+ *
+ * 不用 M2 AlertDialog：其内部按「标题/正文首末行基线」计算位置，正文槽里放
+ * 自定义组合（路径行、按钮行、固定高列表…）时几何会错乱——内容被推到对话框
+ * 底部，标题与内容之间留出一大块空白（内容越多越明显）。这里用显式布局：
+ * 标题固定在上，内容区最多占对话框高度 85%（超出内部滚动），按钮固定在下。
+ */
 @Composable
 fun CoveAlertDialog(
     onDismiss: () -> Unit,
@@ -609,28 +629,49 @@ fun CoveAlertDialog(
     content: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     val c = CoveTheme.colors
-    androidx.compose.material.AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(4.dp),
-        backgroundColor = c.surface,
-        contentColor = c.onSurface,
-        title = { Text(title, style = MaterialTheme.typography.subtitle1) },
-        text = content?.let { body -> { Column { body() } } },
-        confirmButton = {
-            if (confirmLabel != null && onConfirm != null) {
-                androidx.compose.material.TextButton(onClick = onConfirm) {
-                    Text(confirmLabel, style = MaterialTheme.typography.button, color = c.primary)
+    val maxH = (LocalConfiguration.current.screenHeightDp * 0.85f).dp
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = c.surface,
+            contentColor = c.onSurface,
+            elevation = 24.dp,
+            modifier = Modifier.fillMaxWidth().heightIn(max = maxH)
+        ) {
+            Column {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.subtitle1,
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 14.dp)
+                )
+                Column(
+                    Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 24.dp, end = 24.dp, bottom = 6.dp)
+                ) {
+                    content?.invoke(this)
+                }
+                if (dismissLabel != null || (confirmLabel != null && onConfirm != null)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(end = 8.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        if (dismissLabel != null) {
+                            androidx.compose.material.TextButton(onClick = onDismissClick ?: onDismiss) {
+                                Text(dismissLabel, style = MaterialTheme.typography.button, color = c.onSurfaceVariant)
+                            }
+                        }
+                        if (confirmLabel != null && onConfirm != null) {
+                            androidx.compose.material.TextButton(onClick = onConfirm) {
+                                Text(confirmLabel, style = MaterialTheme.typography.button, color = c.primary)
+                            }
+                        }
+                    }
                 }
             }
-        },
-        dismissButton = if (dismissLabel != null) {
-            {
-                androidx.compose.material.TextButton(onClick = onDismissClick ?: onDismiss) {
-                    Text(dismissLabel, style = MaterialTheme.typography.button, color = c.onSurfaceVariant)
-                }
-            }
-        } else null
-    )
+        }
+    }
 }
 
 /** MD2 强调色选择器：一排圆形色块，选中项加外圈与对勾 */

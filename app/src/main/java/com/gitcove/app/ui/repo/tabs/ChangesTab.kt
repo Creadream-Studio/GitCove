@@ -266,7 +266,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
                 CoveButton(
-                    text = S.commit,
+                    text = if (vm.committing) S.committing else S.commit,
                     onClick = {
                         vm.commit(message, amend, pushAfter = false)
                         message = ""
@@ -276,7 +276,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     modifier = Modifier.weight(1f)
                 )
                 CoveOutlinedButton(
-                    text = S.commitAndPush,
+                    text = if (vm.committing) S.committing else S.commitAndPush,
                     onClick = {
                         vm.commit(message, amend, pushAfter = true)
                         message = ""

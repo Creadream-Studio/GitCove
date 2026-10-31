@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
@@ -158,9 +156,9 @@ fun DirectoryPickerDialog(
                     color = c.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
                 )
-                else -> Column(
-                    Modifier.height(340.dp).verticalScroll(rememberScrollState())
-                ) {
+                else -> Column(Modifier.fillMaxWidth()) {
+                    // 不再自带固定高度 + 内部滚动：CoveAlertDialog 的内容区本身可滚动，
+                    // 嵌套滚动曾是「标题与内容间出现大片空白」的诱因之一
                     list.forEach { f ->
                         val isDir = f.isDirectory
                         Row(

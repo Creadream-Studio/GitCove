@@ -58,6 +58,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         private set
     var busy by mutableStateOf(false)
         private set
+    /** 正在执行提交（按钮文字切“提交中…”用，与通用 busy 区分） */
+    var committing by mutableStateOf(false)
+        private set
     var progress by mutableStateOf("")
         private set
     var searchResults by mutableStateOf<List<SearchHit>?>(null)
@@ -301,18 +304,23 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     /** 功能 10/11/12/13：提交，可选立即推送 */
     fun commit(message: String, amend: Boolean, pushAfter: Boolean) = launchOp {
-        require(message.isNotBlank()) { c.strings.commitRequired }
-        c.gitCore.commit(repoDir!!, message, amend).getOrThrow()
-        // 乐观更新：提交成功即清空「已暂存」显示与角标，不等 status 重算（体感秒级成功）
-        status?.let { st -> status = st.copy(staged = emptyList()) }
-        diffStaged = emptyList()
-        if (pushAfter) {
-            progress = c.strings.pushing
-            c.gitCore.push(repoDir!!).getOrThrow()
-            c.repoStore.updateLastSync(repoId, System.currentTimeMillis())
-            msg.tryEmit(c.strings.commitPushed)
-        } else {
-            msg.tryEmit(c.strings.committed)
+        committing = true
+        try {
+            require(message.isNotBlank()) { c.strings.commitRequired }
+            c.gitCore.commit(repoDir!!, message, amend).getOrThrow()
+            // 乐观更新：提交成功即清空「已暂存」显示与角标，不等 status 重算（体感秒级成功）
+            status?.let { st -> status = st.copy(staged = emptyList()) }
+            diffStaged = emptyList()
+            if (pushAfter) {
+                progress = c.strings.pushing
+                c.gitCore.push(repoDir!!).getOrThrow()
+                c.repoStore.updateLastSync(repoId, System.currentTimeMillis())
+                msg.tryEmit(c.strings.commitPushed)
+            } else {
+                msg.tryEmit(c.strings.committed)
+            }
+        } finally {
+            committing = false
         }
     }
 
@@ -489,9 +497,11 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     // ─────────────── 通用执行器 ───────────────
 
     private fun launchOp(toastOnSuccess: String? = null, op: suspend () -> Unit) {
+        // busy 在点按线程同步置位：进度条/按钮禁用当帧生效，不等 IO 调度——
+        // 否则快速操作（提交、暂存）里“按下后毫无反应”的空窗就是这段调度延迟
+        busy = true
+        progress = ""
         viewModelScope.launch(Dispatchers.IO) {
-            busy = true
-            progress = ""
             try {
                 op()
                 toastOnSuccess?.let { msg.tryEmit(it) }

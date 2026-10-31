@@ -1,5 +1,7 @@
 package com.gitcove.app.ui.theme
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -49,6 +51,7 @@ private fun m2Shapes(style: ShapeStyle) = when (style) {
     ShapeStyle.COMPACT -> Md2ShapesCompact
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GitCoveTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -66,7 +69,13 @@ fun GitCoveTheme(
         if (dark) darkPalette(accent) else lightPalette(accent)
     }
 
-    CompositionLocalProvider(LocalCovePalette provides palette) {
+    // 关闭 Android 12+ 的拉伸过度滚动（stretch overscroll）：列表滑到边缘时内容被
+    // 整体拉长、露出一大片窗口底色，长内容页上看着像“滑出一片空白”；工具型应用
+    // （MP 管理器一类）也不使用该效果，全局禁用
+    CompositionLocalProvider(
+        LocalCovePalette provides palette,
+        LocalOverscrollConfiguration provides null
+    ) {
         SystemBars(palette)
         MaterialTheme(
             colors = palette.toMaterialColors(),
