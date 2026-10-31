@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
@@ -92,6 +95,17 @@ fun RepoScreen(
     var forcePushConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(it) } }
+
+    // 从编辑器保存、差异页解决冲突等子页面返回本页时，导航栈条目会重新 RESUMED，
+    // 借此立刻刷新仓库状态，改动无需重进仓库即可看到
+    val backEntry = nav.currentBackStackEntry
+    DisposableEffect(backEntry) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) vm.refreshAll()
+        }
+        backEntry?.lifecycle?.addObserver(obs)
+        onDispose { backEntry?.lifecycle?.removeObserver(obs) }
+    }
 
     val st = vm.status
     val dirty = st?.dirtyCount ?: 0
