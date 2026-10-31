@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.gitcove.app.ui.theme.CoveTheme
+import com.gitcove.app.ui.theme.appBarElevatedColor
 
 /**
  * GitCove 的 MD2 组件层。
@@ -237,7 +238,7 @@ fun CoveTabRow(
     TabRow(
         selectedTabIndex = selectedIndex,
         modifier = modifier.fillMaxWidth(),
-        backgroundColor = c.appBar,
+        backgroundColor = c.appBarElevatedColor(),
         contentColor = c.onAppBar,
         indicator = { positions ->
             Box(

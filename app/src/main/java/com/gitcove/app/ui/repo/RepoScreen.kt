@@ -1,47 +1,41 @@
 package com.gitcove.app.ui.repo
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.FloatingActionButton
+import androidx.compose.material.FloatingActionButtonDefaults
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Commit
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,18 +50,28 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.ConfirmDialog
+import com.gitcove.app.ui.components.CoveBackButton
+import com.gitcove.app.ui.components.CoveBadge
+import com.gitcove.app.ui.components.CoveBottomSheet
+import com.gitcove.app.ui.components.CoveButton
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveOutlinedButton
+import com.gitcove.app.ui.components.CoveProgressBar
+import com.gitcove.app.ui.components.CoveTabRow
+import com.gitcove.app.ui.components.CoveTopAppBar
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.repo.tabs.BranchTab
 import com.gitcove.app.ui.repo.tabs.ChangesTab
 import com.gitcove.app.ui.repo.tabs.FilesTab
 import com.gitcove.app.ui.repo.tabs.HistoryTab
-import com.gitcove.app.util.vmFactory
+import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.ui.theme.MonoFont
+import com.gitcove.app.util.vmFactory
 
 /**
- * 仓库详情页（文档 5.3）：顶部操作栏 + 四 Tab + 悬浮状态按钮（功能 77）
+ * 仓库详情页（MD2）：主色应用栏（标题 + 分支状态副标题）+ MD2 Tab 行 +
+ * 右下角悬浮状态 FAB（带改动角标）+ 底部状态抽屉。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RepoScreen(
     container: AppContainer,
@@ -75,6 +79,7 @@ fun RepoScreen(
     repoId: Long
 ) {
     val S = LocalStrings.current
+    val c = CoveTheme.colors
     val vm: RepoViewModel = viewModel(
         key = "repo_$repoId",
         factory = vmFactory { RepoViewModel(container, repoId) }
@@ -96,85 +101,66 @@ fun RepoScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            vm.repo?.name ?: "…",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                        Text(
-                            buildString {
-                                append(if (st?.detached == true) "(detached HEAD @ ${st.branch.take(8)})" else st?.branch ?: "")
-                                if ((st?.ahead ?: 0) > 0) append("  ↑${st!!.ahead}")
-                                if ((st?.behind ?: 0) > 0) append("  ↓${st!!.behind}")
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 1.dp)
-                        )
-                    }
+            CoveTopAppBar(
+                title = vm.repo?.name ?: "…",
+                subtitle = buildString {
+                    append(if (st?.detached == true) "(detached HEAD @ ${st.branch.take(8)})" else st?.branch ?: "")
+                    if ((st?.ahead ?: 0) > 0) append("  ↑${st!!.ahead}")
+                    if ((st?.behind ?: 0) > 0) append("  ↓${st!!.behind}")
                 },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
-                    }
-                },
+                navigationIcon = { CoveBackButton { nav.popBackStack() } },
                 actions = {
                     // 分支快速切换（功能 23；非 Git 仓库置灰）
                     if (gitEnabled) {
                         Box {
                             TextButton(onClick = { branchMenu = true }) {
                                 Text(
-                                    st?.branch?.take(14) ?: "",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary
+                                    st?.branch?.take(12) ?: "",
+                                    style = MaterialTheme.typography.button,
+                                    color = c.onAppBar
                                 )
                             }
                             DropdownMenu(expanded = branchMenu, onDismissRequest = { branchMenu = false }) {
                                 vm.branches.filter { !it.isRemote }.forEach { b ->
-                                    DropdownMenuItem(
-                                        text = { Text(if (b.isCurrent) "✓ ${b.name}" else b.name) },
-                                        onClick = {
-                                            branchMenu = false
-                                            if (!b.isCurrent) vm.checkoutBranch(b.name)
-                                        }
-                                    )
+                                    DropdownMenuItem(onClick = {
+                                        branchMenu = false
+                                        if (!b.isCurrent) vm.checkoutBranch(b.name)
+                                    }) {
+                                        Text(
+                                            if (b.isCurrent) "✓ ${b.name}" else b.name,
+                                            style = MaterialTheme.typography.body2
+                                        )
+                                    }
                                 }
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text(S.branchManager) },
-                                    onClick = { branchMenu = false; tab = 3 }
-                                )
+                                CoveDivider()
+                                DropdownMenuItem(onClick = { branchMenu = false; tab = 3 }) {
+                                    Text(S.branchManager, style = MaterialTheme.typography.body2)
+                                }
                             }
                         }
                         // 同步快捷操作
                         IconButton(onClick = { vm.fetch() }, enabled = !vm.busy) {
-                            Icon(Icons.Filled.CloudDownload, contentDescription = "Fetch")
+                            Icon(Icons.Filled.CloudDownload, contentDescription = "Fetch", modifier = Modifier.size(20.dp))
                         }
                         IconButton(onClick = { vm.pull() }, enabled = !vm.busy) {
-                            Icon(Icons.Filled.Download, contentDescription = "Pull")
+                            Icon(Icons.Filled.Download, contentDescription = "Pull", modifier = Modifier.size(20.dp))
                         }
                         IconButton(onClick = { vm.push() }, enabled = !vm.busy) {
-                            Icon(Icons.Filled.CloudUpload, contentDescription = "Push")
+                            Icon(Icons.Filled.CloudUpload, contentDescription = "Push", modifier = Modifier.size(20.dp))
                         }
                     }
                     Box {
                         IconButton(onClick = { overflowMenu = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = S.more)
+                            Icon(Icons.Filled.MoreVert, contentDescription = S.more, modifier = Modifier.size(20.dp))
                         }
                         DropdownMenu(expanded = overflowMenu, onDismissRequest = { overflowMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text(S.forcePushMenu) },
                                 onClick = { overflowMenu = false; forcePushConfirm = true },
                                 enabled = gitEnabled
-                            )
-                            DropdownMenuItem(
-                                text = { Text(S.openSettings) },
-                                onClick = { overflowMenu = false; nav.navigate(Routes.SETTINGS) }
-                            )
+                            ) { Text(S.forcePushMenu, style = MaterialTheme.typography.body2) }
+                            DropdownMenuItem(onClick = { overflowMenu = false; nav.navigate(Routes.SETTINGS) }) {
+                                Text(S.openSettings, style = MaterialTheme.typography.body2)
+                            }
                         }
                     }
                 }
@@ -183,48 +169,39 @@ fun RepoScreen(
         floatingActionButton = {
             // 悬浮状态按钮：点击展开仓库状态面板（非 Git 仓库不显示）
             if (gitEnabled) {
-                BadgedBox(badge = {
-                    if (dirty > 0 || conflicts > 0) {
-                        Text(
-                            "${dirty + conflicts}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier
-                                .padding(2.dp)
-                                .background(
-                                    if (conflicts > 0) MaterialTheme.colorScheme.error
-                                    else MaterialTheme.colorScheme.tertiary,
-                                    androidx.compose.foundation.shape.CircleShape
-                                )
-                                .padding(horizontal = 5.dp, vertical = 1.dp)
-                        )
-                    }
-                }) {
+                Box {
                     FloatingActionButton(
                         onClick = { showPanel = true },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(48.dp)
+                        backgroundColor = c.secondary,
+                        contentColor = c.onSecondary,
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp, pressedElevation = 10.dp),
+                        modifier = Modifier.size(52.dp)
                     ) {
-                        Icon(Icons.Filled.Fingerprint, contentDescription = S.statusPanelDesc)
+                        Icon(Icons.Filled.Fingerprint, contentDescription = S.statusPanelDesc, modifier = Modifier.size(22.dp))
+                    }
+                    val count = dirty + conflicts
+                    if (count > 0) {
+                        CoveBadge(
+                            count = count,
+                            color = if (conflicts > 0) c.error else c.tertiary,
+                            modifier = Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-4).dp)
+                        )
                     }
                 }
             }
         },
-        snackbarHost = { SnackbarHost(snackbar) }
+        snackbarHost = { SnackbarHost(snackbar) },
+        backgroundColor = c.background
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (vm.busy) {
-                LinearProgressIndicator(
-                    progress = { if (vm.progress.isBlank()) 0.3f else 0.7f },
-                    modifier = Modifier.fillMaxWidth().height(2.dp)
-                )
+                CoveProgressBar(progress = if (vm.progress.isBlank()) 0.3f else 0.7f)
             }
-            TabRow(selectedTabIndex = tab) {
-                Tab(tab == 0, onClick = { tab = 0 }, text = { Text(S.tabFiles) })
-                Tab(tab == 1, onClick = { tab = 1 }, enabled = gitEnabled, text = { Text(S.tabChanges(dirty)) })
-                Tab(tab == 2, onClick = { tab = 2 }, enabled = gitEnabled, text = { Text(S.tabHistory) })
-                Tab(tab == 3, onClick = { tab = 3 }, enabled = gitEnabled, text = { Text(S.tabBranches) })
-            }
+            CoveTabRow(
+                tabs = listOf(S.tabFiles, S.tabChanges(dirty), S.tabHistory, S.tabBranches),
+                selectedIndex = tab,
+                onSelect = { if (it == 0 || gitEnabled) tab = it }
+            )
             // 非 Git 仓库：显示初始化引导横幅
             if (!gitEnabled && vm.repo != null) {
                 NotGitRepoBanner(onInit = { vm.initGitRepo() }, busy = vm.busy)
@@ -238,9 +215,9 @@ fun RepoScreen(
         }
     }
 
-    // 悬浮状态面板
+    // 悬浮状态面板（MD2 底部抽屉）
     if (showPanel) {
-        ModalBottomSheet(onDismissRequest = { showPanel = false }) {
+        CoveBottomSheet(onDismiss = { showPanel = false }) {
             StatusPanel(vm = vm, nav = nav, onClose = { showPanel = false }, onGoCommit = { showPanel = false; tab = 1 })
         }
     }
@@ -261,34 +238,30 @@ fun RepoScreen(
 @Composable
 private fun NotGitRepoBanner(onInit: () -> Unit, busy: Boolean) {
     val S = LocalStrings.current
-    androidx.compose.material3.Surface(
-        color = MaterialTheme.colorScheme.tertiaryContainer,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    val c = CoveTheme.colors
+    Surface(color = c.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Text(
                 S.notGitBannerTitle,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
+                style = MaterialTheme.typography.subtitle2,
+                color = c.onTertiaryContainer
             )
             Text(
                 S.notGitBannerDesc,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
+                style = MaterialTheme.typography.caption,
+                color = c.onTertiaryContainer
             )
-            Button(
+            CoveButton(
+                text = S.initGitRepo,
                 onClick = onInit,
                 enabled = !busy,
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Text(S.initGitRepo)
-            }
+                modifier = Modifier.padding(top = 6.dp)
+            )
         }
     }
 }
 
-/** 仓库状态面板（改动文件 + 快捷操作，文档 5.4） */
+/** 仓库状态面板（改动文件 + 快捷操作） */
 @Composable
 private fun StatusPanel(
     vm: RepoViewModel,
@@ -297,43 +270,57 @@ private fun StatusPanel(
     onGoCommit: () -> Unit
 ) {
     val S = LocalStrings.current
+    val c = CoveTheme.colors
     val st = vm.status
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Text(
             S.statusPanelTitle,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(vertical = 8.dp)
+            style = MaterialTheme.typography.subtitle1,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
+        CoveDivider()
         val all = (st?.staged.orEmpty() + st?.unstaged.orEmpty())
         if (all.isEmpty() && (st?.conflicts?.isEmpty() != false)) {
-            Text(S.cleanWorkingTree, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                S.cleanWorkingTree,
+                style = MaterialTheme.typography.body2,
+                color = c.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
         } else {
             LazyColumn(Modifier.height(200.dp)) {
                 items(st!!.conflicts) { path ->
                     Text(
                         "⚔ $path",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        style = MaterialTheme.typography.caption,
+                        color = c.error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp)
                     )
                 }
                 items(all) { f ->
                     Text(
                         "${com.gitcove.app.util.statusLetter(f.status)} ${f.path}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.caption,
                         fontFamily = MonoFont,
-                        maxLines = 1
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp)
                     )
                 }
             }
         }
-        Row(Modifier.padding(vertical = 16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onGoCommit, enabled = (vm.status?.dirtyCount ?: 0) > 0) {
-                Icon(Icons.Filled.Commit, contentDescription = null, modifier = Modifier.size(16.dp))
-                Text(S.commit, modifier = Modifier.padding(start = 4.dp))
-            }
-            OutlinedButton(onClick = { vm.fetch(); onClose() }) { Text(S.fetch) }
-            OutlinedButton(onClick = { vm.pull(); onClose() }) { Text(S.pull) }
-            OutlinedButton(onClick = { vm.push(); onClose() }) { Text(S.push) }
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CoveButton(
+                text = S.commit,
+                onClick = onGoCommit,
+                enabled = (vm.status?.dirtyCount ?: 0) > 0,
+                icon = { Icon(Icons.Filled.Commit, contentDescription = null, modifier = Modifier.size(16.dp)) }
+            )
+            CoveOutlinedButton(text = S.fetch, onClick = { vm.fetch(); onClose() })
+            CoveOutlinedButton(text = S.pull, onClick = { vm.pull(); onClose() })
+            CoveOutlinedButton(text = S.push, onClick = { vm.push(); onClose() })
         }
     }
 }
