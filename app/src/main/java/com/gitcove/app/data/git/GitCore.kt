@@ -98,11 +98,14 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     private fun creds(url: String) = GitCredentials.providerFor(url, auth)
 
-    /** 向仓库写入身份配置（clone/init 时调用） */
+    /** 向仓库写入身份配置（clone/init 时调用）：使用默认 Git 身份 */
     private fun setIdentity(git: Git) {
         val cfg = git.repository.config
-        if (auth.gitName.isNotBlank()) cfg.setString("user", null, "name", auth.gitName)
-        if (auth.gitEmail.isNotBlank()) cfg.setString("user", null, "email", auth.gitEmail)
+        val identity = auth.defaultIdentity()
+        if (identity != null) {
+            if (identity.name.isNotBlank()) cfg.setString("user", null, "name", identity.name)
+            if (identity.email.isNotBlank()) cfg.setString("user", null, "email", identity.email)
+        }
         cfg.save()
     }
 
@@ -243,13 +246,19 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
     }
 
-    /** 功能 10/11/12/13：提交（支持 Amend 修改最近提交） */
+    /** 功能 10/11/12/13：提交（支持 Amend 修改最近提交），作者/提交者使用当前默认 Git 身份 */
     fun commit(repoDir: File, message: String, amend: Boolean = false): Result<String> = withRepo(repoDir) { git ->
         require(message.isNotBlank()) { "提交信息不能为空" }
-        val rc = git.commit()
+        val cmd = git.commit()
             .setMessage(message.trim())
             .setAmend(amend)
-            .call()
+        auth.defaultIdentity()?.let { id ->
+            if (id.name.isNotBlank()) {
+                cmd.setAuthor(id.name, id.email)
+                cmd.setCommitter(id.name, id.email)
+            }
+        }
+        val rc = cmd.call()
         log.append("commit", rc.shortMessage)
         rc.name()
     }

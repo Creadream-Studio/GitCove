@@ -122,7 +122,7 @@ fun SshScreen(
     // ── 生成对话框 ──
     if (sshGenDialog) {
         var name by remember { mutableStateOf("gitcove_key") }
-        var comment by remember { mutableStateOf(container.auth.gitEmail) }
+        var comment by remember { mutableStateOf(container.auth.defaultIdentity()?.email.orEmpty()) }
         var type by remember { mutableStateOf(SshKeyGen.KeyType.ECDSA256) }
         AlertDialog(
             onDismissRequest = { sshGenDialog = false },

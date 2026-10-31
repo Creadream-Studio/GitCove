@@ -6,6 +6,9 @@ import com.gitcove.app.i18n.AppLanguage
 import com.gitcove.app.ui.theme.Md2Accent
 import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.security.MessageDigest
 
@@ -24,6 +27,18 @@ data class TokenEntry(
     val token: String
 )
 
+/** Git 提交身份：可配置多套，其一为默认（提交时写入 user.name / user.email） */
+@Serializable
+data class GitIdentity(
+    val id: Long,
+    val label: String = "",     // 别名（可选），如：个人 / 公司
+    val name: String,           // 提交作者姓名
+    val email: String           // 提交作者邮箱
+) {
+    /** 展示标题：优先用别名 */
+    val displayName: String get() = label.ifBlank { name }
+}
+
 /**
  * 认证与配置存储：
  * - Git 身份（name/email）
@@ -34,16 +49,69 @@ data class TokenEntry(
 class AuthStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("gitcove_auth", Context.MODE_PRIVATE)
+    private val json = Json { ignoreUnknownKeys = true }
     val sshDir: File = File(context.filesDir, "ssh").apply { mkdirs() }
 
-    // ── Git 身份 ────────────────────────────────────────────────────────────
-    var gitName: String
-        get() = prefs.getString("git_name", "") ?: ""
-        set(value) = prefs.edit().putString("git_name", value).apply()
+    init {
+        // 旧版本只存了一套 git_name / git_email：迁移为一条默认身份
+        if (!prefs.contains("git_identities")) {
+            val legacyName = prefs.getString("git_name", "").orEmpty()
+            if (legacyName.isNotBlank()) {
+                val legacy = GitIdentity(
+                    id = System.currentTimeMillis(),
+                    name = legacyName,
+                    email = prefs.getString("git_email", "").orEmpty()
+                )
+                prefs.edit()
+                    .putString("git_identities", json.encodeToString(listOf(legacy)))
+                    .putLong("git_default_identity", legacy.id)
+                    .apply()
+            }
+        }
+    }
 
-    var gitEmail: String
-        get() = prefs.getString("git_email", "") ?: ""
-        set(value) = prefs.edit().putString("git_email", value).apply()
+    // ── Git 身份（多套 + 默认）──────────────────────────────────────────────
+    fun identities(): List<GitIdentity> = runCatching {
+        json.decodeFromString<List<GitIdentity>>(prefs.getString("git_identities", "[]").orEmpty())
+    }.getOrDefault(emptyList()).sortedBy { it.id }
+
+    /** 新增或更新身份（按 id 匹配） */
+    fun saveIdentity(identity: GitIdentity) {
+        val list = identities().toMutableList()
+        val idx = list.indexOfFirst { it.id == identity.id }
+        if (idx >= 0) list[idx] = identity else list.add(identity)
+        persistIdentities(list)
+    }
+
+    fun deleteIdentity(id: Long) {
+        val list = identities().filter { it.id != id }
+        persistIdentities(list)
+        if (defaultIdentityId == id) {
+            prefs.edit().putLong("git_default_identity", list.firstOrNull()?.id ?: -1L).apply()
+        }
+    }
+
+    /** 设为默认身份 */
+    fun setDefaultIdentity(id: Long) {
+        if (identities().any { it.id == id }) {
+            prefs.edit().putLong("git_default_identity", id).apply()
+        }
+    }
+
+    var defaultIdentityId: Long
+        get() = prefs.getLong("git_default_identity", -1L)
+        private set(value) = prefs.edit().putLong("git_default_identity", value).apply()
+
+    /** 当前默认身份（未显式指定时取第一条） */
+    fun defaultIdentity(): GitIdentity? {
+        val list = identities()
+        if (list.isEmpty()) return null
+        return list.firstOrNull { it.id == defaultIdentityId } ?: list.first()
+    }
+
+    private fun persistIdentities(list: List<GitIdentity>) {
+        prefs.edit().putString("git_identities", json.encodeToString(list)).apply()
+    }
 
     // ── 访问令牌（host → user:token 混淆）────────────────────────────────────
     fun setToken(host: String, username: String, token: String) {

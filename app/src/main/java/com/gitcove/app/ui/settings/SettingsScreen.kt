@@ -55,9 +55,8 @@ fun SettingsScreen(
     val c = CoveTheme.colors
 
     // 各分类的副标题：直接反映当前配置状态
-    val identitySub = if (container.auth.gitName.isNotBlank()) {
-        "${container.auth.gitName} <${container.auth.gitEmail}>"
-    } else S.noIdentitySet
+    val identitySub = container.auth.defaultIdentity()
+        ?.let { "${it.name} <${it.email}>" } ?: S.noIdentitySet
     val tokenCount = container.auth.tokens().size
     val accountsSub = if (tokenCount > 0) S.tokensCount(tokenCount) else S.noTokensSet
     val sshCount = container.auth.sshKeys().size
