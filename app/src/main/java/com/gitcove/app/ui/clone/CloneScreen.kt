@@ -1,5 +1,7 @@
 package com.gitcove.app.ui.clone
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -35,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gitcove.app.BuildConfig
 import com.gitcove.app.data.git.GitCredentials
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
@@ -348,6 +351,7 @@ private fun GithubRepoPickerDialog(
 ) {
     val S = LocalStrings.current
     val c = CoveTheme.colors
+    val context = LocalContext.current
     CoveAlertDialog(
         onDismiss = onDismiss,
         title = S.githubPickerTitle,
@@ -389,6 +393,25 @@ private fun GithubRepoPickerDialog(
                     }
                 }
             }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                S.orgAccessHint,
+                style = MaterialTheme.typography.caption,
+                color = c.primary,
+                modifier = Modifier.clickable {
+                    runCatching {
+                        context.startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse(
+                                    "https://github.com/settings/connections/applications/" +
+                                        BuildConfig.GITHUB_CLIENT_ID
+                                )
+                            )
+                        )
+                    }
+                }
+            )
         },
         confirmLabel = S.close,
         onConfirm = onDismiss

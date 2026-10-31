@@ -397,6 +397,7 @@ open class Strings {
     open fun importFailed(e: String) = "导入失败：$e"
     open val listReposFailed get() = "获取仓库列表失败"
     open val checkingAccess get() = "检查仓库访问权限…"
+    open val orgAccessHint get() = "看不到组织的仓库？点这里到 GitHub 给本应用授权组织访问"
     open val tokenInvalid get() = "GitHub 令牌无效或已过期，请重新登录或更新令牌"
     open fun repoNoAccess(repo: String) =
         "无法访问 $repo：仓库不存在，或当前账号/令牌没有权限。组织私有仓库最常见的原因：组织未批准第三方应用访问组织资源"
@@ -761,6 +762,7 @@ object EnStrings : Strings() {
     override fun importFailed(e: String) = "Import failed: $e"
     override val listReposFailed get() = "Failed to load repo list"
     override val checkingAccess get() = "Checking repository access…"
+    override val orgAccessHint get() = "Org repos missing? Tap here to grant this app access to your organizations on GitHub"
     override val tokenInvalid get() = "The GitHub token is invalid or expired. Please sign in again or update the token"
     override fun repoNoAccess(repo: String) =
         "Cannot access $repo: the repository does not exist or the current account/token has no permission. For org private repos the usual cause is that the organization has not approved third-party application access"
