@@ -20,9 +20,18 @@ object CommitGraph {
         val commit: Commit,
         /** 提交圆点所在泳道（0 起，从左往右） */
         val lane: Int,
-        /** 从上方汇入圆点的泳道（其它线 terminating 于本提交） */
+        /**
+         * 从上方汇入圆点的泳道（其它线 terminating 于本提交）。
+         * [可以包含 lane 本身]：表示主道从行顶边界直落到圆点——绘制层靠它补齐
+         * 圆点上方半行（否则主线一节一节断开，与上一行接不上）。
+         */
         val inLanes: List<Int>,
-        /** 纵向穿过本行、不与提交相接的泳道 */
+        /**
+         * 纵向穿过本行、不与提交相接的泳道：只含「进入本行前就已存在、
+         * 且不在本行被消费」的线。本行刚出生的父提交新线 [不含在内]——
+         * 它们只应通过 outEdges 曲线出现在圆点以下的半行，否则会在出生行
+         * 凭空多出一条贯穿全行的竖线（上半段悬空断线）。
+         */
         val passLanes: List<Int>,
         /** 从圆点向下伸出的边：(fromLane=圆点泳道, toLane=下方泳道) */
         val outEdges: List<Pair<Int, Int>>
@@ -49,6 +58,11 @@ object CommitGraph {
             // 1. 汇入本提交的线（可能多条：合并提交 / 两分支同头）
             val incoming = active.filter { it.hash == c.hash }
             val lane = incoming.minOfOrNull { it.lane } ?: freeLane()
+            // 真正的穿行线：进入本行前就已存在、且不在本行被消费。
+            // 必须先于 removeAll / 添加父线快照——否则会把本行刚出生的
+            // 父提交新线误当作穿行线（合并行在新泳道凭空多出一条贯穿全行
+            // 的竖线，上半段悬空断线）。
+            val passThrough = active.filter { it.hash != c.hash }
             active.removeAll(incoming)
 
             // 2. 处理父提交：第一父继承泳道，其余取空闲泳道；已存在的线则汇入
@@ -68,13 +82,13 @@ object CommitGraph {
                 outEdges.add(lane to target)
             }
 
-            val passLanes = active.map { it.lane }.filter { it != lane }.distinct()
             rows.add(
                 GraphRow(
                     commit = c,
                     lane = lane,
-                    inLanes = incoming.map { it.lane }.filter { it != lane }.distinct(),
-                    passLanes = passLanes,
+                    // 含 lane 自身（若有主道汇入）：驱动绘制层补齐圆点上方半行
+                    inLanes = incoming.map { it.lane }.distinct(),
+                    passLanes = passThrough.map { it.lane }.filter { it != lane }.distinct(),
                     outEdges = outEdges.distinct()
                 )
             )
