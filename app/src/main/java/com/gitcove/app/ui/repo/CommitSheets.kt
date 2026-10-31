@@ -17,10 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.RadioButton
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PostAdd
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +38,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.domain.model.Commit
+import com.gitcove.app.domain.model.ResetMode
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.components.CoveBottomSheet
@@ -65,6 +68,8 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var confirmCherry by remember { mutableStateOf(false) }
+    var showResetDialog by remember { mutableStateOf(false) }
+    var confirmHardReset by remember { mutableStateOf(false) }
 
     fun copy(text: String) {
         clipboard.setText(AnnotatedString(text))
@@ -97,6 +102,12 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
                 subtitle = "${commit.shortHash} · ${commit.author}",
                 icon = { Icon(Icons.Filled.PostAdd, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 onClick = { confirmCherry = true }
+            )
+            CoveListRow(
+                S.resetHereBtn,
+                subtitle = commit.shortHash,
+                icon = { Icon(Icons.Filled.RestartAlt, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                onClick = { showResetDialog = true }
             )
             // ── 快捷操作 ──
             Text(
@@ -155,6 +166,72 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
             onConfirm = { confirmCherry = false; vm.cherryPick(commit.hash); onDismiss() },
             dismissLabel = S.cancel
         )
+    }
+
+    if (showResetDialog) {
+        var mode by remember { mutableStateOf(ResetMode.MIXED) }
+        CoveAlertDialog(
+            onDismiss = { showResetDialog = false },
+            title = S.resetModeTitle,
+            confirmLabel = S.resetAction,
+            danger = mode == ResetMode.HARD,
+            onConfirm = {
+                showResetDialog = false
+                if (mode == ResetMode.HARD) confirmHardReset = true
+                else { vm.resetTo(commit.hash, mode); onDismiss() }
+            },
+            dismissLabel = S.cancel,
+            content = {
+                Column {
+                    ResetModeRow(S.resetSoft, S.resetSoftDesc, mode == ResetMode.SOFT) { mode = ResetMode.SOFT }
+                    ResetModeRow(S.resetMixed, S.resetMixedDesc, mode == ResetMode.MIXED) { mode = ResetMode.MIXED }
+                    ResetModeRow(S.resetHard, S.resetHardDesc, mode == ResetMode.HARD, danger = true) { mode = ResetMode.HARD }
+                }
+            }
+        )
+    }
+    if (confirmHardReset) {
+        CoveAlertDialog(
+            onDismiss = { confirmHardReset = false },
+            title = S.resetHardConfirmTitle,
+            content = { Text(S.resetHardWarning, style = MaterialTheme.typography.body2) },
+            confirmLabel = S.resetAction,
+            danger = true,
+            onConfirm = { confirmHardReset = false; vm.resetTo(commit.hash, ResetMode.HARD); onDismiss() },
+            dismissLabel = S.cancel
+        )
+    }
+}
+
+/** 重置模式单选行 */
+@Composable
+private fun ResetModeRow(
+    title: String,
+    desc: String,
+    selected: Boolean,
+    danger: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Column {
+            Text(
+                title,
+                style = MaterialTheme.typography.body2,
+                color = if (danger) CoveTheme.colors.error else CoveTheme.colors.onSurface
+            )
+            Text(
+                desc,
+                style = MaterialTheme.typography.caption,
+                color = CoveTheme.colors.onSurfaceVariant
+            )
+        }
     }
 }
 

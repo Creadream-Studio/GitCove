@@ -16,6 +16,7 @@ import com.gitcove.app.domain.model.RepoStatus
 import com.gitcove.app.domain.model.Repository
 import com.gitcove.app.domain.model.Status
 import com.gitcove.app.domain.model.ConflictAction
+import com.gitcove.app.domain.model.ResetMode
 import com.gitcove.app.domain.model.SearchHit
 import com.gitcove.app.domain.model.Tag
 import kotlinx.coroutines.Dispatchers
@@ -405,6 +406,11 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     /** 功能 4.4：Cherry-pick 择优选取到当前分支 */
     fun cherryPick(hash: String) = launchOp(c.strings.cherryPickDone(hash.take(8))) {
         c.gitCore.cherryPick(repoDir!!, hash).getOrThrow()
+    }
+
+    /** 功能 4.4：重置当前分支到任意提交（软/混合/硬） */
+    fun resetTo(hash: String, mode: ResetMode) = launchOp(c.strings.resetDone(hash.take(8))) {
+        c.gitCore.resetTo(repoDir!!, hash, mode).getOrThrow()
     }
 
     fun checkoutDetached(hash: String) = launchOp(c.strings.checkoutDone(hash.take(8))) {

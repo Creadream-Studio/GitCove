@@ -137,3 +137,6 @@ data class LogEntry(
 
 /** 冲突解决动作 */
 enum class ConflictAction { OURS, THEIRS }
+
+/** 重置模式（对应 git reset --soft / --mixed / --hard，功能 4.4 提交历史深度操作） */
+enum class ResetMode { SOFT, MIXED, HARD }

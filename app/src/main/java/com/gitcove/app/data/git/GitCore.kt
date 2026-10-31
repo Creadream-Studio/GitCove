@@ -12,6 +12,7 @@ import com.gitcove.app.domain.model.DiffLine
 import com.gitcove.app.domain.model.FileStatus
 import com.gitcove.app.domain.model.LineType
 import com.gitcove.app.domain.model.RepoStatus
+import com.gitcove.app.domain.model.ResetMode
 import com.gitcove.app.domain.model.Status
 import com.gitcove.app.domain.model.Tag
 import org.eclipse.jgit.api.CheckoutCommand
@@ -20,6 +21,7 @@ import org.eclipse.jgit.api.CreateBranchCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
 import org.eclipse.jgit.api.MergeResult
+import org.eclipse.jgit.api.ResetCommand
 import org.eclipse.jgit.diff.DiffEntry
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.BranchTrackingStatus
@@ -950,6 +952,18 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
                 result.newHead?.name() ?: hash
             }
         }
+    }
+
+    /**
+     * 功能 4.4：重置当前分支到任意提交（软/混合/硬）。
+     * 软重置到父提交 = 撤销最后一次提交（改动回到暂存区），是改消息 / 拆提交 /
+     * squash 的工作流地基（对标 Working Copy Undo Commit / Soft Reset）。
+     */
+    fun resetTo(repoDir: File, hash: String, mode: ResetMode): Result<Unit> = withRepo(repoDir) { git ->
+        val id = git.repository.resolve(hash.trim())
+            ?: throw IllegalStateException("找不到提交 $hash")
+        git.reset().setRef(id.name()).setMode(ResetCommand.ResetType.valueOf(mode.name)).call()
+        log.append("git", "reset ${mode.name.lowercase()} → ${hash.take(8)}")
     }
 
     // ────────────────────────── G. 高级：Stash / Tag / 冲突 ──────────────────────────
