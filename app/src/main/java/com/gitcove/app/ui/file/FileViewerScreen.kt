@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Difference
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -462,8 +464,8 @@ private fun ChangedPanel(
         verticalArrangement = Arrangement.Center
     ) {
         val icon: ImageVector = when (kind) {
-            FileKind.VIDEO -> Icons.Filled.Difference
-            FileKind.AUDIO -> Icons.Filled.Article
+            FileKind.VIDEO -> Icons.Filled.Movie
+            FileKind.AUDIO -> Icons.Filled.MusicNote
             else -> Icons.Filled.InsertDriveFile
         }
         Box(

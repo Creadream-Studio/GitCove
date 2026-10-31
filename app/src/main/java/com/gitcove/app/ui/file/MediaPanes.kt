@@ -204,7 +204,14 @@ fun ImageDiffView(
         }
         // 新增/删除：只有一侧有图 → 单图全宽显示，避免同图重复误导
         if (oldImg == null || newImg == null) {
-            val only = (newImg ?: oldImg)!!
+            val only = newImg ?: oldImg
+            if (only == null) {
+                // 两侧都解码失败
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(S.imgOpenFailed, color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.body2)
+                }
+                return@Column
+            }
             Column(Modifier.fillMaxSize()) {
                 Zoomable(
                     only.bitmap,
@@ -339,9 +346,9 @@ fun VideoPane(file: File, modifier: Modifier = Modifier) {
                 !prepared -> CircularProgressIndicator(color = Color.White, modifier = Modifier.size(30.dp))
                 else -> AndroidView(
                     factory = { videoView },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .aspectRatio(videoAspect)
+                    // 不能先 fillMaxSize 再 aspectRatio（宽度高度都被固定后比例失效导致拉伸）；
+                    // aspectRatio 在松约束下自适应到最大的同比例尺寸，VideoView 自身也会保比例
+                    modifier = Modifier.aspectRatio(videoAspect)
                 )
             }
         }
