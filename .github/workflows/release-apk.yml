@@ -136,11 +136,19 @@ jobs:
           DRAFT: ${{ github.event.inputs.draft }}
         run: |
           # 用数组 + 规范引号，避免含空格的标题被拆分成多个参数
-          EXTRA_ARGS=(--title "$TITLE")
-          if [ -z "$TITLE" ]; then EXTRA_ARGS=(--title "$TAG"); fi
+          EXTRA_ARGS=()
+          # 命名规则：预发布 → 「GitCove vX.Y.Z Beta」；正式版 → 「GitCove vX.Y.Z」（不带 Beta）。
+          # 转正时把下面的 PRERELEASE 改为 false：不再标记 Pre-release，标题自动去掉 Beta。
+          PRERELEASE=true
+          if [ -n "$TITLE" ]; then
+            EXTRA_ARGS+=(--title "$TITLE")
+          elif [ "$PRERELEASE" = "true" ]; then
+            EXTRA_ARGS+=(--title "GitCove $TAG Beta")
+          else
+            EXTRA_ARGS+=(--title "GitCove $TAG")
+          fi
           if [ "$DRAFT" = "true" ]; then EXTRA_ARGS+=(--draft); fi
-          # 测试版阶段一律标记为 Pre-release；转正后可移除这一行
-          EXTRA_ARGS+=(--prerelease)
+          if [ "$PRERELEASE" = "true" ]; then EXTRA_ARGS+=(--prerelease); fi
 
           BODY=$(cat <<'EOF'
           ## GitCove 测试版（Pre-release）
