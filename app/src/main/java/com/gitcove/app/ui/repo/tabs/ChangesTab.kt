@@ -282,7 +282,9 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         message = ""
                         amend = false
                     },
-                    enabled = staged.isNotEmpty() && message.isNotBlank() && !vm.busy && !st?.detached!!,
+                    // st?.detached != true：status 尚未加载时按可推送处理（detached 才禁用），
+                    // 原写法 st?.detached!! 在 status 为 null 的首帧会 NPE
+                    enabled = staged.isNotEmpty() && message.isNotBlank() && !vm.busy && st?.detached != true,
                     modifier = Modifier.weight(1f)
                 )
             }

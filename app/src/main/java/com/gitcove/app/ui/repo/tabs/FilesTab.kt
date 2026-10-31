@@ -673,18 +673,21 @@ private fun SelectAction(
     tint: Color = CoveTheme.colors.onSurface,
     onClick: () -> Unit
 ) {
-    val alpha = if (enabled) 1f else 0.38f
+    val c = CoveTheme.colors
+    // 可用项用主色（明确的「可点」暗示），禁用项低灰——之前可用/禁用同为黑灰色系，
+    // 小图标小文字下几乎无法区分，用户以为按钮不可点
+    val color = if (enabled) c.primary else c.onSurface.copy(alpha = 0.38f)
     Column(
         modifier
             .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, contentDescription = label, tint = tint.copy(alpha = alpha), modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = label, tint = if (tint == c.onSurface) color else tint.copy(alpha = if (enabled) 1f else 0.38f), modifier = Modifier.size(20.dp))
         Text(
             label,
             style = MaterialTheme.typography.caption.copy(fontSize = 10.sp),
-            color = tint.copy(alpha = alpha)
+            color = if (tint == c.onSurface) color else tint.copy(alpha = if (enabled) 1f else 0.38f)
         )
     }
 }
