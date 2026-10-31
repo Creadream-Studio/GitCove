@@ -20,6 +20,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.domain.model.Commit
 import com.gitcove.app.i18n.LocalStrings
+import com.gitcove.app.ui.components.Avatar
 import com.gitcove.app.ui.components.EmptyView
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
@@ -49,6 +51,12 @@ import androidx.compose.material.icons.Icons
 fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     val S = LocalStrings.current
     var detailTarget by remember { mutableStateOf<Commit?>(null) }
+    // GitHub 账号摘要（登录后作者头像可精准命中）
+    var account by remember { mutableStateOf(vm.auth.githubAccount) }
+    LaunchedEffect(Unit) {
+        vm.refreshGithubAccount()
+        account = vm.auth.githubAccount
+    }
 
     if (vm.commits.isEmpty()) {
         EmptyView(S.noCommits, icon = Icons.Filled.History)
@@ -64,18 +72,19 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 提交图节点 + 连线（简化单泳道）
+                // 作者头像 + 连线（替代原提交节点圆点）
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        Modifier
-                            .size(10.dp)
-                            .background(nodeColor(commit.hash), CircleShape)
+                    Avatar(
+                        email = commit.email,
+                        name = commit.author,
+                        size = 26.dp,
+                        account = account
                     )
                     if (commit != vm.commits.last()) {
                         Box(
                             Modifier
                                 .width(2.dp)
-                                .height(34.dp)
+                                .height(30.dp)
                                 .background(CoveTheme.colors.outline)
                         )
                     }
@@ -118,14 +127,7 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     }
 }
 
-/** 由哈希生成稳定节点色 */
-private fun nodeColor(hash: String) = androidx.compose.ui.graphics.Color(
-    red = 0x30 + (hash.take(2).toInt(16) % 0x80),
-    green = 0xA0 + (hash.drop(2).take(2).toInt(16) % 0x50),
-    blue = 0x90 + (hash.drop(4).take(2).toInt(16) % 0x60),
-    alpha = 0xFF
-)
-
+/** 提交详情底部抽屉 */
 @Composable
 private fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit) {
     val S = LocalStrings.current
