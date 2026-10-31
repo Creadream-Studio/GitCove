@@ -18,7 +18,8 @@
 - ⚔️ **冲突解决**：按文件"采用我方/采用对方/手动编辑"三路解决
 - 🔐 **认证**：GitHub/GitLab/Gitea 访问令牌、SSH 密钥生成与导入（RSA/ECDSA/Ed25519 导入）
 - 👀 **查看**：差异对比（增删行高亮）、文件编辑器、文件名/内容搜索、GitHub 一键 PR
-- 🎨 **紧凑工具风**：高信息密度、小圆角、Material Design 3 动态明暗主题
+- 🎨 **MD2 紧凑工具风**：Material Design 2 组件语言（彩色应用栏 / 卡片投影 / 4dp 圆角 / 细分隔线），
+  高信息密度列表，明暗双主题 + 五档强调色（天蓝 / 湾青 / 靛紫 / 珊瑚 / 琥珀）
 
 ## 📦 下载
 
@@ -50,7 +51,7 @@ keyPassword=你的密码
 | 层级 | 选型 |
 |------|------|
 | 语言 | Kotlin 100% |
-| UI | Jetpack Compose + Material Design 3（紧凑型工具风定制）|
+| UI | Jetpack Compose + Material Design 2（Compose Material 1.x，工具型紧凑定制）|
 | 架构 | MVVM + Repository + UseCase |
 | 异步 | Kotlin Coroutines + Flow |
 | Git 内核 | JGit 5.13（纯 Java，无需 NDK，天然全架构）* |
@@ -71,12 +72,24 @@ keyPassword=你的密码
 
 \* 为什么是 JGit 5.13 而不是 6.x：JGit 6.x 编译目标为 Java 11，内部调用 `InputStream.readNBytes` / `readAllBytes` / `transferTo`、`String.strip` 等 API，这些 API 在 Android API 32 及以下不存在（core library desugaring 也不覆盖），运行时必抛 `NoSuchMethodError` —— 这正是 v1.0.1 在创建/克隆仓库后闪退的根因。5.13 是最后一个以 Java 8 编译的版本，字节码完全兼容 Android API 26+。
 
+## 🎨 设计语言（MD2）
+
+界面参照 [MP 管理器](https://github.com/AbdurazaaqMohammed/MP-Manager) 这类 Android 工具应用的 MD2 视觉语言：
+
+- **顶部应用栏**：56dp 高、主色底（深色主题为抬升面）+ 4dp 投影，标题 19sp Medium + 分支/路径副标题
+- **Tab 行**：与应用栏同色底，2dp 指示条，选中项使用强调色
+- **列表**：密集行（约 40–48dp）、分组标题条、1dp 细分隔线，圆点/字母角标表示 Git 状态
+- **按钮**：4dp 圆角 contained / outlined / text 三档，FAB 使用二级色 + 6dp 投影
+- **表单**：filler 风格文本字段（surfaceVariant 底 + 强调色下划线），对话框 4dp 圆角 + 24dp 投影
+- **系统栏**：状态栏与应用栏严格同色，导航栏跟随背景，不使用 edge-to-edge 全屏绘制
+
 ## 🗺️ 路线图
 
 MVP 已覆盖文档 80 项功能清单中的核心项。后续计划：
 
 - [ ] 按块暂存（hunk-level staging）
 - [ ] 分栏对比与图片对比（Split / Color / Cut）
+- [ ] MD2 自定义字体（等宽/衬线可选）与列表字号档位
 - [ ] Room 数据库迁移（仓库元数据与操作日志）
 - [ ] libgit2 + JNI 内核评估（性能敏感场景）
 - [ ] 内部空间公开挂载（DocumentProvider，供 MT 管理器等访问）
