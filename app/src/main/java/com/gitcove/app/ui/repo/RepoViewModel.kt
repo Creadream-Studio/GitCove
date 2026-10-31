@@ -285,11 +285,13 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     // ─────────────── 暂存 / 提交 ───────────────
 
-    fun stage(paths: List<String>) = launchOp(c.strings.stagedN(paths.size)) {
+    // 暂存/取消暂存不弹提示：行在区块间移动就是反馈，且勾选高频操作
+    // 每次都弹 Snackbar 会排成长队，把后面的「已提交」顶到几秒之后
+    fun stage(paths: List<String>) = launchOp {
         c.gitCore.stage(repoDir!!, paths).getOrThrow()
     }
 
-    fun unstage(paths: List<String>) = launchOp(c.strings.unstagedN(paths.size)) {
+    fun unstage(paths: List<String>) = launchOp {
         c.gitCore.unstage(repoDir!!, paths).getOrThrow()
     }
 
@@ -301,6 +303,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     fun commit(message: String, amend: Boolean, pushAfter: Boolean) = launchOp {
         require(message.isNotBlank()) { c.strings.commitRequired }
         c.gitCore.commit(repoDir!!, message, amend).getOrThrow()
+        // 乐观更新：提交成功即清空「已暂存」显示与角标，不等 status 重算（体感秒级成功）
+        status?.let { st -> status = st.copy(staged = emptyList()) }
+        diffStaged = emptyList()
         if (pushAfter) {
             progress = c.strings.pushing
             c.gitCore.push(repoDir!!).getOrThrow()
