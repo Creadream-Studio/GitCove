@@ -2,8 +2,6 @@ package com.gitcove.app.ui.clone
 
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,6 +48,7 @@ import com.gitcove.app.ui.components.CoveSectionTitle
 import com.gitcove.app.ui.components.CoveSegmentedRow
 import com.gitcove.app.ui.components.CoveTextField
 import com.gitcove.app.ui.components.CoveTopAppBar
+import com.gitcove.app.ui.components.DirectoryPickerDialog
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.util.StorageAccess
@@ -78,37 +77,26 @@ fun CloneScreen(
     var nameTouched by remember { mutableStateOf(false) }
     var showGithubList by remember { mutableStateOf(false) }
     var showPermissionHint by remember { mutableStateOf(false) }
-    // 当前系统目录选择器的写入目标：0 = 保存目录（克隆/新建），2 = 本地目录（导入）
+    // 当前目录选择器的写入目标：0 = 保存目录（克隆/新建），2 = 本地目录（导入）
     var pickTarget by remember { mutableStateOf(0) }
+    var showDirPicker by remember { mutableStateOf(false) }
+    var pickerInitial by remember { mutableStateOf(File(pickRootPath())) }
 
     fun ensureStorageOrShowHint(): Boolean {
         return if (StorageAccess.hasAllFilesAccess(context)) true
         else { showPermissionHint = true; false }
     }
 
-    // 安卓原生目录选择器（SAF · ACTION_OPEN_DOCUMENT_TREE，系统文件管理器界面）。
-    // 返回树 URI 后换算为真实文件路径供 JGit 使用。
-    val dirPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        val dir = uri?.let { StorageAccess.treeUriToDir(it) }
-        if (dir == null) {
-            vm.showMessage(S.pickDirFailed)
-            return@rememberLauncherForActivityResult
-        }
-        if (pickTarget == 2) {
-            path = dir.absolutePath
-            if (!nameTouched) name = dir.name
-        } else {
-            parentDir = dir.absolutePath
-        }
-    }
-
-    /** 打开系统目录选择器（target：0 = 保存目录，2 = 本地目录） */
+    /**
+     * 打开应用内目录选择器（target：0 = 保存目录，2 = 本地目录）。
+     * 不再用系统 SAF 选择器：多级目录会被其 URI 换算截断成顶层目录，
+     * 且系统选择器默认隐藏点开头文件/文件夹，看不到 .git 无法确认仓库根。
+     */
     fun pickDir(target: Int, initialPath: String) {
         if (ensureStorageOrShowHint()) {
             pickTarget = target
-            dirPicker.launch(StorageAccess.pathToDocumentUri(initialPath))
+            pickerInitial = File(initialPath)
+            showDirPicker = true
         }
     }
 
@@ -298,6 +286,24 @@ fun CloneScreen(
                 StorageAccess.requestAllFilesAccess(context)
             },
             dismissLabel = S.cancel
+        )
+    }
+
+    // 应用内目录选择器（克隆/新建的保存目录与导入本地目录共用）
+    if (showDirPicker) {
+        DirectoryPickerDialog(
+            title = S.pickDir,
+            initialDir = pickerInitial,
+            onSelect = { dir ->
+                if (pickTarget == 2) {
+                    path = dir.absolutePath
+                    if (!nameTouched) name = dir.name
+                } else {
+                    parentDir = dir.absolutePath
+                }
+                showDirPicker = false
+            },
+            onDismiss = { showDirPicker = false }
         )
     }
 }
