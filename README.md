@@ -1,41 +1,38 @@
-# GitCove（码湾）
+# GitCove 码湾
 
-> Android 端最好用的图形化 Git 客户端 —— 紧凑、美观、免费、无广告。
+Android 上的图形化 Git 客户端，免费、无广告。Kotlin + Jetpack Compose 写的，底层是 JGit，不需要 root，也不用敲命令行。
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Android%2026%2B-green.svg)](https://developer.android.com)
+[![Platform](https://img.shields.io/badge/Platform-Android%208.0%2B-green.svg)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-purple.svg)](https://kotlinlang.org)
 
-**码湾 GitCove** 是一款纯 Kotlin + Jetpack Compose 打造的图形化 Git 客户端，基于 JGit 内核，无需 Root、无需命令行，开箱即用。
+## 能做什么
 
-## ✨ 核心特性
+- 克隆、新建、导入本地仓库，支持 HTTPS 和 SSH，多远端
+- 勾选文件即暂存，取消勾选即取消暂存；Amend、离线提交，提交信息可参考历史，提交完可以直接推送
+- Fetch / Merge / Pull / Push，强制推送也有，可以开后台自动同步
+- 分支切换 / 新建 / 删除 / 重命名，标签（轻量、附注），Stash
+- 提交历史带作者头像和提交图，能按单个文件看，也能 Revert、签出旧版本
+- 冲突按文件解决：采用我方 / 采用对方 / 手动编辑
+- GitHub 支持浏览器授权登录（PKCE），也可以用 GitHub / GitLab / Gitea 的访问令牌，Git 身份可以配多套
+- SSH 密钥生成与导入（RSA / ECDSA / Ed25519）
+- 差异对比（增删行高亮）、文件编辑器、文件名和内容搜索，GitHub 上一键开 PR
+- MD2 工具风界面，信息密度高，明暗主题，五种强调色可换
 
-- 🚀 **仓库管理**：HTTPS / SSH 克隆、新建仓库、导入本地目录、多远端管理
-- 📝 **日常提交**：文件级暂存/取消暂存、提交信息历史参考、Amend、离线提交、提交后立即推送
-- 🔄 **同步**：Fetch / Merge / Pull / Push、强制推送、批量操作、后台自动同步（WorkManager）
-- 🌿 **分支**：切换/新建/删除/重命名、远程分支跟踪、Merge、标签（轻量与附注）、Stash 储藏
-- 🕘 **历史**：仓库/文件级提交历史、提交图、Revert 撤销、旧版本签出
-- ⚔️ **冲突解决**：按文件"采用我方/采用对方/手动编辑"三路解决
-- 🔐 **认证**：GitHub/GitLab/Gitea 访问令牌、SSH 密钥生成与导入（RSA/ECDSA/Ed25519 导入）
-- 👀 **查看**：差异对比（增删行高亮）、文件编辑器、文件名/内容搜索、GitHub 一键 PR
-- 🎨 **MD2 紧凑工具风**：Material Design 2 组件语言（彩色应用栏 / 卡片投影 / 4dp 圆角 / 细分隔线），
-  高信息密度列表，明暗双主题 + 五档强调色（天蓝 / 湾青 / 靛紫 / 珊瑚 / 琥珀）
+## 下载
 
-## 📦 下载
+到 [Releases](https://github.com/Creadream-Studio/GitCove/releases) 下载 `GitCove-x.x.x-universal.apk`。这是全架构通用包（arm64-v8a / armeabi-v7a / x86 / x86_64），不含 native 库，Android 8.0 以上都能装。
 
-前往 [Releases](https://github.com/Creadream-Studio/GitCove/releases) 页面下载 `GitCove-x.x.x-universal.apk`。
-该 APK 为**全架构通用包**（arm64-v8a / armeabi-v7a / x86 / x86_64 通用），纯 Java 实现无 native 库。
-
-## 🔨 从源码构建
+## 自己编译
 
 ```bash
 git clone https://github.com/Creadream-Studio/GitCove.git
 cd GitCove
 ./gradlew assembleRelease
-# 产物：app/build/outputs/apk/release/app-release.apk
+# 产物在 app/build/outputs/apk/release/
 ```
 
-如需签名 release 包，在项目根目录创建 `keystore.properties`（勿提交）：
+要出签名的 release 包，先在项目根目录建一个 `keystore.properties`（别提交上去）：
 
 ```properties
 storeFile=gitcove-release.jks
@@ -44,65 +41,37 @@ keyAlias=gitcove
 keyPassword=你的密码
 ```
 
-未配置签名时 release 包为 unsigned；调试可直接 `./gradlew assembleDebug`。
+不配置的话 release 包是 unsigned。日常调试直接 `./gradlew assembleDebug`。
 
-## 🏗️ 技术栈
+## 技术栈
 
-| 层级 | 选型 |
-|------|------|
-| 语言 | Kotlin 100% |
-| UI | Jetpack Compose + Material Design 2（Compose Material 1.x，工具型紧凑定制）|
+| | |
+|---|---|
+| UI | Jetpack Compose + Material Design 2（紧凑工具风定制）|
 | 架构 | MVVM + Repository + UseCase |
-| 异步 | Kotlin Coroutines + Flow |
-| Git 内核 | JGit 5.13（纯 Java，无需 NDK，天然全架构）* |
-| SSH | JSch（mwiede 维护版，支持 OpenSSH/Ed25519）|
+| Git | JGit 5.13，纯 Java 实现，无 NDK |
+| SSH | JSch（mwiede 维护版，支持 OpenSSH / Ed25519）|
 | 网络 | OkHttp（GitHub REST API v3）|
 | 后台 | WorkManager 定期自动同步 |
 | 测试 | JUnit + MockK + Turbine |
 
-## 🚀 手动发布（GitHub Actions）
+JGit 为什么停在 5.13 不上 6.x：6.x 编译目标是 Java 11，内部用了 `InputStream.readNBytes`、`String.strip` 这些 API，Android API 32 及以下没有，core library desugaring 也不覆盖，运行时直接 `NoSuchMethodError`。v1.0.1 创建仓库就闪退，根因就是这个。5.13 是最后一个 Java 8 字节码的版本，API 26+ 上跑得稳。
 
-仓库内置手动发布工作流：`.github/workflows/release-apk.yml`
+## 发布
 
-1. GitHub 仓库页 → **Actions** → **Release APK (手动)** → **Run workflow**
-2. 可选填 Release 标签（默认自动取 `versionName`，如 `v1.0.2`）
-3. 构建签名 Release APK 并自动发布到 **Releases** 页面
+仓库里有手动发布工作流 `.github/workflows/release-apk.yml`：仓库页 → Actions → Release APK → Run workflow，标签可以不填（默认取 `versionName`），构建完自动发到 Releases。
 
-签名：在仓库 **Settings → Secrets → Actions** 配置 `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` 后，每次发布签名一致，可覆盖安装升级；未配置时 CI 会生成临时 keystore 并作为 artifact 上传，下载后可转为 secrets 固定。
+要让用户能覆盖安装升级，每次构建的签名必须一致：把 `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` 配到仓库 Settings → Secrets → Actions。没配的时候 CI 会拿临时 keystore 出包，产物作为 artifact 上传，下载后转成 secrets 固定下来即可。
 
-\* 为什么是 JGit 5.13 而不是 6.x：JGit 6.x 编译目标为 Java 11，内部调用 `InputStream.readNBytes` / `readAllBytes` / `transferTo`、`String.strip` 等 API，这些 API 在 Android API 32 及以下不存在（core library desugaring 也不覆盖），运行时必抛 `NoSuchMethodError` —— 这正是 v1.0.1 在创建/克隆仓库后闪退的根因。5.13 是最后一个以 Java 8 编译的版本，字节码完全兼容 Android API 26+。
+## 接下来想做的
 
-## 🎨 设计语言（MD2）
+- 按块暂存（hunk 级别）
+- 分栏对比、图片对比
+- GPG / SSH 签名提交
+- 数据备份与恢复
+- Markdown / 代码高亮预览
+- Android Keystore 密钥硬件保护
 
-界面参照 [MP 管理器](https://github.com/AbdurazaaqMohammed/MP-Manager) 这类 Android 工具应用的 MD2 视觉语言：
+## 协议
 
-- **顶部应用栏**：56dp 高、主色底（深色主题为抬升面）+ 4dp 投影，标题 19sp Medium + 分支/路径副标题
-- **Tab 行**：与应用栏同色底，2dp 指示条，选中项使用强调色
-- **列表**：密集行（约 40–48dp）、分组标题条、1dp 细分隔线，圆点/字母角标表示 Git 状态
-- **按钮**：4dp 圆角 contained / outlined / text 三档，FAB 使用二级色 + 6dp 投影
-- **表单**：filler 风格文本字段（surfaceVariant 底 + 强调色下划线），对话框 4dp 圆角 + 24dp 投影
-- **系统栏**：状态栏与应用栏严格同色，导航栏跟随背景，不使用 edge-to-edge 全屏绘制
-
-## 🗺️ 路线图
-
-MVP 已覆盖文档 80 项功能清单中的核心项。后续计划：
-
-- [ ] 按块暂存（hunk-level staging）
-- [ ] 分栏对比与图片对比（Split / Color / Cut）
-- [ ] MD2 自定义字体（等宽/衬线可选）与列表字号档位
-- [ ] Room 数据库迁移（仓库元数据与操作日志）
-- [ ] libgit2 + JNI 内核评估（性能敏感场景）
-- [ ] 内部空间公开挂载（DocumentProvider，供 MT 管理器等访问）
-- [ ] WebDAV 服务器、Tasker 自动化集成
-- [ ] Markdown / HTML / CSV 预览、代码高亮（Prism4j）
-- [ ] Android Keystore / StrongBox 密钥硬件保护
-- [ ] GPG / SSH 签名提交
-- [ ] 数据备份与恢复
-
-完整 80 项功能清单见开发文档。
-
-## 📄 开源协议
-
-本项目基于 [Apache License 2.0](LICENSE) 开源。
-
-第三方组件：JGit（EPL 2.0）、JSch (mwiede fork, BSD-3)、OkHttp（Apache 2.0）等，商用请留意各自协议。
+Apache License 2.0。第三方组件：JGit（EPL 2.0）、JSch（BSD-3）、OkHttp（Apache 2.0），商用前各自留意协议。
