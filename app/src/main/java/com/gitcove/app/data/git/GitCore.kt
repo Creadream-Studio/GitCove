@@ -978,6 +978,69 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         git.add().addFilepattern(path).call()
     }
 
+    /** 冲突文件三版本：base=stage1，ours=stage2（HEAD），theirs=stage3（对方） */
+    data class ConflictSides(
+        val base: ByteArray?,
+        val ours: ByteArray?,
+        val theirs: ByteArray?,
+        val binary: Boolean,
+        val oursLabel: String,
+        val theirsLabel: String
+    )
+
+    /**
+     * 功能 4.6：读取冲突文件的三个版本字节与二进制判定（首 8000 字节含 NUL 视为二进制）。
+     * theirsLabel 取对方分支名（MERGE_HEAD 所指），取不到则退化为哈希缩写。
+     */
+    fun conflictSides(repoDir: File, path: String): ConflictSides? = runCatching {
+        withRepo(repoDir) { git ->
+            val repo = git.repository
+            val cache = repo.readDirCache()
+            fun bytesOf(stage: Int): ByteArray? = (0 until cache.entryCount)
+                .asSequence()
+                .map { cache.getEntry(it) }
+                .firstOrNull { it.pathString == path && it.stage == stage }
+                ?.let { repo.open(it.objectId).bytes }
+
+            val base = bytesOf(1)
+            val ours = bytesOf(2)
+            val theirs = bytesOf(3)
+            if (ours == null && theirs == null) null
+            else {
+                val sample = ours ?: theirs ?: ByteArray(0)
+                val theirsLabel = runCatching {
+                    val mh = repo.resolve("MERGE_HEAD")
+                    if (mh != null) {
+                        repo.refDatabase.getRefsByPrefix("refs/heads/")
+                            .firstOrNull { it.objectId?.name() == mh.name() }
+                            ?.let { Repository.shortenRefName(it.name) }
+                            ?: mh.abbreviate(8).name()
+                    } else null
+                }.getOrNull()
+                ConflictSides(
+                    base = base,
+                    ours = ours,
+                    theirs = theirs,
+                    binary = sample.take(8000).contains(0),
+                    oursLabel = runCatching { repo.branch }.getOrNull() ?: "HEAD",
+                    theirsLabel = theirsLabel ?: "MERGE_HEAD"
+                )
+            }
+        }.getOrThrow()
+    }.getOrNull()
+
+    /** 冲突解决：把选定内容写回工作区并暂存标记（文本/二进制通用） */
+    fun writeResolved(repoDir: File, path: String, bytes: ByteArray): Result<Unit> = withRepo(repoDir) { git ->
+        val f = safeFile(repoDir, path) ?: throw IllegalStateException("非法路径 $path")
+        f.parentFile?.mkdirs()
+        f.writeBytes(bytes)
+        git.add().addFilepattern(path).call()
+        log.append("conflict", "$path → resolved (${bytes.size}B)")
+    }
+
+    fun writeResolvedText(repoDir: File, path: String, content: String): Result<Unit> =
+        writeResolved(repoDir, path, content.toByteArray(Charsets.UTF_8))
+
     /** 提交日期格式化 */
     fun formatDate(epochMillis: Long): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(epochMillis))
