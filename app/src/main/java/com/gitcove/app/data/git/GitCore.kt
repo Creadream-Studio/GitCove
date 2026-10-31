@@ -26,8 +26,13 @@ import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.transport.RemoteRefUpdate
 import org.eclipse.jgit.transport.URIish
+import org.eclipse.jgit.dircache.DirCacheIterator
+import org.eclipse.jgit.treewalk.AbstractTreeIterator
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
+import org.eclipse.jgit.treewalk.EmptyTreeIterator
+import org.eclipse.jgit.treewalk.FileTreeIterator
 import org.eclipse.jgit.treewalk.TreeWalk
+import org.eclipse.jgit.treewalk.filter.PathFilter
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
@@ -295,17 +300,34 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
             val df = DiffFormatter(out).apply {
                 setRepository(repo)
                 setDetectRenames(true)
+                setPathFilter(PathFilter.create(path))
             }
-            val cmd = git.diff()
-            if (cached) cmd.setCached(true)
-            val entry = cmd.call().firstOrNull { pathOf(it) == path }
-            if (entry == null) emptyList()
+            // ⚠️ 不能用 git.diff() + format()：JGit 5.13 对工作区侧条目会按对象库读取
+            // 新内容哈希，而工作区内容并不在对象库中，必然抛 MissingObjectException，
+            // 表现为"有改动但差异为空"。必须用 scan(旧树, 新树) 建立正确的两侧内容源。
+            val oldTree: AbstractTreeIterator
+            val newTree: AbstractTreeIterator
+            if (cached) {
+                oldTree = headTreeIterator(repo) ?: EmptyTreeIterator()
+                newTree = DirCacheIterator(repo.readDirCache())
+            } else {
+                oldTree = DirCacheIterator(repo.readDirCache())
+                newTree = FileTreeIterator(repo)
+            }
+            val entries = df.scan(oldTree, newTree)
+            if (entries.isEmpty()) emptyList()
             else {
-                df.format(entry)
+                df.format(entries)
                 df.flush()
                 parseUnifiedDiff(out.toString("UTF-8"))
             }
         }
+    }
+
+    /** HEAD 的树迭代器；仓库尚无提交时返回 null */
+    private fun headTreeIterator(repo: Repository): AbstractTreeIterator? {
+        val head = repo.resolve("HEAD^{tree}") ?: return null
+        return CanonicalTreeParser().apply { reset(repo.newObjectReader(), head) }
     }
 
     /** 解析 unified diff 文本为带类型的行 */
