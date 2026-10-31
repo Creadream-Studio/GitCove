@@ -25,8 +25,11 @@ import org.eclipse.jgit.api.ResetCommand
 import org.eclipse.jgit.diff.DiffEntry
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.BranchTrackingStatus
+import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.RefDatabase
+import org.eclipse.jgit.lib.RefUpdate
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.RevWalk
@@ -964,6 +967,102 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
             ?: throw IllegalStateException("找不到提交 $hash")
         git.reset().setRef(id.name()).setMode(ResetCommand.ResetType.valueOf(mode.name)).call()
         log.append("git", "reset ${mode.name.lowercase()} → ${hash.take(8)}")
+    }
+
+    /**
+     * 功能 4.4：删除提交 —— 在分离 HEAD 上把该提交之后的提交逐个 cherry-pick 到其父提交上，
+     * 全部成功才把分支指针移过去（事务性：任一步冲突即整体放弃还原，分支不动）。
+     * 仅支持当前分支线性历史上的普通提交（含 HEAD 提交本身）。
+     */
+    fun dropCommit(repoDir: File, hash: String): Result<String> = withRepo(repoDir) { git ->
+        setIdentity(git)
+        val (parent, after) = linearRange(git, hash)
+        val branchFull = git.repository.fullBranch
+        val newHead = replayLinear(git, branchFull, git.repository.resolve(Constants.HEAD)!!, parent.id) {
+            for (c in after) pickOrThrow(git, c.id)
+        }
+        log.append("git", "drop ${hash.take(8)} · 重放 ${after.size} 个提交")
+        newHead.name()
+    }
+
+    /** 单步 cherry-pick：OK 继续（newHead 为 null = 空变更，视为成功），冲突抛 [GitConflictException] */
+    private fun pickOrThrow(git: Git, id: ObjectId) {
+        val result = git.cherryPick().include(id).call()
+        when (result.status) {
+            CherryPickResult.CherryPickStatus.OK -> Unit
+            CherryPickResult.CherryPickStatus.CONFLICTING ->
+                throw GitConflictException(git.status().call().conflicting.toList())
+            else -> throw IllegalStateException("重放失败：${result.status}")
+        }
+    }
+
+    /**
+     * 校验 target 在当前分支 HEAD 的第一父链上、非合并/根提交；
+     * 返回（父提交, 待重放提交序列(旧→新)）。区间含合并提交时拒绝重放。
+     */
+    private fun linearRange(git: Git, hash: String): Pair<RevCommit, List<RevCommit>> {
+        val repo = git.repository
+        val fullBranch = repo.fullBranch
+        if (fullBranch == null || !fullBranch.startsWith("refs/heads/"))
+            throw IllegalStateException("分离头指针状态下不能重写历史")
+        val headId = repo.resolve(Constants.HEAD) ?: throw IllegalStateException("空仓库")
+        val targetId = repo.resolve(hash.trim()) ?: throw IllegalStateException("找不到提交 $hash")
+        RevWalk(repo).use { walk ->
+            val target = walk.parseCommit(targetId)
+            val head = walk.parseCommit(headId)
+            if (!walk.isMergedInto(target, head))
+                throw IllegalStateException("只能操作当前分支历史上的提交")
+            if (target.parentCount != 1)
+                throw IllegalStateException("不能删除或改写合并提交与根提交")
+            val after = ArrayList<RevCommit>()
+            var cur: RevCommit = head
+            while (cur.id != targetId) {
+                after.add(cur)
+                if (cur.parentCount == 0)
+                    throw IllegalStateException("只能操作当前分支历史上的提交")
+                cur = walk.parseCommit(cur.getParent(0))
+            }
+            after.reverse()
+            if (after.any { it.parentCount > 1 })
+                throw IllegalStateException("该提交之后存在合并提交，无法安全重放")
+            return walk.parseCommit(target.getParent(0)) to after
+        }
+    }
+
+    /**
+     * 线性区间重放地基（删除提交 / 改写消息共用）：
+     * 分离 HEAD 到 base → 逐个 cherry-pick → 全部成功才把分支指针移到新 HEAD 并切回。
+     * 任一步失败（冲突）：清 cherry-pick 状态 → 硬重置回原提交 → 切回原分支，
+     * 分支引用从未被移动（事务性回滚；force checkout 对未合并索引条目会抛
+     * CheckoutConflictException，回滚必须走 reset --hard）。
+     */
+    private fun replayLinear(
+        git: Git,
+        branchFull: String,
+        originalHead: ObjectId,
+        baseId: ObjectId,
+        step: () -> Unit
+    ): ObjectId {
+        val repo = git.repository
+        git.checkout().setName(baseId.name()).setForce(true).call()
+        try {
+            step()
+            val newHead = repo.resolve(Constants.HEAD)
+                ?: throw IllegalStateException("重放失败：HEAD 丢失")
+            val ru = repo.updateRef(branchFull)
+            ru.setNewObjectId(newHead)
+            ru.setForceUpdate(true)
+            val r = ru.update()
+            if (r != RefUpdate.Result.NEW && r != RefUpdate.Result.FORCED)
+                throw IllegalStateException("分支更新失败：$r")
+            git.checkout().setName(branchFull).setForce(true).call()
+            return newHead
+        } catch (t: Throwable) {
+            runCatching { repo.writeCherryPickHead(null as ObjectId?) }
+            runCatching { git.reset().setRef(originalHead.name()).setMode(ResetCommand.ResetType.HARD).call() }
+            runCatching { git.checkout().setName(branchFull).setForce(true).call() }
+            throw t
+        }
     }
 
     // ────────────────────────── G. 高级：Stash / Tag / 冲突 ──────────────────────────

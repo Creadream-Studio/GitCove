@@ -21,6 +21,7 @@ import androidx.compose.material.RadioButton
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.runtime.Composable
@@ -70,6 +71,7 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
     var confirmCherry by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
     var confirmHardReset by remember { mutableStateOf(false) }
+    var confirmDrop by remember { mutableStateOf(false) }
 
     fun copy(text: String) {
         clipboard.setText(AnnotatedString(text))
@@ -108,6 +110,12 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
                 subtitle = commit.shortHash,
                 icon = { Icon(Icons.Filled.RestartAlt, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 onClick = { showResetDialog = true }
+            )
+            CoveListRow(
+                S.dropCommitBtn,
+                subtitle = commit.shortHash,
+                icon = { Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                onClick = { confirmDrop = true }
             )
             // ── 快捷操作 ──
             Text(
@@ -190,6 +198,18 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
             }
         )
     }
+    if (confirmDrop) {
+        CoveAlertDialog(
+            onDismiss = { confirmDrop = false },
+            title = S.dropCommitBtn,
+            content = { Text(S.dropCommitConfirm(commit.shortHash), style = MaterialTheme.typography.body2) },
+            confirmLabel = S.delete,
+            danger = true,
+            onConfirm = { confirmDrop = false; vm.dropCommit(commit.hash); onDismiss() },
+            dismissLabel = S.cancel
+        )
+    }
+
     if (confirmHardReset) {
         CoveAlertDialog(
             onDismiss = { confirmHardReset = false },

@@ -413,6 +413,11 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         c.gitCore.resetTo(repoDir!!, hash, mode).getOrThrow()
     }
 
+    /** 功能 4.4：删除提交 —— 其后提交逐个重放到父提交上，冲突自动整体还原（分支不动） */
+    fun dropCommit(hash: String) = launchOp(c.strings.dropDone(hash.take(8))) {
+        c.gitCore.dropCommit(repoDir!!, hash).getOrThrow()
+    }
+
     fun checkoutDetached(hash: String) = launchOp(c.strings.checkoutDone(hash.take(8))) {
         c.gitCore.checkoutDetached(repoDir!!, hash).getOrThrow()
     }
