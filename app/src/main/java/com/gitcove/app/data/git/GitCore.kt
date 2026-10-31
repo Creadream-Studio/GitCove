@@ -392,6 +392,67 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
     }
 
+    // ────────────────────────── 文件查看页：任意修订的内容读取 ──────────────────────────
+
+    /**
+     * 读取指定修订（提交哈希 / 分支名 / HEAD 等）中某文件的字节内容。
+     * 该版本不存在此文件（新增前 / 删除后）返回 null。
+     */
+    fun readBlobAt(repoDir: File, rev: String, path: String): Result<ByteArray?> = withRepo(repoDir) { git ->
+        val repo = git.repository
+        val id = repo.resolve(rev) ?: throw IllegalStateException("找不到修订 $rev")
+        RevWalk(repo).use { walk ->
+            val commit = walk.parseCommit(id)
+            TreeWalk.forPath(repo, path, commit.tree)?.use { tw ->
+                repo.open(tw.getObjectId(0)).openStream().use { it.readBytes() }
+            } // forPath 为 null：该版本没有此文件
+        }
+    }
+
+    /** 指定修订中某文件的 (大小, 流式 SHA-1)；不整块载入内存，用于大文件"有无改变"判断。不存在返回 null */
+    fun blobStatAt(repoDir: File, rev: String, path: String): Result<Pair<Long, String>?> = withRepo(repoDir) { git ->
+        val repo = git.repository
+        val id = repo.resolve(rev) ?: throw IllegalStateException("找不到修订 $rev")
+        RevWalk(repo).use { walk ->
+            val commit = walk.parseCommit(id)
+            TreeWalk.forPath(repo, path, commit.tree)?.use { tw ->
+                val loader = repo.open(tw.getObjectId(0))
+                val sha = com.gitcove.app.util.FileTypes.sha1Of(loader.openStream())
+                loader.size to sha
+            }
+        }
+    }
+
+    /**
+     * 某次提交对单个文件的变更：changeType（ADD / MODIFY / DELETE / RENAME，未改动为 null）
+     * + 与其第一父提交对比的逐行差异（初始提交全为新增）。
+     */
+    fun commitFileDiff(repoDir: File, hash: String, path: String): Result<Pair<String?, List<DiffLine>>> =
+        withRepo(repoDir) { git ->
+            val repo = git.repository
+            val id = repo.resolve(hash) ?: throw IllegalStateException("找不到提交 $hash")
+            RevWalk(repo).use { walk ->
+                val commit = walk.parseCommit(id)
+                val reader = repo.newObjectReader()
+                val newTree = CanonicalTreeParser().apply { reset(reader, commit.tree) }
+                val oldTree: AbstractTreeIterator = if (commit.parentCount == 0) EmptyTreeIterator()
+                else CanonicalTreeParser().apply { reset(reader, walk.parseTree(commit.getParent(0))) }
+                val out = ByteArrayOutputStream()
+                val df = DiffFormatter(out).apply {
+                    setRepository(repo)
+                    setDetectRenames(false)
+                    setPathFilter(PathFilter.create(path))
+                }
+                val entries = df.scan(oldTree, newTree)
+                if (entries.isEmpty()) null to emptyList()
+                else {
+                    df.format(entries)
+                    df.flush()
+                    entries.first().changeType.name to parseUnifiedDiff(out.toString("UTF-8"))
+                }
+            }
+        }
+
     // ────────────────────────── I. 查看与编辑 ──────────────────────────
 
     /**
