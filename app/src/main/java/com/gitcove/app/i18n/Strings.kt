@@ -76,7 +76,7 @@ open class Strings {
     open val sectionRepos get() = "仓库列表"
     open val settings get() = "设置"
     open val cloneOrCreate get() = "克隆 / 新建"
-    open val emptyRepos get() = "还没有仓库\n点击右下角按钮，从远程克隆或新建一个仓库开始"
+    open val emptyRepos get() = "还没有仓库\n点击右下角按钮，从远程克隆或新建一个仓库"
     open val cloneOrCreateRepo get() = "克隆 / 新建仓库"
     open val deleteRepo get() = "删除仓库"
     open fun deleteRepoConfirm(name: String) = "确定从码湾移除「$name」吗？"
@@ -126,7 +126,7 @@ open class Strings {
     open val languageSystem get() = "跟随系统"
     open val languageHint get() = "首次启动时自动跟随设备语言，切换后立即生效"
     open val sectionAccent get() = "强调色"
-    open val accentHint get() = "MD2 用固定强调色表达品牌：应用栏、按钮与选中态都会跟着变色"
+    open val accentHint get() = "应用栏、按钮与选中态会跟随强调色"
     open val sectionMd3Style get() = "MD2 风格"
     open val shapeStyle get() = "圆角风格"
     open val shapeStandard get() = "标准"
@@ -172,7 +172,7 @@ open class Strings {
     open val viewLogs get() = "查看日志"
     open val sectionAbout get() = "关于"
     open val aboutTitle get() = "码湾 GitCove v${com.gitcove.app.BuildConfig.VERSION_NAME}（MD2）"
-    open val aboutDesc get() = "Android 端最好用的图形化 Git 客户端\n基于 JGit · Kotlin + Compose · Apache 2.0 开源"
+    open val aboutDesc get() = "基于 JGit 的 Android 图形化 Git 客户端，Kotlin + Compose 编写，Apache 2.0 开源"
     open val aboutLink get() = "github.com/Creadream-Studio/GitCove"
 
     // ── 克隆 / 新建 / 导入 ───────────────────────────────────────────────
@@ -482,7 +482,7 @@ object EnStrings : Strings() {
     override val languageSystem get() = "Follow system"
     override val languageHint get() = "Follows device language on first launch; changes apply instantly"
     override val sectionAccent get() = "Accent color"
-    override val accentHint get() = "MD2 uses a fixed accent for app bars, buttons and selected states"
+    override val accentHint get() = "App bars, buttons and selected states follow the accent color"
     override val sectionMd3Style get() = "MD2 Style"
     override val shapeStyle get() = "Corner radius"
     override val shapeStandard get() = "Standard"
@@ -528,7 +528,7 @@ object EnStrings : Strings() {
     override val viewLogs get() = "View logs"
     override val sectionAbout get() = "About"
     override val aboutTitle get() = "GitCove v${com.gitcove.app.BuildConfig.VERSION_NAME} (MD2)"
-    override val aboutDesc get() = "The best graphical Git client for Android\nPowered by JGit · Kotlin + Compose · Apache 2.0"
+    override val aboutDesc get() = "A graphical Git client for Android built on JGit · Kotlin + Compose · Apache 2.0"
     override val aboutLink get() = "github.com/Creadream-Studio/GitCove"
 
     // ── 克隆 / 新建 / 导入 ───────────────────────────────────────────────

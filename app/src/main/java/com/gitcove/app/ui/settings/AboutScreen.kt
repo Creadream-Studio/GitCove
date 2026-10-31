@@ -1,5 +1,6 @@
 package com.gitcove.app.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -64,7 +65,19 @@ fun AboutScreen(
                 S.aboutLink,
                 style = MaterialTheme.typography.caption,
                 color = c.secondary,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .clickable {
+                        runCatching {
+                            val ctx = container.appContext
+                            ctx.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://${S.aboutLink}")
+                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
             )
             Spacer(Modifier.height(24.dp))
         }
