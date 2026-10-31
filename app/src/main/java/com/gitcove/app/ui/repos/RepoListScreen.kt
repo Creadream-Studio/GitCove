@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ExtendedFloatingActionButton
+import androidx.compose.material.FloatingActionButton
 import androidx.compose.material.FloatingActionButtonDefaults
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -85,14 +85,15 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            // 只留加号：不带文字的圆角 FAB，操作意图点击即知
+            FloatingActionButton(
                 onClick = { nav.navigate(Routes.CLONE) },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                text = { Text(S.cloneOrCreate, style = MaterialTheme.typography.button) },
                 backgroundColor = c.secondary,
                 contentColor = c.onSecondary,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp, pressedElevation = 12.dp)
-            )
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = S.cloneOrCreate, modifier = Modifier.size(22.dp))
+            }
         },
         snackbarHost = { SnackbarHost(snackbar) },
         backgroundColor = c.background
