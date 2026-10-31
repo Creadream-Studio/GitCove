@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Save
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +64,7 @@ import com.gitcove.app.domain.model.Status
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.i18n.Strings
 import com.gitcove.app.ui.components.Avatar
+import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.components.CoveBackButton
 import com.gitcove.app.ui.components.CoveButton
 import com.gitcove.app.ui.components.CoveDivider
@@ -119,8 +121,11 @@ fun FileViewerScreen(
     var selectedCommit by remember { mutableStateOf<Commit?>(null) }
     // 保存/解决冲突后 +1，让差异页重新计算
     var refreshTick by remember { mutableStateOf(0) }
+    // 有未保存修改时拦截返回（系统返回键 / 右上角关闭）
+    var confirmDiscard by remember { mutableStateOf(false) }
 
     val file: File? = repo?.let { safeRepoFile(File(it.path), path) }
+    val dirty = kind == FileKind.TEXT && textLoaded && textContent != textOriginal
 
     // 应用切后台再回到前台时从磁盘重读（外部应用如 MT 管理器改完文件切回即见最新内容）。
     // 文本正在编辑（有未保存改动）时不动用户内容；图片/视频等让差异页重新计算。
@@ -164,6 +169,21 @@ fun FileViewerScreen(
             val st = if (isGitRepo) container.gitCore.status(dir).getOrNull() else null
             isConflict = st?.conflicts?.contains(path) == true
         }
+    }
+
+    // 系统返回键：无未保存修改时放行，有则先确认
+    BackHandler(enabled = dirty) { confirmDiscard = true }
+
+    if (confirmDiscard) {
+        CoveAlertDialog(
+            onDismiss = { confirmDiscard = false },
+            title = S.unsavedTitle,
+            content = { Text(S.unsavedText, style = MaterialTheme.typography.body2) },
+            confirmLabel = S.discardChanges,
+            danger = true,
+            onConfirm = { confirmDiscard = false; nav.popBackStack() },
+            dismissLabel = S.keepEditing
+        )
     }
 
     fun saveText() {
@@ -212,15 +232,15 @@ fun FileViewerScreen(
             CoveTopAppBar(
                 title = path.substringAfterLast('/'),
                 subtitle = path,
-                navigationIcon = { CoveBackButton { nav.popBackStack() } },
+                navigationIcon = { CoveBackButton { if (dirty) confirmDiscard = true else nav.popBackStack() } },
                 actions = {
-                    if (kind == FileKind.TEXT && textLoaded && textContent != textOriginal) {
+                    if (dirty) {
                         IconButton(onClick = { saveText() }) {
                             Icon(Icons.Filled.Save, contentDescription = S.save)
                         }
                     }
-                    // 右上角关闭（返回文件列表）
-                    IconButton(onClick = { nav.popBackStack() }) {
+                    // 右上角关闭（返回文件列表）；有未保存修改时先确认
+                    IconButton(onClick = { if (dirty) confirmDiscard = true else nav.popBackStack() }) {
                         Icon(Icons.Filled.Close, contentDescription = S.cancel)
                     }
                 }

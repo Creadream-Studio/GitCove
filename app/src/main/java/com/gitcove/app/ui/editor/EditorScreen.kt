@@ -1,8 +1,8 @@
 package com.gitcove.app.ui.editor
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
@@ -21,22 +21,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
-import com.gitcove.app.ui.theme.MonoFont
+import com.gitcove.app.ui.components.CoveAlertDialog
+import com.gitcove.app.ui.components.CoveBackButton
+import com.gitcove.app.ui.components.CoveTopAppBar
+import com.gitcove.app.ui.file.CodeEditorPane
+import com.gitcove.app.ui.theme.CoveTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.compose.foundation.background
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.unit.sp
-import com.gitcove.app.ui.components.CoveBackButton
-import com.gitcove.app.ui.components.CoveDivider
-import com.gitcove.app.ui.components.CoveTopAppBar
-import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 文本编辑器（功能 53 部分）：编辑仓库文件；冲突文件保存后自动标记已解决
@@ -56,6 +51,9 @@ fun EditorScreen(
     var original by remember { mutableStateOf("") }
     var loaded by remember { mutableStateOf(false) }
     var isConflict by remember { mutableStateOf(false) }
+    // 有未保存修改时拦截返回
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val dirty = loaded && content != original
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -68,37 +66,55 @@ fun EditorScreen(
         }
     }
 
+    // 系统返回键：无未保存修改时放行，有则先确认
+    BackHandler(enabled = dirty) { confirmDiscard = true }
+
+    if (confirmDiscard) {
+        CoveAlertDialog(
+            onDismiss = { confirmDiscard = false },
+            title = S.unsavedTitle,
+            content = { Text(S.unsavedText, style = MaterialTheme.typography.body2) },
+            confirmLabel = S.discardChanges,
+            danger = true,
+            onConfirm = { confirmDiscard = false; nav.popBackStack() },
+            dismissLabel = S.keepEditing
+        )
+    }
+
     Scaffold(
         topBar = {
             CoveTopAppBar(
                 title = path.substringAfterLast('/'),
                 subtitle = path,
-                navigationIcon = { CoveBackButton { nav.popBackStack() } },
+                navigationIcon = { CoveBackButton { if (dirty) confirmDiscard = true else nav.popBackStack() } },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                val repo = container.repoStore.get(repoId) ?: return@launch
-                                val dir = java.io.File(repo.path)
-                                container.gitCore.writeFile(dir, path, content)
-                                    .onSuccess {
-                                        if (isConflict) {
-                                            container.gitCore.markResolved(dir, path)
-                                            withContext(Dispatchers.Main) {
-                                                snackbar.showSnackbar(S.savedResolved)
+                    // 仅在有改动时显示保存（与文件查看页一致，也提示「有未保存内容」）
+                    if (dirty) {
+                        IconButton(
+                            onClick = {
+                                scope.launch(Dispatchers.IO) {
+                                    val repo = container.repoStore.get(repoId) ?: return@launch
+                                    val dir = java.io.File(repo.path)
+                                    container.gitCore.writeFile(dir, path, content)
+                                        .onSuccess {
+                                            if (isConflict) {
+                                                container.gitCore.markResolved(dir, path)
+                                                withContext(Dispatchers.Main) {
+                                                    snackbar.showSnackbar(S.savedResolved)
+                                                }
+                                            } else {
+                                                withContext(Dispatchers.Main) { snackbar.showSnackbar(S.saved) }
                                             }
-                                        } else {
-                                            withContext(Dispatchers.Main) { snackbar.showSnackbar(S.saved) }
+                                            original = content
                                         }
-                                        original = content
-                                    }
-                                    .onFailure {
-                                        withContext(Dispatchers.Main) { snackbar.showSnackbar(it.message ?: S.saveFailed) }
-                                    }
+                                        .onFailure {
+                                            withContext(Dispatchers.Main) { snackbar.showSnackbar(it.message ?: S.saveFailed) }
+                                        }
+                                }
                             }
+                        ) {
+                            Icon(Icons.Filled.Save, contentDescription = S.save)
                         }
-                    ) {
-                        Icon(Icons.Filled.Save, contentDescription = S.save)
                     }
                 }
             )
@@ -107,33 +123,15 @@ fun EditorScreen(
         backgroundColor = CoveTheme.colors.background
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            if (isConflict) {
-                Text(
-                    S.conflictEditorHint,
-                    style = MaterialTheme.typography.caption,
-                    color = CoveTheme.colors.tertiary,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
-            CoveDivider()
             if (!loaded) {
                 Text(S.loading, style = MaterialTheme.typography.caption, modifier = Modifier.padding(12.dp))
             } else {
-                // MD2 代码编辑区：surface 底 + 等宽字体 + 主色光标（不用带边框的输入框样式）
-                BasicTextField(
-                    value = content,
-                    onValueChange = { content = it },
-                    textStyle = TextStyle(
-                        fontFamily = MonoFont,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp,
-                        color = CoveTheme.colors.onSurface
-                    ),
-                    cursorBrush = SolidColor(CoveTheme.colors.primary),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(CoveTheme.colors.surface)
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                // 与文件查看页同款代码编辑器（行号 + 长行不折行 + 贴底跟随）
+                CodeEditorPane(
+                    content = content,
+                    onContentChange = { content = it },
+                    hint = if (isConflict) S.conflictEditorHint else null,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
