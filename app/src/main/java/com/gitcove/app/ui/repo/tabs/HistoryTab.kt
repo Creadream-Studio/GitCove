@@ -123,6 +123,7 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     detailTarget?.let { target ->
         CommitDetailSheet(
             vm = vm,
+            nav = nav,
             commit = target,
             onDismiss = { detailTarget = null }
         )

@@ -3,6 +3,7 @@ package com.gitcove.app.ui.repo
 import android.content.Intent
 import android.net.Uri
 import android.provider.CalendarContract
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,12 +39,13 @@ import com.gitcove.app.ui.components.CoveTextField
 import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.ui.theme.MonoFont
 import com.gitcove.app.util.fullTime
+import com.gitcove.app.ui.nav.Routes
 import kotlinx.coroutines.launch
 
 /**
  * 提交历史抽屉组件（历史 Tab 与提交图谱页共用，4.5 / 4.4）：
- * - [CommitDetailSheet]：点按提交 → 详情（变更文件 / Revert / 建分支 / 签出）
- * - [CommitActionsSheet]：长按 / 双击 → 快捷操作（复制、邮件、日历、分享补丁）
+ * - [CommitDetailSheet]：点按提交 → 详情（变更文件可点入差异页 / 建分支 / 打标签）
+ * - [CommitActionsSheet]：长按 / 双击 → 操作菜单（深度操作 + 复制、邮件、日历、分享补丁）
  *
  * 两处入口此前各自维护一份几乎相同的实现，历史深度操作（cherry-pick / 重置 /
  * 删除提交 / 改写消息 / 打标签）只写在本文件，两个入口同时受益。
@@ -114,9 +116,14 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
     }
 }
 
-/** 提交详情底部抽屉（变更文件 / Revert / 签出 / 建分支） */
+/** 提交详情底部抽屉（变更文件可点入差异页 / Revert / 签出 / 建分支） */
 @Composable
-fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit) {
+fun CommitDetailSheet(
+    vm: RepoViewModel,
+    nav: androidx.navigation.NavHostController,
+    commit: Commit,
+    onDismiss: () -> Unit
+) {
     val S = LocalStrings.current
     var branchName by remember { mutableStateOf("") }
     var confirmRevert by remember { mutableStateOf(false) }
@@ -156,7 +163,13 @@ fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit) 
                 S.changedFiles(vm.lastCommitDetail?.second?.size ?: 0),
                 style = MaterialTheme.typography.button,
                 color = CoveTheme.colors.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 6.dp)
+                modifier = Modifier.padding(top = 6.dp)
+            )
+            Text(
+                S.tapFileDiffHint,
+                style = MaterialTheme.typography.caption,
+                color = CoveTheme.colors.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
             )
             val files = vm.lastCommitDetail?.second.orEmpty()
             LazyColumn(Modifier.height(if (files.isEmpty()) 40.dp else 180.dp)) {
@@ -167,7 +180,15 @@ fun CommitDetailSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit) 
                         fontFamily = MonoFont,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(vertical = 2.dp)
+                        color = CoveTheme.colors.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                vm.clearCommitDetail()
+                                onDismiss()
+                                nav.navigate(Routes.diff(vm.repoId, f.path, cached = false, rev = commit.hash))
+                            }
+                            .padding(vertical = 4.dp)
                     )
                 }
             }

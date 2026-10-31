@@ -39,7 +39,7 @@ object Routes {
     const val LOG = "log"
     const val REPO = "repo/{repoId}"
     const val GRAPH = "graph/{repoId}"
-    const val DIFF = "diff/{repoId}?path={path}&cached={cached}"
+    const val DIFF = "diff/{repoId}?path={path}&cached={cached}&rev={rev}"
     const val RESOLVE = "resolve/{repoId}?path={path}"
     const val EDITOR = "editor/{repoId}?path={path}&isNew={isNew}"
     const val FILE = "file/{repoId}?path={path}"
@@ -49,8 +49,10 @@ object Routes {
     /** 提交图谱独立页（历史树） */
     fun graph(id: Long) = "graph/$id"
 
-    fun diff(id: Long, path: String, cached: Boolean) =
-        "diff/$id?path=${Uri.encode(path)}&cached=$cached"
+    /** 差异页：rev 非空 = 查看某次提交中该文件的变更（cached 忽略） */
+    fun diff(id: Long, path: String, cached: Boolean, rev: String? = null) =
+        "diff/$id?path=${Uri.encode(path)}&cached=$cached" +
+            (rev?.takeIf { it.isNotBlank() }?.let { "&rev=${Uri.encode(it)}" } ?: "")
 
     /** 冲突解决器：path 为空 = 仓库级（解决全部冲突） */
     fun resolve(id: Long, path: String? = null) =
@@ -128,13 +130,15 @@ fun GitCoveNavHost(container: AppContainer) {
             arguments = listOf(
                 navArgument("repoId") { type = NavType.LongType },
                 navArgument("path") { type = NavType.StringType },
-                navArgument("cached") { type = NavType.BoolType; defaultValue = false }
+                navArgument("cached") { type = NavType.BoolType; defaultValue = false },
+                navArgument("rev") { type = NavType.StringType; defaultValue = "" }
             )
         ) { entry ->
             val repoId = entry.arguments?.getLong("repoId") ?: return@composable
             val path = entry.arguments?.getString("path").orEmpty()
             val cached = entry.arguments?.getBoolean("cached") ?: false
-            DiffScreen(container = container, nav = nav, repoId = repoId, path = path, cached = cached)
+            val rev = entry.arguments?.getString("rev").orEmpty().ifBlank { null }
+            DiffScreen(container = container, nav = nav, repoId = repoId, path = path, cached = cached, rev = rev)
         }
 
         composable(

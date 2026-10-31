@@ -56,7 +56,8 @@ import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 差异对比页（功能 64/65）：统一视图逐行着色；
- * 冲突文件模式下提供 采用我方/采用对方/手动编辑/标记已解决（功能 35-38）
+ * 冲突文件模式下提供 采用我方/采用对方/手动编辑/标记已解决（功能 35-38）；
+ * rev 非空 = 提交模式：展示某次提交对该文件的变更（git show <rev> -- <path>）
  */
 @Composable
 fun DiffScreen(
@@ -64,7 +65,8 @@ fun DiffScreen(
     nav: androidx.navigation.NavHostController,
     repoId: Long,
     path: String,
-    cached: Boolean
+    cached: Boolean,
+    rev: String? = null
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -81,14 +83,21 @@ fun DiffScreen(
             val dir = repo?.let { java.io.File(it.path) }
             repoDir = dir
             if (dir == null) { loading = false; return@launch }
-            val st = container.gitCore.status(dir).getOrNull()
-            isConflict = st?.conflicts?.contains(path) == true
-            lines = if (isConflict) {
-                // 冲突文件直接展示工作区内容（含 <<<<<<< 标记）
-                val f = java.io.File(dir, path)
-                if (f.exists()) f.readLines().map { DiffLine(LineType.CONTEXT, it) } else emptyList()
+            if (rev != null) {
+                // 提交模式：该提交对此文件的逐行变更（与其第一父提交对比）
+                isConflict = false
+                lines = container.gitCore.commitFileDiff(dir, rev, path)
+                    .getOrDefault(null to emptyList()).second
             } else {
-                container.gitCore.diffText(dir, path, cached).getOrDefault(emptyList())
+                val st = container.gitCore.status(dir).getOrNull()
+                isConflict = st?.conflicts?.contains(path) == true
+                lines = if (isConflict) {
+                    // 冲突文件直接展示工作区内容（含 <<<<<<< 标记）
+                    val f = java.io.File(dir, path)
+                    if (f.exists()) f.readLines().map { DiffLine(LineType.CONTEXT, it) } else emptyList()
+                } else {
+                    container.gitCore.diffText(dir, path, cached).getOrDefault(emptyList())
+                }
             }
             loading = false
         }
@@ -106,7 +115,12 @@ fun DiffScreen(
                 subtitle = buildString {
                     append(path)
                     append("  ·  ")
-                    append(if (isConflict) S.diffConflict else if (cached) S.diffStaged else S.diffUnstaged)
+                    append(
+                        if (rev != null) S.viewerDiffCommit(rev.take(8))
+                        else if (isConflict) S.diffConflict
+                        else if (cached) S.diffStaged
+                        else S.diffUnstaged
+                    )
                     if (adds + dels > 0) append("  ·  +$adds -$dels")
                 },
                 navigationIcon = { CoveBackButton { nav.popBackStack() } },
@@ -159,7 +173,9 @@ fun DiffScreen(
                 Column(Modifier.padding(12.dp)) {
                     Text(S.noDiff, style = MaterialTheme.typography.body2)
                     Text(
-                        if (cached) S.noDiffStagedHint else S.noDiffUnstagedHint,
+                        if (rev != null) S.noDiffCommitHint
+                        else if (cached) S.noDiffStagedHint
+                        else S.noDiffUnstagedHint,
                         style = MaterialTheme.typography.caption,
                         color = CoveTheme.colors.onSurfaceVariant
                     )

@@ -265,6 +265,7 @@ open class Strings {
     // ── 历史 Tab ─────────────────────────────────────────────────────────
     open val noCommits get() = "还没有提交记录\n在「改动」页完成第一次提交吧"
     open fun changedFiles(n: Int) = "变更文件 ($n)"
+    open val tapFileDiffHint get() = "点按文件查看该提交中的差异"
     open val revertBtn get() = "Revert 撤销"
     open val checkoutVersion get() = "签出此版本"
     open val branchOnCommit get() = "在此提交上创建分支"
@@ -377,6 +378,7 @@ open class Strings {
     open val tookTheirs get() = "已采用对方版本"
     open val loadingDiff get() = "加载差异…"
     open val noDiff get() = "没有差异内容"
+    open val noDiffCommitHint get() = "该提交未改动此文件内容"
     open val noDiffStagedHint get() = "（暂存区与 HEAD 一致）"
     open val noDiffUnstagedHint get() = "（工作区与暂存区一致，或为未跟踪文件）"
     open val conflictBarTitle get() = "该文件存在合并冲突，选择处理方式："
@@ -746,6 +748,7 @@ object EnStrings : Strings() {
     // ── 历史 Tab ─────────────────────────────────────────────────────────
     override val noCommits get() = "No commits yet\nMake your first commit in \"Changes\""
     override fun changedFiles(n: Int) = "Changed files ($n)"
+    override val tapFileDiffHint get() = "Tap a file to view its diff in this commit"
     override val revertBtn get() = "Revert"
     override val checkoutVersion get() = "Checkout this version"
     override val branchOnCommit get() = "Create branch here"
@@ -858,6 +861,7 @@ object EnStrings : Strings() {
     override val tookTheirs get() = "Applied their version"
     override val loadingDiff get() = "Loading diff…"
     override val noDiff get() = "No differences"
+    override val noDiffCommitHint get() = "This commit does not change this file"
     override val noDiffStagedHint get() = "(Index matches HEAD)"
     override val noDiffUnstagedHint get() = "(Working tree matches index, or untracked file)"
     override val conflictBarTitle get() = "This file has merge conflicts. Choose how to resolve:"

@@ -181,7 +181,7 @@ fun CommitGraphScreen(container: AppContainer, nav: androidx.navigation.NavHostC
     }
 
     detailTarget?.let { target ->
-        CommitDetailSheet(vm = vm, commit = target, onDismiss = { detailTarget = null })
+        CommitDetailSheet(vm = vm, nav = nav, commit = target, onDismiss = { detailTarget = null })
     }
 
     actionTarget?.let { commit ->
