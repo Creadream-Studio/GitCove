@@ -1,5 +1,6 @@
 package com.gitcove.app.data.remote
 
+import com.gitcove.app.BuildConfig
 import com.gitcove.app.data.store.AuthStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,8 +22,8 @@ import java.util.concurrent.TimeUnit
  */
 object GitHubDeviceFlow {
 
-    /** OAuth App 的 Client ID */
-    const val CLIENT_ID = "Ov23liD2nxHTxbHyEPW0"
+    /** OAuth App 的 Client ID（BuildConfig 注入，可经 gradle 属性覆盖） */
+    val CLIENT_ID = BuildConfig.GITHUB_CLIENT_ID
 
     /** 申请的权限：repo（私有/公有仓库读写与列表） */
     const val SCOPE = "repo"

@@ -49,6 +49,7 @@ fun AccountsScreen(
     var tokens by remember { mutableStateOf(container.auth.tokens()) }
     var tokenDialog by remember { mutableStateOf(false) }
     var deviceAuthDialog by remember { mutableStateOf(false) }
+    var browserAuthDialog by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
@@ -102,7 +103,7 @@ fun AccountsScreen(
                 Text(S.addToken)
             }
             TextButton(
-                onClick = { deviceAuthDialog = true },
+                onClick = { browserAuthDialog = true },
                 modifier = Modifier.padding(horizontal = 12.dp)
             ) {
                 Icon(
@@ -111,6 +112,12 @@ fun AccountsScreen(
                     modifier = Modifier.padding(end = 4.dp)
                 )
                 Text(S.githubLogin)
+            }
+            TextButton(
+                onClick = { deviceAuthDialog = true },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Text(S.githubLoginDevice, style = MaterialTheme.typography.body2, color = c.onSurfaceVariant)
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -173,7 +180,24 @@ fun AccountsScreen(
         )
     }
 
-    // ── GitHub 设备授权登录 ──
+    // ── GitHub 浏览器授权登录（Custom Scheme + PKCE）──
+    if (browserAuthDialog) {
+        BrowserAuthDialog(
+            container = container,
+            onDone = { login ->
+                browserAuthDialog = false
+                tokens = container.auth.tokens()
+                android.widget.Toast.makeText(
+                    context,
+                    if (login != null) S.githubLoginAs(login) else S.authSuccess,
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            },
+            onDismiss = { browserAuthDialog = false }
+        )
+    }
+
+    // ── GitHub 设备授权登录（备用）──
     if (deviceAuthDialog) {
         DeviceAuthDialog(
             container = container,
