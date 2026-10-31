@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 /**
  * Material Design 2（MD2）主题内核。
@@ -113,6 +114,21 @@ data class CovePalette(
             onError = onError
         )
     }
+}
+
+/**
+ * MD2 抬升色：深色主题下按规范用白色叠加表达高度（Surface elevation 覆盖）。
+ * 状态栏要与 4dp 抬升后的应用栏同色，才不会出现色带断层。
+ */
+fun CovePalette.appBarElevatedColor(elevationDp: Float = 4f): Color {
+    if (!isDark) return appBar
+    // 与 Compose MD2 的 DefaultElevationOverlay 完全一致的算法：
+    // alpha = (4.5 * ln(elevation + 1) + 2) / 100，叠加色为 contentColorFor(background)
+    val alpha = ((4.5f * kotlin.math.ln(elevationDp + 1f)) + 2f) / 100f
+    val base = appBar
+    val tint = onAppBar
+    fun blend(from: Float, to: Float): Float = ((from + (to - from) * alpha) * 255f).roundToInt() / 255f
+    return Color(red = blend(base.red, tint.red), green = blend(base.green, tint.green), blue = blend(base.blue, tint.blue), alpha = 1f)
 }
 
 /** 取色：深色主题用亮色强调，浅色主题用深色强调 */

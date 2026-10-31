@@ -5,41 +5,31 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.domain.model.Status
 import com.gitcove.app.i18n.LocalStrings
+import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.ui.theme.StatusAddedColor
 import com.gitcove.app.ui.theme.StatusConflictColor
 import com.gitcove.app.ui.theme.StatusDeletedColor
 import com.gitcove.app.ui.theme.StatusModifiedColor
 import com.gitcove.app.ui.theme.StatusUntrackedColor
 
-/** 区块标题（紧凑） */
+/** 区块标题（MD2 分组条） */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    )
+    CoveSectionTitle(text = text, modifier = modifier)
 }
 
 /**
@@ -49,14 +39,14 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun StatusDot(status: Status, modifier: Modifier = Modifier) {
     val color = when (status) {
-        Status.ADDED, Status.UNTRACKED -> StatusAddedColor       // 新增：绿
-        Status.MODIFIED -> StatusModifiedColor                   // 修改：黄
-        Status.DELETED -> StatusDeletedColor                     // 删除：红
+        Status.ADDED, Status.UNTRACKED -> StatusAddedColor
+        Status.MODIFIED -> StatusModifiedColor
+        Status.DELETED -> StatusDeletedColor
         Status.CONFLICT -> StatusConflictColor
     }
     Box(
         modifier = modifier
-            .size(8.dp)
+            .size(7.dp)
             .background(color, CircleShape)
     )
 }
@@ -73,19 +63,19 @@ fun StatusLetterBadge(status: Status, modifier: Modifier = Modifier) {
     }
     Box(
         modifier = modifier
-            .size(18.dp)
-            .background(color.copy(alpha = 0.18f), CircleShape),
+            .size(16.dp)
+            .background(color.copy(alpha = 0.16f), RoundedCornerShape(2.dp)),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = com.gitcove.app.util.statusLetter(status).toString(),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.overline,
             color = color
         )
     }
 }
 
-/** 通用确认对话框（取消按钮文案取自当前语言文案库） */
+/** 通用确认对话框（MD2 AlertDialog：4dp 圆角、24dp 投影、surface 底） */
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -96,36 +86,33 @@ fun ConfirmDialog(
     onDismiss: () -> Unit
 ) {
     val S = LocalStrings.current
+    val c = CoveTheme.colors
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title, style = MaterialTheme.typography.titleMedium) },
-        text = { Text(text, style = MaterialTheme.typography.bodyMedium) },
+        shape = RoundedCornerShape(4.dp),
+        backgroundColor = c.surface,
+        contentColor = c.onSurface,
+        title = { Text(title, style = MaterialTheme.typography.subtitle1) },
+        text = { Text(text, style = MaterialTheme.typography.body2) },
         confirmButton = {
-            TextButton(
-                onClick = { onConfirm() },
-                colors = if (danger) androidx.compose.material3.ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                ) else androidx.compose.material3.ButtonDefaults.textButtonColors()
-            ) { Text(confirmLabel) }
+            TextButton(onClick = { onConfirm() }) {
+                Text(
+                    confirmLabel,
+                    style = MaterialTheme.typography.button,
+                    color = if (danger) c.error else c.primary
+                )
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(S.cancel) } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(S.cancel, style = MaterialTheme.typography.button, color = c.onSurfaceVariant)
+            }
+        }
     )
 }
 
 /** 空状态占位 */
 @Composable
 fun EmptyView(text: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        action?.let { Row(Modifier.padding(top = 12.dp)) { it() } }
-    }
+    CoveEmptyState(text = text, modifier = modifier, action = action)
 }

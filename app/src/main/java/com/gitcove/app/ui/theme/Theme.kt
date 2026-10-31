@@ -122,7 +122,7 @@ private fun SystemBars(palette: CovePalette) {
     val window = findActivity(view.context)?.window ?: return
     SideEffect {
         @Suppress("DEPRECATION")
-        window.statusBarColor = palette.appBar.toArgb()
+        window.statusBarColor = palette.appBarElevatedColor().toArgb()
         @Suppress("DEPRECATION")
         window.navigationBarColor = palette.background.toArgb()
         // MD2 取消边缘到边缘绘制：内容不延伸到系统栏下方

@@ -73,6 +73,7 @@ open class Strings {
 
     // ── 仓库列表页 ───────────────────────────────────────────────────────
     open val appName get() = "码湾 GitCove"
+    open val sectionRepos get() = "仓库列表"
     open val settings get() = "设置"
     open val cloneOrCreate get() = "克隆 / 新建"
     open val emptyRepos get() = "还没有仓库\n点击右下角按钮，从远程克隆或新建一个仓库开始"
@@ -389,6 +390,7 @@ object EnStrings : Strings() {
 
     // ── 仓库列表页 ───────────────────────────────────────────────────────
     override val appName get() = "GitCove"
+    override val sectionRepos get() = "Repositories"
     override val settings get() = "Settings"
     override val cloneOrCreate get() = "Clone / New"
     override val emptyRepos get() = "No repositories yet\nTap the button below to clone from remote or create one"
