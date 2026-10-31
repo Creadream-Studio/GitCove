@@ -19,16 +19,14 @@ import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.outlined.Tag
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +43,9 @@ import com.gitcove.app.ui.components.SectionHeader
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
 import kotlinx.coroutines.launch
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveTextField
+import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 分支 Tab（功能 23-28 / 40 / 42）：
@@ -78,7 +79,7 @@ fun BranchTab(
             Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                 Text(
                     if (st?.detached == true) "(detached) ${st.branch.take(10)}" else st?.branch ?: "",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.subtitle1
                 )
                 Text(
                     buildString {
@@ -86,8 +87,8 @@ fun BranchTab(
                             append(S.aheadBehind(st.ahead, st.behind))
                         }
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.caption,
+                    color = CoveTheme.colors.onSurfaceVariant
                 )
             }
             Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
@@ -110,7 +111,7 @@ fun BranchTab(
                     }
                 }
             }
-            HorizontalDivider()
+            CoveDivider()
         }
 
         // 本地分支
@@ -128,20 +129,20 @@ fun BranchTab(
             ) {
                 Text(
                     if (b.isCurrent) "✓ " else "  ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    style = MaterialTheme.typography.body2,
+                    color = CoveTheme.colors.primary
                 )
-                Text(b.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text(b.name, style = MaterialTheme.typography.body2, modifier = Modifier.weight(1f))
                 b.lastCommitHash?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.overline,
                         fontFamily = MonoFont,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = CoveTheme.colors.onSurfaceVariant
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            CoveDivider()
         }
 
         // 远程分支
@@ -160,18 +161,18 @@ fun BranchTab(
                 Icon(
                     Icons.Outlined.Tag,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = CoveTheme.colors.onSurfaceVariant,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     b.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.body2,
+                    color = CoveTheme.colors.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            CoveDivider()
         }
 
         // 标签
@@ -184,18 +185,18 @@ fun BranchTab(
                 Icon(
                     Icons.Outlined.Tag,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.tertiary,
+                    tint = CoveTheme.colors.tertiary,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(tag.name, style = MaterialTheme.typography.bodyMedium)
+                Text(tag.name, style = MaterialTheme.typography.body2)
                 Spacer(Modifier.weight(1f))
                 tag.hash?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.overline,
                         fontFamily = MonoFont,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = CoveTheme.colors.onSurfaceVariant
                     )
                 }
             }
@@ -205,14 +206,12 @@ fun BranchTab(
     // 分支操作菜单
     branchMenu?.let { name ->
         DropdownMenu(expanded = true, onDismissRequest = { branchMenu = null }) {
-            DropdownMenuItem(
-                text = { Text(S.mergeBranchInto(name)) },
-                onClick = { branchMenu = null; vm.merge(name) }
-            )
-            DropdownMenuItem(
-                text = { Text(S.deleteBranch, color = MaterialTheme.colorScheme.error) },
-                onClick = { branchMenu = null; deleteTarget = name }
-            )
+            DropdownMenuItem(onClick = { branchMenu = null; vm.merge(name) }) {
+                Text(S.mergeBranchInto(name), style = MaterialTheme.typography.body2)
+            }
+            DropdownMenuItem(onClick = { branchMenu = null; deleteTarget = name }) {
+                Text(S.deleteBranch, style = MaterialTheme.typography.body2, color = CoveTheme.colors.error)
+            }
         }
     }
 
@@ -223,7 +222,7 @@ fun BranchTab(
             text = { Text(S.deleteBranchConfirm(deleteTarget ?: "")) },
             confirmButton = {
                 TextButton(onClick = { vm.deleteBranch(deleteTarget!!); deleteTarget = null }) {
-                    Text(S.delete, color = MaterialTheme.colorScheme.error)
+                    Text(S.delete, color = CoveTheme.colors.error)
                 }
             },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(S.cancel) } }
@@ -235,21 +234,11 @@ fun BranchTab(
         var from by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { createDialog = false },
-            title = { Text(S.newBranch, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.newBranch, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Column {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text(S.branchName) },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = from,
-                        onValueChange = { from = it },
-                        label = { Text(S.branchFrom) },
-                        singleLine = true
-                    )
+                    CoveTextField(value = name, onValueChange = { name = it }, label = S.branchName, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    CoveTextField(value = from, onValueChange = { from = it }, label = S.branchFrom, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
@@ -269,19 +258,14 @@ fun BranchTab(
         var ref by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { mergeDialog = false },
-            title = { Text(S.mergeTitle, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.mergeTitle, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Column {
-                    Text(S.mergeDesc, style = MaterialTheme.typography.bodySmall)
+                    Text(S.mergeDesc, style = MaterialTheme.typography.caption)
                     locals.filter { !it.isCurrent }.forEach { b ->
                         TextButton(onClick = { ref = b.name }) { Text(if (ref == b.name) "✓ ${b.name}" else b.name) }
                     }
-                    OutlinedTextField(
-                        value = ref,
-                        onValueChange = { ref = it },
-                        label = { Text(S.orAnyRef) },
-                        singleLine = true
-                    )
+                    CoveTextField(value = ref, onValueChange = { ref = it }, label = S.orAnyRef, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
@@ -296,20 +280,11 @@ fun BranchTab(
         var message by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { tagDialog = false },
-            title = { Text(S.createTagAction, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.createTagAction, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Column {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text(S.tagName) },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = message,
-                        onValueChange = { message = it },
-                        label = { Text(S.tagMessage) }
-                    )
+                    CoveTextField(value = name, onValueChange = { name = it }, label = S.tagName, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    CoveTextField(value = message, onValueChange = { message = it }, label = S.tagMessage, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
@@ -330,33 +305,17 @@ fun BranchTab(
         val (owner, repo) = GitHubApi.githubOwnerRepo(vm.repo?.remoteUrl) ?: ("") to ("")
         AlertDialog(
             onDismissRequest = { if (!creating) prDialog = false },
-            title = { Text(S.prTitle, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.prTitle, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Column {
                     Text(
                         "$owner/$repo · ${st?.branch} → $base",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.caption,
                         fontFamily = MonoFont
                     )
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text(S.prTitleField) },
-                        singleLine = true,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-                    OutlinedTextField(
-                        value = base,
-                        onValueChange = { base = it },
-                        label = { Text(S.prBase) },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = body,
-                        onValueChange = { body = it },
-                        label = { Text(S.prDesc) },
-                        minLines = 2
-                    )
+                    CoveTextField(value = title, onValueChange = { title = it }, label = S.prTitleField, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                    CoveTextField(value = base, onValueChange = { base = it }, label = S.prBase, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    CoveTextField(value = body, onValueChange = { body = it }, label = S.prDesc, minLines = 2, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
