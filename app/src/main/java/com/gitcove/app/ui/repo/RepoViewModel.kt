@@ -418,6 +418,11 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         c.gitCore.dropCommit(repoDir!!, hash).getOrThrow()
     }
 
+    /** 功能 4.4：改写提交信息 —— HEAD 直接 amend；历史提交重放改写，作者日期不变 */
+    fun rewriteMessage(hash: String, message: String) = launchOp(c.strings.rewriteDone(hash.take(8))) {
+        c.gitCore.rewriteMessage(repoDir!!, hash, message).getOrThrow()
+    }
+
     fun checkoutDetached(hash: String) = launchOp(c.strings.checkoutDone(hash.take(8))) {
         c.gitCore.checkoutDetached(repoDir!!, hash).getOrThrow()
     }

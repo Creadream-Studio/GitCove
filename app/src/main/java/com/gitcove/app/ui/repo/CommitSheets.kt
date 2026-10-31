@@ -22,6 +22,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.runtime.Composable
@@ -72,6 +73,7 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
     var showResetDialog by remember { mutableStateOf(false) }
     var confirmHardReset by remember { mutableStateOf(false) }
     var confirmDrop by remember { mutableStateOf(false) }
+    var showRewriteDialog by remember { mutableStateOf(false) }
 
     fun copy(text: String) {
         clipboard.setText(AnnotatedString(text))
@@ -116,6 +118,12 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
                 subtitle = commit.shortHash,
                 icon = { Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 onClick = { confirmDrop = true }
+            )
+            CoveListRow(
+                S.rewriteMsgBtn,
+                subtitle = commit.shortHash,
+                icon = { Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                onClick = { showRewriteDialog = true }
             )
             // ── 快捷操作 ──
             Text(
@@ -207,6 +215,34 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
             danger = true,
             onConfirm = { confirmDrop = false; vm.dropCommit(commit.hash); onDismiss() },
             dismissLabel = S.cancel
+        )
+    }
+
+    if (showRewriteDialog) {
+        var msgText by remember { mutableStateOf(commit.fullMessage.ifBlank { commit.message }) }
+        CoveAlertDialog(
+            onDismiss = { showRewriteDialog = false },
+            title = S.rewriteMsgTitle,
+            confirmLabel = S.rewriteAction,
+            confirmEnabled = msgText.isNotBlank(),
+            onConfirm = { showRewriteDialog = false; vm.rewriteMessage(commit.hash, msgText); onDismiss() },
+            dismissLabel = S.cancel,
+            content = {
+                Column {
+                    CoveTextField(
+                        value = msgText,
+                        onValueChange = { msgText = it },
+                        label = S.rewriteMsgField,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        S.rewriteMsgKeepAuthor,
+                        style = MaterialTheme.typography.caption,
+                        color = CoveTheme.colors.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
         )
     }
 

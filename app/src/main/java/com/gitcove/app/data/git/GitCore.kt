@@ -1065,6 +1065,32 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
     }
 
+    /**
+     * 功能 4.4：改写提交信息 —— HEAD 直接 amend（保留原父列表，合并提交也可改消息）；
+     * 历史提交则分离重放：pick 该提交 → amend 改消息 → 重放其后提交。
+     * 作者与作者日期保持不变（仅提交者信息随本地身份），重放冲突自动整体还原。
+     */
+    fun rewriteMessage(repoDir: File, hash: String, newMessage: String): Result<String> = withRepo(repoDir) { git ->
+        if (newMessage.isBlank()) throw IllegalStateException("提交信息不能为空")
+        setIdentity(git)
+        val repo = git.repository
+        val targetId = repo.resolve(hash.trim()) ?: throw IllegalStateException("找不到提交 $hash")
+        val headId = repo.resolve(Constants.HEAD) ?: throw IllegalStateException("空仓库")
+        val newHead: ObjectId = if (targetId == headId) {
+            git.commit().setAmend(true).setMessage(newMessage.trim()).call().id
+        } else {
+            val (parent, after) = linearRange(git, hash)
+            val branchFull = repo.fullBranch
+            replayLinear(git, branchFull, headId, parent.id) {
+                pickOrThrow(git, targetId)
+                git.commit().setAmend(true).setMessage(newMessage.trim()).call()
+                for (c in after) pickOrThrow(git, c.id)
+            }
+        }
+        log.append("git", "reword ${hash.take(8)}")
+        newHead.name()
+    }
+
     // ────────────────────────── G. 高级：Stash / Tag / 冲突 ──────────────────────────
 
     /** 功能 43：Stash 储藏全部改动（含未跟踪） */
