@@ -400,6 +400,8 @@ open class Strings {
     open val preview get() = "预览"
     open fun pixels(w: Int, h: Int) = "$w × $h 像素"
     open val viewCommitDiffHint get() = "点击提交，查看它对该文件的变更"
+    open val zoomGestureHint get() = "双指缩放 · 拖动平移 · 双击复位"
+    open val zoomGestureHintSync get() = "双指缩放 · 拖动平移 · 双击复位（两图同步）"
 
     // ── 日志页 ───────────────────────────────────────────────────────────
     open val opLogTitle get() = "操作日志"
@@ -827,6 +829,8 @@ object EnStrings : Strings() {
     override val preview get() = "Preview"
     override fun pixels(w: Int, h: Int) = "$w × $h px"
     override val viewCommitDiffHint get() = "Tap a commit to see how it changed this file"
+    override val zoomGestureHint get() = "Pinch to zoom · Drag to pan · Double-tap to reset"
+    override val zoomGestureHintSync get() = "Pinch to zoom · Drag to pan · Double-tap to reset (both synced)"
 
     // ── 日志页 ───────────────────────────────────────────────────────────
     override val opLogTitle get() = "Operation log"

@@ -235,8 +235,7 @@ fun FileViewerScreen(
                         textLoaded = textLoaded,
                         textContent = textContent,
                         onTextChange = { textContent = it },
-                        isConflict = isConflict,
-                        onOpenEditor = { nav.navigate(com.gitcove.app.ui.nav.Routes.editor(repoId, path)) }
+                        isConflict = isConflict
                     )
                 }
             }
@@ -264,8 +263,7 @@ private fun ContentTab(
     textLoaded: Boolean,
     textContent: String,
     onTextChange: (String) -> Unit,
-    isConflict: Boolean,
-    onOpenEditor: () -> Unit
+    isConflict: Boolean
 ) {
     val S = LocalStrings.current
     val c = CoveTheme.colors
@@ -280,16 +278,52 @@ private fun ContentTab(
         }
         file.length() > 2 * 1024 * 1024 ->
             EmptyView(S.fileTooBigEdit, icon = Icons.Filled.InsertDriveFile)
-        else -> CodeEditorPane(
-            content = textContent,
-            onContentChange = onTextChange,
-            readOnly = kind == FileKind.BINARY,
-            hint = when {
-                kind == FileKind.BINARY -> S.binaryFileHint
-                isConflict -> S.conflictEditorHint
-                else -> null
+        else -> {
+            // MD / HTML：源码（可编辑）与渲染预览切换
+            val ext = com.gitcove.app.util.FileTypes.ext(file.name)
+            val isMd = ext in com.gitcove.app.util.FileTypes.MD_EXTS
+            val isHtml = ext in com.gitcove.app.util.FileTypes.HTML_EXTS
+            if (!isMd && !isHtml) {
+                CodeEditorPane(
+                    content = textContent,
+                    onContentChange = onTextChange,
+                    readOnly = kind == FileKind.BINARY,
+                    hint = when {
+                        kind == FileKind.BINARY -> S.binaryFileHint
+                        isConflict -> S.conflictEditorHint
+                        else -> null
+                    }
+                )
+            } else {
+                var previewMode by remember(file.path) { mutableStateOf(false) }
+                Column(Modifier.fillMaxSize()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        com.gitcove.app.ui.components.CoveSegmentedRow(
+                            options = listOf(S.sourceCode, S.preview),
+                            selectedIndex = if (previewMode) 1 else 0,
+                            onSelect = { previewMode = it == 1 }
+                        )
+                    }
+                    CoveDivider()
+                    if (previewMode) {
+                        if (isMd) {
+                            com.gitcove.app.ui.file.MarkdownPreview(textContent, Modifier.fillMaxSize())
+                        } else {
+                            com.gitcove.app.ui.file.HtmlPreview(file, textContent, Modifier.fillMaxSize())
+                        }
+                    } else {
+                        CodeEditorPane(
+                            content = textContent,
+                            onContentChange = onTextChange,
+                            hint = if (isConflict) S.conflictEditorHint else null
+                        )
+                    }
+                }
             }
-        )
+        }
     }
 }
 

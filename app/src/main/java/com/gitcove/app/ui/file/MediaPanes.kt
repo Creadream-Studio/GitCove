@@ -217,7 +217,7 @@ fun ImageDiffView(
                 )
             }
             Text(
-                "双指缩放 · 拖动平移 · 双击复位",
+                S.zoomGestureHint,
                 style = MaterialTheme.typography.caption,
                 color = c.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
@@ -266,7 +266,7 @@ fun ImageDiffView(
             }
         }
         Text(
-            "双指缩放 · 拖动平移 · 双击复位（两图同步）",
+            S.zoomGestureHintSync,
             style = MaterialTheme.typography.caption,
             color = c.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
