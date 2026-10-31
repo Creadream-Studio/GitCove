@@ -21,6 +21,13 @@ data class Repository(
     val isGitRepo: Boolean = true
 )
 
+/** 提交上的引用徽章（分支名 / 标签 / HEAD 指示） */
+data class CommitRef(
+    val name: String,
+    val isHead: Boolean = false,
+    val isTag: Boolean = false
+)
+
 /**
  * 提交记录
  */
@@ -30,7 +37,9 @@ data class Commit(
     val author: String,
     val email: String,
     val date: Long,
-    val parents: List<String>
+    val parents: List<String>,
+    /** 指向该提交的分支/标签（提交图谱展示用，默认空） */
+    val refs: List<CommitRef> = emptyList()
 ) {
     val shortHash: String get() = hash.take(8)
 }

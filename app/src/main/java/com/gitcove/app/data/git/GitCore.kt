@@ -4,6 +4,7 @@ import com.gitcove.app.data.log.OpLog
 import com.gitcove.app.data.store.AuthStore
 import com.gitcove.app.domain.model.Branch
 import com.gitcove.app.domain.model.Commit
+import com.gitcove.app.domain.model.CommitRef
 import com.gitcove.app.domain.model.ConflictAction
 import com.gitcove.app.domain.model.DiffEntryInfo
 import com.gitcove.app.domain.model.DiffLine
@@ -21,6 +22,7 @@ import org.eclipse.jgit.diff.DiffEntry
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.BranchTrackingStatus
 import org.eclipse.jgit.lib.ProgressMonitor
+import org.eclipse.jgit.lib.RefDatabase
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.RevWalk
@@ -804,6 +806,47 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         } catch (e: Exception) {
             // 空仓库（无任何提交）
             emptyList()
+        }
+    }
+
+    /**
+     * 功能 4.5：提交图谱数据 —— 提交列表 + 指向各提交的分支/标签/HEAD 徽章。
+     * 泳道连线由 CommitGraph.build 在内存中计算。
+     */
+    fun logGraph(repoDir: File, max: Int = 200): Result<List<Commit>> = withRepo(repoDir) { git ->
+        val repo = git.repository
+        val commits = try {
+            git.log().setMaxCount(max).call().map { rc -> toCommit(rc) }
+        } catch (e: Exception) {
+            emptyList() // 空仓库
+        }
+
+        val refsByHash = HashMap<String, MutableList<CommitRef>>()
+        runCatching {
+            for (ref in repo.refDatabase.getRefsByPrefix(RefDatabase.ALL)) {
+                val peeled = repo.refDatabase.peel(ref)
+                val target = peeled.peeledObjectId ?: peeled.objectId ?: continue
+                refsByHash.getOrPut(target.name()) { mutableListOf() }.add(
+                    CommitRef(
+                        name = Repository.shortenRefName(ref.name),
+                        isHead = ref.name == repo.fullBranch,
+                        isTag = ref.name.startsWith("refs/tags/")
+                    )
+                )
+            }
+            // detached HEAD：refs 列表不含 HEAD，单独补一个徽章
+            val head = repo.refDatabase.exactRef("HEAD")
+            if (head != null && !head.isSymbolic) {
+                head.objectId?.name()?.let { hash ->
+                    refsByHash.getOrPut(hash) { mutableListOf() }.add(CommitRef("HEAD", isHead = true))
+                }
+            }
+        }
+
+        commits.map { c ->
+            val refs = refsByHash[c.hash].orEmpty()
+                .sortedWith(compareBy({ it.isTag }, { !it.isHead }, { it.name }))
+            c.copy(refs = refs)
         }
     }
 

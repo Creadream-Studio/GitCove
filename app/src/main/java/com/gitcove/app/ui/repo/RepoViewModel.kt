@@ -128,7 +128,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                     c.repoStore.updateCurrentBranch(repoId, it.branch)
                 }.onFailure { msg.tryEmit(c.strings.statusFailed(it.message ?: "")) }
                 files = listFiles(dir, currentPath, status)
-                commits = c.gitCore.log(dir).getOrDefault(emptyList())
+                commits = c.gitCore.logGraph(dir).getOrDefault(emptyList())
                 branches = c.gitCore.branches(dir).getOrDefault(emptyList())
                 tags = c.gitCore.tags(dir).getOrDefault(emptyList())
                 stashes = c.gitCore.stashList(dir).getOrDefault(emptyList())
