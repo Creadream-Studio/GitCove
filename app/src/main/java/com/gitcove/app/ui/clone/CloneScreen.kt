@@ -106,6 +106,11 @@ fun CloneScreen(
         vm.messages.collect { snackbar.showSnackbar(it) }
     }
 
+    // 仓库名校验：与文件 Tab 新建对话框同规则（禁止 / \ 与 . ..，防止拼出意外路径）
+    val trimmedName = name.trim()
+    val nameInvalid = trimmedName.contains('/') || trimmedName.contains('\\') ||
+        trimmedName == "." || trimmedName == ".."
+
     Scaffold(
         topBar = {
             CoveTopAppBar(
@@ -176,6 +181,8 @@ fun CloneScreen(
                             onValueChange = { name = it; nameTouched = true },
                             label = S.repoName,
                             singleLine = true,
+                            isError = name.isNotBlank() && nameInvalid,
+                            supporting = if (name.isNotBlank() && nameInvalid) S.nameNoSlash else null,
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(Modifier.height(8.dp))
@@ -197,7 +204,7 @@ fun CloneScreen(
                         CoveButton(
                             text = S.startClone,
                             onClick = { vm.cloneRepo(url, name, File(parentDir)) { nav.popBackStack() } },
-                            enabled = !vm.busy && url.isNotBlank(),
+                            enabled = !vm.busy && url.isNotBlank() && !nameInvalid,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -211,6 +218,8 @@ fun CloneScreen(
                             onValueChange = { name = it },
                             label = S.repoName,
                             singleLine = true,
+                            isError = name.isNotBlank() && nameInvalid,
+                            supporting = if (name.isNotBlank() && nameInvalid) S.nameNoSlash else null,
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(Modifier.height(8.dp))
@@ -225,7 +234,7 @@ fun CloneScreen(
                         CoveButton(
                             text = S.createNewRepo,
                             onClick = { vm.initRepo(name, File(parentDir)) { nav.popBackStack() } },
-                            enabled = !vm.busy && name.isNotBlank(),
+                            enabled = !vm.busy && name.isNotBlank() && !nameInvalid,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

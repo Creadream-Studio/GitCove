@@ -61,5 +61,10 @@ fun isLikelyTextFile(name: String, size: Long): Boolean {
         "gitignore", "gitattributes", "editorconfig"
     )
     val ext = name.substringAfterLast('.', "").lowercase()
-    return name.startsWith(".") || ext.isBlank() || ext in textExts
+    // 媒体/归档扩展名一律不算文本——包括点开头的隐藏文件（如 .cover.png），
+    // 此前「以 . 开头即按文本」会让内容搜索去逐行读二进制
+    if (ext in FileTypes.IMAGE_EXTS || ext in FileTypes.VIDEO_EXTS ||
+        ext in FileTypes.AUDIO_EXTS
+    ) return false
+    return ext.isBlank() || ext in textExts || name.startsWith(".")
 }
