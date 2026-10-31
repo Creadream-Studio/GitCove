@@ -290,20 +290,22 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     // 暂存/取消暂存不弹提示：行在区块间移动就是反馈，且勾选高频操作
     // 每次都弹 Snackbar 会排成长队，把后面的「已提交」顶到几秒之后
-    fun stage(paths: List<String>) = launchOp {
+    fun stage(paths: List<String>) = launchOp(refresh = Refresh.QUICK) {
         c.gitCore.stage(repoDir!!, paths).getOrThrow()
     }
 
-    fun unstage(paths: List<String>) = launchOp {
+    fun unstage(paths: List<String>) = launchOp(refresh = Refresh.QUICK) {
         c.gitCore.unstage(repoDir!!, paths).getOrThrow()
     }
 
-    fun discard(paths: List<String>) = launchOp(c.strings.discardedN(paths.size)) {
+    fun discard(paths: List<String>) = launchOp(c.strings.discardedN(paths.size), refresh = Refresh.QUICK) {
         c.gitCore.discard(repoDir!!, paths).getOrThrow()
     }
 
-    /** 功能 10/11/12/13：提交，可选立即推送 */
-    fun commit(message: String, amend: Boolean, pushAfter: Boolean) = launchOp {
+    /** 功能 10/11/12/13：提交，可选立即推送。
+     *  提交成功立刻报「已提交」；如需推送，推送全程用进度文字展示，
+     *  完成后再报「推送完成」——用户 1 秒内就能看到提交结果，不必陪网络干等。 */
+    fun commit(message: String, amend: Boolean, pushAfter: Boolean) = launchOp(refresh = Refresh.QUICK_THEN_FULL) {
         committing = true
         try {
             require(message.isNotBlank()) { c.strings.commitRequired }
@@ -311,13 +313,12 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
             // 乐观更新：提交成功即清空「已暂存」显示与角标，不等 status 重算（体感秒级成功）
             status?.let { st -> status = st.copy(staged = emptyList()) }
             diffStaged = emptyList()
+            msg.tryEmit(c.strings.committed)
             if (pushAfter) {
                 progress = c.strings.pushing
                 c.gitCore.push(repoDir!!).getOrThrow()
                 c.repoStore.updateLastSync(repoId, System.currentTimeMillis())
-                msg.tryEmit(c.strings.commitPushed)
-            } else {
-                msg.tryEmit(c.strings.committed)
+                msg.tryEmit(c.strings.pushDone)
             }
         } finally {
             committing = false
@@ -380,15 +381,15 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     // ─────────────── Stash / 标签 ───────────────
 
-    fun stash() = launchOp(c.strings.stashed) {
+    fun stash() = launchOp(c.strings.stashed, refresh = Refresh.QUICK) {
         c.gitCore.stash(repoDir!!).getOrThrow()
     }
 
-    fun stashApply(index: Int) = launchOp(c.strings.stashApplied) {
+    fun stashApply(index: Int) = launchOp(c.strings.stashApplied, refresh = Refresh.QUICK) {
         c.gitCore.stashApply(repoDir!!, index).getOrThrow()
     }
 
-    fun stashDrop(index: Int) = launchOp(c.strings.stashDropped) {
+    fun stashDrop(index: Int) = launchOp(c.strings.stashDropped, refresh = Refresh.QUICK) {
         c.gitCore.stashDrop(repoDir!!, index).getOrThrow()
     }
 
@@ -399,12 +400,13 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     // ─────────────── 冲突解决 ───────────────
 
     fun resolveConflict(path: String, action: ConflictAction) = launchOp(
-        if (action == ConflictAction.OURS) c.strings.tookOurs else c.strings.tookTheirs
+        if (action == ConflictAction.OURS) c.strings.tookOurs else c.strings.tookTheirs,
+        refresh = Refresh.QUICK
     ) {
         c.gitCore.resolveConflict(repoDir!!, path, action).getOrThrow()
     }
 
-    fun markResolved(path: String) = launchOp(c.strings.markedResolved) {
+    fun markResolved(path: String) = launchOp(c.strings.markedResolved, refresh = Refresh.QUICK) {
         c.gitCore.markResolved(repoDir!!, path).getOrThrow()
     }
 
@@ -422,25 +424,25 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     // ─────────────── 文件操作 ───────────────
 
-    fun createFile(path: String) = launchOp(c.strings.fileCreated(path)) {
+    fun createFile(path: String) = launchOp(c.strings.fileCreated(path), refresh = Refresh.QUICK) {
         c.gitCore.createFile(repoDir!!, path).getOrThrow()
     }
 
-    fun createDirectory(path: String) = launchOp(c.strings.dirCreated(path)) {
+    fun createDirectory(path: String) = launchOp(c.strings.dirCreated(path), refresh = Refresh.QUICK) {
         c.gitCore.createDirectory(repoDir!!, path).getOrThrow()
     }
 
-    fun deleteFile(path: String) = launchOp(c.strings.fileDeleted(path)) {
+    fun deleteFile(path: String) = launchOp(c.strings.fileDeleted(path), refresh = Refresh.QUICK) {
         c.gitCore.deleteFile(repoDir!!, path).getOrThrow()
     }
 
     /** 批量删除（多选模式） */
-    fun deleteFiles(paths: List<String>) = launchOp(c.strings.deletedN(paths.size)) {
+    fun deleteFiles(paths: List<String>) = launchOp(c.strings.deletedN(paths.size), refresh = Refresh.QUICK) {
         paths.forEach { c.gitCore.deleteFile(repoDir!!, it).getOrThrow() }
     }
 
     /** 重命名（同目录内改名字） */
-    fun renameEntry(oldPath: String, newName: String) = launchOp(c.strings.renamedDone(newName)) {
+    fun renameEntry(oldPath: String, newName: String) = launchOp(c.strings.renamedDone(newName), refresh = Refresh.QUICK) {
         val parent = oldPath.substringBeforeLast('/', "")
         val newPath = if (parent.isBlank()) newName else "$parent/$newName"
         c.gitCore.renameEntry(repoDir!!, oldPath, newPath).getOrThrow()
@@ -459,7 +461,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     }
 
     /** 粘贴到指定目录（默认当前目录）；剪切粘贴后清空剪贴板，复制粘贴保留 */
-    fun clipPaste(targetDir: String? = null) = launchOp {
+    fun clipPaste(targetDir: String? = null) = launchOp(refresh = Refresh.QUICK) {
         val clip = fileClip ?: return@launchOp
         val target = targetDir ?: currentPath
         if (clip.cut) {
@@ -478,7 +480,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         runCatching { base.walkBottomUp().filter { it.isFile }.sumOf { it.length() } }.getOrDefault(0L)
     }
 
-    fun saveFile(path: String, content: String) = launchOp(c.strings.fileSaved(path)) {
+    fun saveFile(path: String, content: String) = launchOp(c.strings.fileSaved(path), refresh = Refresh.QUICK) {
         c.gitCore.writeFile(repoDir!!, path, content).getOrThrow()
     }
 
@@ -496,7 +498,14 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     // ─────────────── 通用执行器 ───────────────
 
-    private fun launchOp(toastOnSuccess: String? = null, op: suspend () -> Unit) {
+    /** 操作完成后的刷新深度：高频小操作只跑毫秒级轻刷新，全量留给分支/同步类操作 */
+    private enum class Refresh { NONE, QUICK, FULL, QUICK_THEN_FULL }
+
+    private fun launchOp(
+        toastOnSuccess: String? = null,
+        refresh: Refresh = Refresh.FULL,
+        op: suspend () -> Unit
+    ) {
         // busy 在点按线程同步置位：进度条/按钮禁用当帧生效，不等 IO 调度——
         // 否则快速操作（提交、暂存）里“按下后毫无反应”的空窗就是这段调度延迟
         busy = true
@@ -513,7 +522,19 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
             } finally {
                 busy = false
                 progress = ""
-                refreshAll()
+                when (refresh) {
+                    Refresh.NONE -> {}
+                    // 全量刷新（历史+分支+标签+双差异+提交历史）在大仓库上是秒级 IO 风暴，
+                    // 挂在勾选暂存/提交这类高频操作后面，正是“提交要等三秒”的主要构成。
+                    // 高频操作只跑轻刷新：状态+文件列表毫秒级就绪，界面立刻可用；
+                    // QUICK_THEN_FULL：先轻刷新让界面就绪，历史/分支随后在后台补齐，不阻塞任何交互。
+                    Refresh.QUICK -> refreshQuick()
+                    Refresh.QUICK_THEN_FULL -> {
+                        refreshQuick()
+                        viewModelScope.launch(Dispatchers.IO) { refreshAll() }
+                    }
+                    Refresh.FULL -> refreshAll()
+                }
             }
         }
     }

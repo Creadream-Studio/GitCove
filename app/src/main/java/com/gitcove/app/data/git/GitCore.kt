@@ -57,9 +57,27 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     // ────────────────────────── 通用辅助 ──────────────────────────
 
+    /**
+     * Repository 实例缓存：Git.open 每次都要重新解析 config / HEAD / 探测仓库布局，
+     * 在手机存储上是每次操作几十到几百毫秒的固定开销。打开一次后全局复用
+     * （JGit 的 Repository 线程安全，官方支持共享），提交/暂存/状态等热路径全部受益。
+     */
+    private val repoCache = java.util.concurrent.ConcurrentHashMap<String, Repository>()
+
+    /** 取缓存 Repository（incrementOpen 保住引用计数，永不释放；文件快照机制自动感知外部修改） */
+    private fun cachedRepo(dir: File): Repository {
+        val key = dir.absolutePath
+        return repoCache.getOrPut(key) {
+            Git.open(dir).repository.also { it.incrementOpen() }
+        }
+    }
+
+    /** Git 外观对象：use{} 结束只释放包装层，底层 Repository 留在缓存里复用 */
+    private fun gitFor(dir: File): Git = Git.wrap(cachedRepo(dir))
+
     /** 统一打开仓库执行并包装异常 */
     private fun <T> withRepo(repoDir: File, block: (Git) -> T): Result<T> = try {
-        Git.open(repoDir).use { git -> Result.success(block(git)) }
+        gitFor(repoDir).use { git -> Result.success(block(git)) }
     } catch (e: GitConflictException) {
         Result.failure(e)
     } catch (e: Throwable) {
@@ -265,7 +283,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     /** 功能 10：提交信息历史参考（候选词） */
     fun recentMessages(repoDir: File, limit: Int = 15): List<String> = runCatching {
-        Git.open(repoDir).use { git ->
+        gitFor(repoDir).use { git ->
             git.log().setMaxCount(60).call()
                 .map { it.shortMessage.trim() }
                 .distinct()
@@ -601,14 +619,14 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     /** 远端 origin URL */
     fun remoteUrl(repoDir: File): String? = runCatching {
-        Git.open(repoDir).use { git ->
+        gitFor(repoDir).use { git ->
             git.repository.config.getString("remote", "origin", "url")
         }
     }.getOrNull()
 
     /** 功能 15/18：Fetch */
     fun fetch(repoDir: File, onProgress: (String) -> Unit = {}): Result<Unit> = try {
-        Git.open(repoDir).use { git ->
+        gitFor(repoDir).use { git ->
             val url = git.repository.config.getString("remote", "origin", "url")
                 ?: return@use
             val cmd = git.fetch().setProgressMonitor(monitor(onProgress))
@@ -624,7 +642,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     /** 功能 17/22：Pull（冲突时抛 GitConflictException） */
     fun pull(repoDir: File): Result<Int> = try {
-        val pulled = Git.open(repoDir).use { git ->
+        val pulled = gitFor(repoDir).use { git ->
             val url = git.repository.config.getString("remote", "origin", "url")
                 ?: throw IllegalStateException("未配置远端 origin")
             val cmd = git.pull()
@@ -646,7 +664,7 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
 
     /** 功能 11/27：Push（自动补齐 upstream；force 支持强制推送） */
     fun push(repoDir: File, force: Boolean = false, onProgress: (String) -> Unit = {}): Result<Unit> = try {
-        Git.open(repoDir).use { git ->
+        gitFor(repoDir).use { git ->
             val repo = git.repository
             val url = repo.config.getString("remote", "origin", "url")
                 ?: throw IllegalStateException("未配置远端 origin")
