@@ -39,10 +39,19 @@ data class Commit(
     val date: Long,
     val parents: List<String>,
     /** 指向该提交的分支/标签（提交图谱展示用，默认空） */
-    val refs: List<CommitRef> = emptyList()
+    val refs: List<CommitRef> = emptyList(),
+    /** 完整提交信息（含正文；捏合放大后展示） */
+    val fullMessage: String = ""
 ) {
     val shortHash: String get() = hash.take(8)
 }
+
+/** 提交行数统计（提交图谱行展示） */
+data class CommitStat(
+    val files: Int,
+    val insertions: Int,
+    val deletions: Int
+)
 
 /**
  * 文件状态条目

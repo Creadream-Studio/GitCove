@@ -9,6 +9,7 @@ import com.gitcove.app.data.git.GitConflictException
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.domain.model.Branch
 import com.gitcove.app.domain.model.Commit
+import com.gitcove.app.domain.model.CommitStat
 import com.gitcove.app.domain.model.DiffEntryInfo
 import com.gitcove.app.domain.model.FileNode
 import com.gitcove.app.domain.model.RepoStatus
@@ -370,6 +371,23 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
     }
 
     // ─────────────── 历史 ───────────────
+
+    /** 图谱行统计缓存（主线程访问，行内 LaunchedEffect 触发） */
+    private val commitStatsCache = HashMap<String, CommitStat>()
+
+    suspend fun commitStats(hash: String): CommitStat? {
+        commitStatsCache[hash]?.let { return it }
+        val d = repoDir ?: return null
+        val stat = withContext(Dispatchers.IO) { c.gitCore.commitStats(d, hash) } ?: return null
+        commitStatsCache[hash] = stat
+        return stat
+    }
+
+    /** 分享补丁文本 */
+    suspend fun commitPatch(hash: String): String? {
+        val d = repoDir ?: return null
+        return withContext(Dispatchers.IO) { c.gitCore.commitPatch(d, hash) }
+    }
 
     fun loadCommitDetail(commit: Commit) {
         viewModelScope.launch(Dispatchers.IO) {

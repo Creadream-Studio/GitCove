@@ -5,6 +5,7 @@ import com.gitcove.app.data.store.AuthStore
 import com.gitcove.app.domain.model.Branch
 import com.gitcove.app.domain.model.Commit
 import com.gitcove.app.domain.model.CommitRef
+import com.gitcove.app.domain.model.CommitStat
 import com.gitcove.app.domain.model.ConflictAction
 import com.gitcove.app.domain.model.DiffEntryInfo
 import com.gitcove.app.domain.model.DiffLine
@@ -432,6 +433,63 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
     }
 
+    /** 图谱行统计：单提交变更文件数与增删行数（Working Copy 4.5 参考） */
+    fun commitStats(repoDir: File, hash: String): CommitStat? = runCatching {
+        withRepo(repoDir) { git ->
+            val repo = git.repository
+            RevWalk(repo).use { w ->
+                val commit = w.parseCommit(repo.resolve(hash) ?: throw IllegalStateException("找不到提交 $hash"))
+                val out = ByteArrayOutputStream()
+                DiffFormatter(out).use { df ->
+                    df.setRepository(repo)
+                    var ins = 0
+                    var del = 0
+                    val entries = if (commit.parentCount == 0) {
+                        // 初始提交：与空树比较，全部视为新增
+                        df.scan(
+                            EmptyTreeIterator(),
+                            CanonicalTreeParser().apply { reset(repo.newObjectReader(), commit.tree) }
+                        )
+                    } else {
+                        df.scan(w.parseTree(commit.getParent(0)), w.parseTree(commit.tree))
+                    }
+                    var files = 0
+                    for (e in entries) {
+                        files++
+                        df.toFileHeader(e).toEditList().forEach { edit ->
+                            del += edit.endA - edit.beginA
+                            ins += edit.endB - edit.beginB
+                        }
+                    }
+                    CommitStat(files, ins, del)
+                }
+            }
+        }.getOrThrow()
+    }.getOrNull()
+
+    /** 分享补丁：整次提交的 unified diff 文本（图谱长按 → 分享） */
+    fun commitPatch(repoDir: File, hash: String): String? = runCatching {
+        withRepo(repoDir) { git ->
+            val repo = git.repository
+            RevWalk(repo).use { w ->
+                val commit = w.parseCommit(repo.resolve(hash) ?: throw IllegalStateException("找不到提交 $hash"))
+                val out = ByteArrayOutputStream()
+                DiffFormatter(out).use { df ->
+                    df.setRepository(repo)
+                    df.setDetectRenames(true)
+                    if (commit.parentCount == 0) {
+                        df.format(EmptyTreeIterator(), CanonicalTreeParser().apply {
+                            reset(repo.newObjectReader(), commit.tree)
+                        })
+                    } else {
+                        df.format(w.parseTree(commit.getParent(0)), w.parseTree(commit.tree))
+                    }
+                    out.toString("UTF-8")
+                }
+            }
+        }.getOrThrow()
+    }.getOrNull()
+
     // ────────────────────────── 文件查看页：任意修订的内容读取 ──────────────────────────
 
     /**
@@ -856,7 +914,8 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         author = rc.authorIdent.name,
         email = rc.authorIdent.emailAddress,
         date = rc.commitTime * 1000L,
-        parents = rc.parents.map { it.name }
+        parents = rc.parents.map { it.name },
+        fullMessage = rc.fullMessage
     )
 
     /** 功能 31：Revert 撤销提交（生成反向提交） */
