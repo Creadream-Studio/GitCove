@@ -19,6 +19,7 @@ import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.Login
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,8 @@ fun AccountsScreen(
     val c = CoveTheme.colors
     var tokens by remember { mutableStateOf(container.auth.tokens()) }
     var tokenDialog by remember { mutableStateOf(false) }
+    var deviceAuthDialog by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
         topBar = {
@@ -97,6 +100,17 @@ fun AccountsScreen(
             TextButton(onClick = { tokenDialog = true }, modifier = Modifier.padding(horizontal = 12.dp)) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
                 Text(S.addToken)
+            }
+            TextButton(
+                onClick = { deviceAuthDialog = true },
+                modifier = Modifier.padding(horizontal = 12.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.Login,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+                Text(S.githubLogin)
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -156,6 +170,23 @@ fun AccountsScreen(
                 ) { Text(S.save) }
             },
             dismissButton = { TextButton(onClick = { tokenDialog = false }) { Text(S.cancel) } }
+        )
+    }
+
+    // ── GitHub 设备授权登录 ──
+    if (deviceAuthDialog) {
+        DeviceAuthDialog(
+            container = container,
+            onDone = { login ->
+                deviceAuthDialog = false
+                tokens = container.auth.tokens()
+                android.widget.Toast.makeText(
+                    context,
+                    if (login != null) S.githubLoginAs(login) else S.authSuccess,
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            },
+            onDismiss = { deviceAuthDialog = false }
         )
     }
 }
