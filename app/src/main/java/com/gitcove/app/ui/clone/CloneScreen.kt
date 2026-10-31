@@ -71,6 +71,8 @@ fun CloneScreen(
     val context = LocalContext.current
     var mode by remember { mutableStateOf(0) }   // 0 克隆 / 1 新建 / 2 导入
     var url by remember { mutableStateOf("") }
+    // 克隆协议（HTTPS / SSH / Git）：先选协议，地址按协议填写；切换协议自动转换已输入地址
+    var proto by remember { mutableStateOf(GitCredentials.CloneProto.HTTPS) }
     var name by remember { mutableStateOf("") }
     var path by remember { mutableStateOf("") }
     var parentDir by remember { mutableStateOf(container.repoParent.absolutePath) }
@@ -132,6 +134,26 @@ fun CloneScreen(
                 0 -> {
                     CoveSectionTitle(S.modeClone)
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        // 协议分段：选中段高亮；切换时把已输入地址转换成对应协议形式
+                        CoveSegmentedRow(
+                            options = listOf(S.protoHttps, S.protoSsh, S.protoGit),
+                            selectedIndex = proto.ordinal,
+                            onSelect = { idx ->
+                                val target = GitCredentials.CloneProto.values()[idx]
+                                if (target != proto) {
+                                    proto = target
+                                    if (url.isNotBlank()) url = GitCredentials.convertToProto(url, target)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            S.protoSwitchHint,
+                            style = MaterialTheme.typography.caption,
+                            color = c.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
                         CoveTextField(
                             value = url,
                             onValueChange = {
@@ -139,7 +161,11 @@ fun CloneScreen(
                                 if (!nameTouched) name = GitCredentials.repoNameOf(it)
                             },
                             label = S.remoteUrlLabel,
-                            placeholder = "https://github.com/user/repo.git",
+                            placeholder = when (proto) {
+                                GitCredentials.CloneProto.SSH -> "git@github.com:user/repo.git"
+                                GitCredentials.CloneProto.GIT -> "git://github.com/user/repo.git"
+                                else -> "https://github.com/user/repo.git"
+                            },
                             singleLine = true,
                             supporting = if (url.isNotBlank()) S.platformOf(GitCredentials.platformOf(url)) else null,
                             modifier = Modifier.fillMaxWidth()
@@ -267,6 +293,7 @@ fun CloneScreen(
             loading = vm.busy,
             onPick = { repo ->
                 url = repo.clone_url
+                proto = GitCredentials.detectProto(repo.clone_url)
                 if (!nameTouched) name = repo.full_name.substringAfter('/')
                 nameTouched = false
                 showGithubList = false
