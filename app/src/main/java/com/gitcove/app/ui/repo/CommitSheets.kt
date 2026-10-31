@@ -10,11 +10,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,13 +57,14 @@ import kotlinx.coroutines.launch
  * 删除提交 / 改写消息 / 打标签）只写在本文件，两个入口同时受益。
  */
 
-/** 长按 / 双击操作菜单（4.5：复制、邮件、日历、分享补丁） */
+/** 长按 / 双击操作菜单（4.5：复制、邮件、日历、分享补丁；4.4：深度操作） */
 @Composable
 fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit) {
     val S = LocalStrings.current
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    var confirmCherry by remember { mutableStateOf(false) }
 
     fun copy(text: String) {
         clipboard.setText(AnnotatedString(text))
@@ -66,13 +73,37 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
     }
 
     CoveBottomSheet(onDismiss = onDismiss) {
-        Column(Modifier.padding(horizontal = 8.dp)) {
+        Column(
+            Modifier
+                .padding(horizontal = 8.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
             Text(
                 commit.message,
                 style = MaterialTheme.typography.subtitle2,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+            )
+            // ── 深度操作（历史重写）──
+            Text(
+                S.deepOpsSection,
+                style = MaterialTheme.typography.caption,
+                color = CoveTheme.colors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+            CoveListRow(
+                S.cherryPickBtn,
+                subtitle = "${commit.shortHash} · ${commit.author}",
+                icon = { Icon(Icons.Filled.PostAdd, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                onClick = { confirmCherry = true }
+            )
+            // ── 快捷操作 ──
+            Text(
+                S.quickActionsSection,
+                style = MaterialTheme.typography.caption,
+                color = CoveTheme.colors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
             CoveListRow(S.copyHash, onClick = { copy(commit.hash) })
             CoveListRow(
@@ -113,6 +144,17 @@ fun CommitActionsSheet(vm: RepoViewModel, commit: Commit, onDismiss: () -> Unit)
             })
             Spacer(Modifier.height(12.dp))
         }
+    }
+
+    if (confirmCherry) {
+        CoveAlertDialog(
+            onDismiss = { confirmCherry = false },
+            title = S.cherryPickBtn,
+            content = { Text(S.cherryPickConfirm(commit.shortHash), style = MaterialTheme.typography.body2) },
+            confirmLabel = S.confirm,
+            onConfirm = { confirmCherry = false; vm.cherryPick(commit.hash); onDismiss() },
+            dismissLabel = S.cancel
+        )
     }
 }
 

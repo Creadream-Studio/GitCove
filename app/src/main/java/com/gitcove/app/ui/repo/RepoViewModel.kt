@@ -402,6 +402,11 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         c.gitCore.revert(repoDir!!, hash).getOrThrow()
     }
 
+    /** 功能 4.4：Cherry-pick 择优选取到当前分支 */
+    fun cherryPick(hash: String) = launchOp(c.strings.cherryPickDone(hash.take(8))) {
+        c.gitCore.cherryPick(repoDir!!, hash).getOrThrow()
+    }
+
     fun checkoutDetached(hash: String) = launchOp(c.strings.checkoutDone(hash.take(8))) {
         c.gitCore.checkoutDetached(repoDir!!, hash).getOrThrow()
     }

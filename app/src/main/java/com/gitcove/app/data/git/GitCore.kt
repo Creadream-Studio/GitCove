@@ -15,6 +15,7 @@ import com.gitcove.app.domain.model.RepoStatus
 import com.gitcove.app.domain.model.Status
 import com.gitcove.app.domain.model.Tag
 import org.eclipse.jgit.api.CheckoutCommand
+import org.eclipse.jgit.api.CherryPickResult
 import org.eclipse.jgit.api.CreateBranchCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
@@ -925,6 +926,30 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         val result = git.revert().include(id).call()
         log.append("git", "revert ${hash.take(8)}")
         result.name()
+    }
+
+    /**
+     * 功能 4.4：Cherry-pick 择优选取 —— 把指定提交的变更作为新提交应用到当前分支顶端。
+     * 冲突时与 merge/revert 一致抛 [GitConflictException]，改动页会列出冲突文件，
+     * 解决并手动提交后完成选取。
+     */
+    fun cherryPick(repoDir: File, hash: String): Result<String> = withRepo(repoDir) { git ->
+        val id = git.repository.resolve(hash.trim())
+            ?: throw IllegalStateException("找不到提交 $hash")
+        setIdentity(git)
+        val result = git.cherryPick().include(id).call()
+        when (result.status) {
+            // JGit 5.13 的 CherryPickResult 不携带冲突列表：从未合并索引读取
+            CherryPickResult.CherryPickStatus.CONFLICTING ->
+                throw GitConflictException(git.status().call().conflicting.toList())
+            CherryPickResult.CherryPickStatus.FAILED ->
+                throw IllegalStateException("择优选取失败（工作区可能有未提交改动）")
+            else -> {
+                log.append("git", "cherry-pick ${hash.take(8)}")
+                // newHead 为 null = 变更已全部存在（空提交），视为成功
+                result.newHead?.name() ?: hash
+            }
+        }
     }
 
     // ────────────────────────── G. 高级：Stash / Tag / 冲突 ──────────────────────────
