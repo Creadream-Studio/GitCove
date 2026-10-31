@@ -16,20 +16,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,12 +47,17 @@ import com.gitcove.app.ui.theme.diffColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.gitcove.app.ui.components.CoveBackButton
+import com.gitcove.app.ui.components.CoveButton
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveOutlinedButton
+import com.gitcove.app.ui.components.CoveTopAppBar
+import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 差异对比页（功能 64/65）：统一视图逐行着色；
  * 冲突文件模式下提供 采用我方/采用对方/手动编辑/标记已解决（功能 35-38）
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiffScreen(
     container: AppContainer,
@@ -102,34 +101,15 @@ fun DiffScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            path.substringAfterLast('/'),
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            buildString {
-                                append(path)
-                                append("  ·  ")
-                                append(if (isConflict) S.diffConflict else if (cached) S.diffStaged else S.diffUnstaged)
-                                if (adds + dels > 0) append("  ·  +$adds -$dels")
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+            CoveTopAppBar(
+                title = path.substringAfterLast('/'),
+                subtitle = buildString {
+                    append(path)
+                    append("  ·  ")
+                    append(if (isConflict) S.diffConflict else if (cached) S.diffStaged else S.diffUnstaged)
+                    if (adds + dels > 0) append("  ·  +$adds -$dels")
                 },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
-                    }
-                },
+                navigationIcon = { CoveBackButton { nav.popBackStack() } },
                 actions = {
                     IconButton(onClick = {
                         nav.navigate(Routes.editor(repoId, path))
@@ -139,7 +119,8 @@ fun DiffScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) }
+        snackbarHost = { SnackbarHost(snackbar) },
+        backgroundColor = CoveTheme.colors.background
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
 
@@ -165,21 +146,21 @@ fun DiffScreen(
                 )
             }
 
-            HorizontalDivider()
+            CoveDivider()
 
             if (loading) {
                 Text(
                     S.loadingDiff,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.caption,
                     modifier = Modifier.padding(12.dp)
                 )
             } else if (lines.isEmpty()) {
                 Column(Modifier.padding(12.dp)) {
-                    Text(S.noDiff, style = MaterialTheme.typography.bodyMedium)
+                    Text(S.noDiff, style = MaterialTheme.typography.body2)
                     Text(
                         if (cached) S.noDiffStagedHint else S.noDiffUnstagedHint,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.caption,
+                        color = CoveTheme.colors.onSurfaceVariant
                     )
                 }
             } else {
@@ -189,18 +170,18 @@ fun DiffScreen(
                         val bg = when (line.type) {
                             LineType.ADD -> dc.addBg
                             LineType.DEL -> dc.delBg
-                            else -> MaterialTheme.colorScheme.background
+                            else -> CoveTheme.colors.background
                         }
                         val fg = when (line.type) {
                             LineType.ADD -> dc.addFg
                             LineType.DEL -> dc.delFg
                             LineType.HUNK -> dc.hunkFg
                             LineType.META -> dc.metaFg
-                            LineType.CONTEXT -> MaterialTheme.colorScheme.onBackground
+                            LineType.CONTEXT -> CoveTheme.colors.onBackground
                         }
                         Text(
                             text = line.text,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.caption,
                             fontFamily = MonoFont,
                             color = fg,
                             modifier = Modifier
@@ -226,14 +207,14 @@ private fun ConflictBar(
     Column(Modifier.fillMaxWidth().padding(8.dp)) {
         Text(
             S.conflictBarTitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error
+            style = MaterialTheme.typography.caption,
+            color = CoveTheme.colors.error
         )
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onOurs) { Text(S.takeOurs) }
-            Button(onClick = onTheirs) { Text(S.takeTheirs) }
-            OutlinedButton(onClick = onManual) { Text(S.manualEdit) }
+            CoveButton(text = S.takeOurs, onClick = onOurs)
+            CoveButton(text = S.takeTheirs, onClick = onTheirs)
+            CoveOutlinedButton(text = S.manualEdit, onClick = onManual)
         }
     }
 }
