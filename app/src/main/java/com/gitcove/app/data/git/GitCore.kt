@@ -1116,12 +1116,18 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         git.stashDrop().setStashRef(index).call()
     }
 
-    /** 功能 42：创建标签（message 为空 → 轻量标签，否则附注标签） */
-    fun createTag(repoDir: File, name: String, message: String? = null): Result<Unit> = withRepo(repoDir) { git ->
-        val cmd = git.tag().setName(name.trim())
-        if (!message.isNullOrBlank()) cmd.setMessage(message.trim())
-        cmd.call()
-    }
+    /** 功能 34/42/4.4：创建标签（message 空 → 轻量，否则附注）；atRef 指定时打在任意提交上 */
+    fun createTag(repoDir: File, name: String, message: String? = null, atRef: String? = null): Result<Unit> =
+        withRepo(repoDir) { git ->
+            val cmd = git.tag().setName(name.trim())
+            if (!atRef.isNullOrBlank()) {
+                val id = git.repository.resolve(atRef.trim())
+                    ?: throw IllegalStateException("找不到提交 $atRef")
+                RevWalk(git.repository).use { walk -> cmd.setObjectId(walk.parseCommit(id)) }
+            }
+            if (!message.isNullOrBlank()) cmd.setMessage(message.trim())
+            cmd.call()
+        }
 
     /** 标签列表 */
     fun tags(repoDir: File): Result<List<Tag>> = withRepo(repoDir) { git ->

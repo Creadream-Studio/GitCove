@@ -301,6 +301,7 @@ fun CommitDetailSheet(
 ) {
     val S = LocalStrings.current
     var branchName by remember { mutableStateOf("") }
+    var tagName by remember { mutableStateOf("") }
     var confirmRevert by remember { mutableStateOf(false) }
     var confirmCheckout by remember { mutableStateOf(false) }
 
@@ -386,6 +387,22 @@ fun CommitDetailSheet(
                         onDismiss()
                     },
                     enabled = branchName.isNotBlank()
+                ) { Text(S.create) }
+            }
+            Row(Modifier.padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                CoveTextField(
+                    value = tagName,
+                    onValueChange = { tagName = it },
+                    label = S.tagOnCommit,
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(
+                    onClick = {
+                        vm.createTag(tagName, null, commit.hash)
+                        onDismiss()
+                    },
+                    enabled = tagName.isNotBlank()
                 ) { Text(S.create) }
             }
         }

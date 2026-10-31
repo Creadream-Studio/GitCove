@@ -441,8 +441,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         c.gitCore.stashDrop(repoDir!!, index).getOrThrow()
     }
 
-    fun createTag(name: String, message: String?) = launchOp(c.strings.tagCreated(name)) {
-        c.gitCore.createTag(repoDir!!, name, message).getOrThrow()
+    /** 功能 4.4：在任意提交上打标签（atRef 为空时打在 HEAD，BranchTab 原行为） */
+    fun createTag(name: String, message: String?, atRef: String? = null) = launchOp(c.strings.tagCreated(name)) {
+        c.gitCore.createTag(repoDir!!, name, message, atRef).getOrThrow()
     }
 
     // ─────────────── 冲突解决 ───────────────
