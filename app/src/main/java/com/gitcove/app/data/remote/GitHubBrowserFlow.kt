@@ -22,7 +22,8 @@ import java.util.concurrent.TimeUnit
  * 2. 用户授权后 GitHub 跳回 gitcove://callback?code=…&state=…，
  *    由 MainActivity 捕获深链并转发到 [deepLinks]
  * 3. 用 code + code_verifier 换取 access_token
- *    （GitHub OAuth App 换 token 必须携带 client_secret，经 BuildConfig 注入，不入库）
+ *    （GitHub OAuth App 换 token 必须携带 client_secret，已内置；
+ *      PKCE S256 为强制路径：challenge / verifier 缺失直接报错，不发请求）
  *
  * 仅申请 repo 权限：所有仓库的读写与列表。
  */
@@ -67,9 +68,11 @@ object GitHubBrowserFlow {
         Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
     )
 
-    /** 生成 GitHub 授权页地址 */
-    fun authorizeUrl(pkce: Pkce, state: String): String =
-        Uri.parse(AUTHORIZE_URL).buildUpon()
+    /** 生成 GitHub 授权页地址（强制 PKCE：无 challenge 直接报错） */
+    fun authorizeUrl(pkce: Pkce, state: String): String {
+        require(pkce.challenge.isNotBlank()) { "PKCE code_challenge 缺失，拒绝发起授权" }
+        require(state.isNotBlank()) { "OAuth state 缺失，拒绝发起授权" }
+        return Uri.parse(AUTHORIZE_URL).buildUpon()
             .appendQueryParameter("client_id", BuildConfig.GITHUB_CLIENT_ID)
             .appendQueryParameter("redirect_uri", BuildConfig.OAUTH_REDIRECT_URI)
             .appendQueryParameter("scope", SCOPE)
@@ -78,11 +81,13 @@ object GitHubBrowserFlow {
             .appendQueryParameter("code_challenge_method", "S256")
             .build()
             .toString()
+    }
 
     /** 用授权码换 access_token（PKCE S256 + client_secret） */
     suspend fun exchange(code: String, pkce: Pkce): Result<GitHubDeviceFlow.TokenResponse> =
         withContext(Dispatchers.IO) {
             runCatching {
+                require(pkce.verifier.isNotBlank()) { "PKCE code_verifier 缺失，拒绝换 token" }
                 val builder = FormBody.Builder()
                     .add("client_id", BuildConfig.GITHUB_CLIENT_ID)
                     .add("code", code)

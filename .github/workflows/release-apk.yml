@@ -14,10 +14,6 @@
 #      配置后每次发布签名一致，用户可覆盖安装升级。
 #   B. 未配置 secrets 时：CI 每次自动生成临时 keystore 并签名，
 #      同时把 keystore 作为 artifact 上传（可下载后转为 secrets 固定下来）。
-#
-# GitHub 浏览器授权登录（PKCE）：
-#   配置 OAUTH_CLIENT_SECRET（OAuth App 的 client secret，名称不能以 GITHUB_ 开头）后，
-#   发布包才能用浏览器授权换 token；未配置时访问令牌登录仍可用。
 
 name: Release APK (手动)
 
@@ -106,9 +102,6 @@ jobs:
         run: ./gradlew :app:testReleaseUnitTest --no-daemon --stacktrace
 
       - name: 构建 Release APK
-        env:
-          # GitHub OAuth App client secret：换 token 必带（PKCE S256）
-          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
         run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: 整理产物
