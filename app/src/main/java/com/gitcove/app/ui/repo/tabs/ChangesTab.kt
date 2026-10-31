@@ -17,19 +17,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.Checkbox
+import androidx.compose.material.CheckboxDefaults
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +48,12 @@ import com.gitcove.app.ui.components.StatusLetterBadge
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.MonoFont
+import com.gitcove.app.ui.components.CoveAlertDialog
+import com.gitcove.app.ui.components.CoveButton
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveOutlinedButton
+import com.gitcove.app.ui.components.CoveTextField
+import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 改动 Tab（文档 5.3）：暂存/取消暂存、冲突区、提交信息历史、Amend、提交并推送、Stash
@@ -96,12 +98,12 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     ) {
                         Text(
                             "⚔",
-                            color = MaterialTheme.colorScheme.error,
+                            color = CoveTheme.colors.error,
                             modifier = Modifier.width(24.dp)
                         )
                         Text(
                             path,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.body2,
                             fontFamily = MonoFont,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -111,7 +113,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             Text(S.resolve)
                         }
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    CoveDivider()
                 }
             }
 
@@ -122,7 +124,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(CoveTheme.colors.surfaceVariant)
                             .padding(start = 2.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -137,8 +139,8 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         )
                         Text(
                             S.stagedSection(staged.size),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.button,
+                            color = CoveTheme.colors.primary,
                             modifier = Modifier.weight(1f)
                         )
                         if (selectedInStaged.isNotEmpty()) {
@@ -165,7 +167,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             }) { Text(S.unstage) }
                         }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    CoveDivider()
                 }
             }
 
@@ -182,7 +184,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             TextButton(onClick = { vm.stage(listOf(f.path)) }) { Text(S.stage) }
                         }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    CoveDivider()
                 }
             }
 
@@ -191,17 +193,15 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             }
         }
 
-        HorizontalDivider()
+        CoveDivider()
 
         // ── 提交区 ──
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            OutlinedTextField(
+            CoveTextField(
                 value = message,
                 onValueChange = { message = it },
-                placeholder = { Text(S.commitMsgPlaceholder, style = MaterialTheme.typography.bodyMedium) },
-                textStyle = MaterialTheme.typography.bodyMedium,
+                placeholder = S.commitMsgPlaceholder,
                 minLines = 2,
-                maxLines = 4,
                 trailingIcon = {
                     Column {
                         IconButton(onClick = { historyMenu = true }, enabled = vm.recentMsgs.isNotEmpty()) {
@@ -210,15 +210,14 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         DropdownMenu(expanded = historyMenu, onDismissRequest = { historyMenu = false }) {
                             Text(
                                 S.msgHistoryTitle,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.overline,
+                                color = CoveTheme.colors.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                             )
                             vm.recentMsgs.forEach { m ->
-                                DropdownMenuItem(
-                                    text = { Text(m, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                    onClick = { message = m; historyMenu = false }
-                                )
+                                DropdownMenuItem(onClick = { message = m; historyMenu = false }) {
+                                    Text(m, style = MaterialTheme.typography.caption, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
                             }
                         }
                     }
@@ -232,44 +231,36 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 Checkbox(
                     checked = amend,
                     onCheckedChange = { amend = it },
-                    colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+                    colors = CheckboxDefaults.colors(checkedColor = CoveTheme.colors.primary)
                 )
-                Text(S.amend, style = MaterialTheme.typography.bodySmall)
+                Text(S.amend, style = MaterialTheme.typography.caption)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { overflow = true }) {
                     Icon(Icons.Filled.MoreVert, contentDescription = S.moreActions, modifier = Modifier.size(18.dp))
                 }
                 DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
-                    DropdownMenuItem(
-                        text = { Text(S.stageAll) },
-                        onClick = {
-                            overflow = false
-                            vm.stage(vm.diffUnstaged.map { it.path } + (st?.unstaged?.map { it.path } ?: emptyList()))
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(S.unstageAll) },
-                        onClick = {
-                            overflow = false
-                            vm.unstage(st?.staged?.map { it.path } ?: emptyList())
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(S.discardUnstagedMenu, color = MaterialTheme.colorScheme.error) },
-                        onClick = { overflow = false; discardDialog = true }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(S.stashAll) },
-                        onClick = { overflow = false; vm.stash() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(S.viewStashes) },
-                        onClick = { overflow = false; stashListDialog = true }
-                    )
+                    DropdownMenuItem(onClick = {
+                        overflow = false
+                        vm.stage(vm.diffUnstaged.map { it.path } + (st?.unstaged?.map { it.path } ?: emptyList()))
+                    }) { Text(S.stageAll, style = MaterialTheme.typography.body2) }
+                    DropdownMenuItem(onClick = {
+                        overflow = false
+                        vm.unstage(st?.staged?.map { it.path } ?: emptyList())
+                    }) { Text(S.unstageAll, style = MaterialTheme.typography.body2) }
+                    DropdownMenuItem(onClick = { overflow = false; discardDialog = true }) {
+                        Text(S.discardUnstagedMenu, style = MaterialTheme.typography.body2, color = CoveTheme.colors.error)
+                    }
+                    DropdownMenuItem(onClick = { overflow = false; vm.stash() }) {
+                        Text(S.stashAll, style = MaterialTheme.typography.body2)
+                    }
+                    DropdownMenuItem(onClick = { overflow = false; stashListDialog = true }) {
+                        Text(S.viewStashes, style = MaterialTheme.typography.body2)
+                    }
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
+                CoveButton(
+                    text = S.commit,
                     onClick = {
                         vm.commit(message, amend, pushAfter = false)
                         message = ""
@@ -277,8 +268,9 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     },
                     enabled = staged.isNotEmpty() && message.isNotBlank() && !vm.busy,
                     modifier = Modifier.weight(1f)
-                ) { Text(S.commit) }
-                OutlinedButton(
+                )
+                CoveOutlinedButton(
+                    text = S.commitAndPush,
                     onClick = {
                         vm.commit(message, amend, pushAfter = true)
                         message = ""
@@ -286,7 +278,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     },
                     enabled = staged.isNotEmpty() && message.isNotBlank() && !vm.busy && !st?.detached!!,
                     modifier = Modifier.weight(1f)
-                ) { Text(S.commitAndPush) }
+                )
             }
         }
     }
@@ -308,10 +300,10 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
 
     // Stash 列表
     if (stashListDialog) {
-        AlertDialog(
-            onDismissRequest = { stashListDialog = false },
-            title = { Text(S.stashListTitle, style = MaterialTheme.typography.titleMedium) },
-            text = {
+        CoveAlertDialog(
+            onDismiss = { stashListDialog = false },
+            title = S.stashListTitle,
+            content = {
                 if (vm.stashes.isEmpty()) Text(S.noStashes)
                 else Column {
                     vm.stashes.forEachIndexed { idx, s ->
@@ -320,11 +312,11 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text(s.message, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(s.message, style = MaterialTheme.typography.caption, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
                                     "${s.shortHash} · ${com.gitcove.app.util.relativeTime(s.date, S)}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = MaterialTheme.typography.overline,
+                                    color = CoveTheme.colors.onSurfaceVariant
                                 )
                             }
                             TextButton(onClick = { vm.stashApply(idx); stashListDialog = false }) { Text(S.apply) }
@@ -333,7 +325,8 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { stashListDialog = false }) { Text(S.close) } }
+            confirmLabel = S.close,
+            onConfirm = { stashListDialog = false }
         )
     }
 }
@@ -366,7 +359,7 @@ private fun ChangeRow(
         Spacer(Modifier.width(8.dp))
         Text(
             file.path,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.body2,
             fontFamily = MonoFont,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
