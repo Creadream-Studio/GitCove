@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.Checkbox
 import androidx.compose.material.CheckboxDefaults
 import androidx.compose.material.DropdownMenu
@@ -273,6 +274,10 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 )
                 Text(S.amend, style = MaterialTheme.typography.caption)
                 Spacer(Modifier.weight(1f))
+                // 手动刷新：重新读取工作区状态（外部改动也能拉进来）
+                IconButton(onClick = { vm.refreshAll() }, enabled = !vm.busy) {
+                    Icon(Icons.Filled.Refresh, contentDescription = S.refresh, modifier = Modifier.size(18.dp))
+                }
                 IconButton(onClick = { overflow = true }) {
                     Icon(Icons.Filled.MoreVert, contentDescription = S.moreActions, modifier = Modifier.size(18.dp))
                 }
