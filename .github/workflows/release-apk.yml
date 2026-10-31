@@ -139,21 +139,32 @@ jobs:
           EXTRA_ARGS=(--title "$TITLE")
           if [ -z "$TITLE" ]; then EXTRA_ARGS=(--title "$TAG"); fi
           if [ "$DRAFT" = "true" ]; then EXTRA_ARGS+=(--draft); fi
+          # 测试版阶段一律标记为 Pre-release；转正后可移除这一行
+          EXTRA_ARGS+=(--prerelease)
 
           BODY=$(cat <<'EOF'
-          ## GitCove 发布包
+          ## GitCove 测试版（Pre-release）
 
-          - `GitCove-*.apk`：全架构通用签名包（arm64-v8a / armeabi-v7a / x86 / x86_64 通用，纯 Java 实现，适配 armv7 电视盒）
+          早期测试版本，功能仍在快速迭代，遇到问题欢迎提 issue。
+
+          - `GitCove-*.apk`：全架构通用包（arm64-v8a / armeabi-v7a / x86 / x86_64 通用，纯 Java 实现，适配 armv7 电视盒）
           - 安装要求：Android 8.0（API 26）及以上
-
-          ## v1.1.0 更新内容
-
-          - 克隆 / 新建仓库支持自定义保存目录（默认仍为应用仓库根目录），新增应用内目录选择器
-          - 修复导入本地仓库时无法识别 .git 的问题（新增「所有文件」存储权限授权引导，兼容 worktree / submodule 形态的 .git 文件指针）
-          - 支持导入非 Git 目录：Git 功能置灰并提示，可一键「初始化 Git 仓库」解锁全部功能
-          - 新建支持选择类型：文件 / 文件夹；文件夹支持多级创建
           EOF
           )
+
+          # 追加自上个 Release 以来的提交记录作为更新内容
+          PREV=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
+          if [ -n "$PREV" ]; then
+            LOG=$(gh api "repos/${{ github.repository }}/compare/$PREV...${{ github.sha }}" \
+              --jq '.commits[] | "- " + (.commit.message | split("\n")[0])' 2>/dev/null || true)
+            if [ -n "$LOG" ]; then
+              BODY="$BODY
+
+          ## 本版更新（$PREV 之后）
+
+          $LOG"
+            fi
+          fi
 
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG 已存在，追加产物"
