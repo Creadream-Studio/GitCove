@@ -1,11 +1,8 @@
-# GitCove 发布工作流
-# 触发方式：
-#   A. 自动：推送 v* 标签（git tag v0.4.0 && git push origin v0.4.0）
-#      → 自动构建签名 APK 并发布 Release，发布说明自动带提交记录
-#   B. 手动：GitHub 仓库页 → Actions → "Release APK" → Run workflow
+# GitCove 手动发布工作流
+# 用法：GitHub 仓库页 → Actions → "Release APK (手动)" → Run workflow
 #
 # 功能：
-#   1. 构建签名 Release APK（全架构通用包，含 armeabi-v7a，适配 armv7 电视盒）
+#   1. 手动触发，构建签名 Release APK（全架构通用包，含 armeabi-v7a，适配 armv7 电视盒）
 #   2. 自动发布到 GitHub Releases（Draft/正式可选）
 #
 # 签名说明（二选一）：
@@ -18,11 +15,9 @@
 #   B. 未配置 secrets 时：CI 每次自动生成临时 keystore 并签名，
 #      同时把 keystore 作为 artifact 上传（可下载后转为 secrets 固定下来）。
 
-name: Release APK
+name: Release APK (手动)
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       release_tag:
@@ -70,8 +65,6 @@ jobs:
         run: |
           VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
           TAG="${{ github.event.inputs.release_tag }}"
-          # tag 推送触发时，直接用推送的标签名（如 v0.4.0）
-          if [ -z "$TAG" ] && [ "$GITHUB_REF_TYPE" = "tag" ]; then TAG="$GITHUB_REF_NAME"; fi
           if [ -z "$TAG" ]; then TAG="v$VERSION"; fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"

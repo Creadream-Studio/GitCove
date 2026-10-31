@@ -30,6 +30,7 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Commit
@@ -175,6 +176,10 @@ fun RepoScreen(
                         }
                         IconButton(onClick = { vm.push() }, enabled = !vm.busy && !detached) {
                             Icon(Icons.Filled.CloudUpload, contentDescription = "Push", modifier = Modifier.size(20.dp))
+                        }
+                        // 提交图谱独立页（4.5）：历史树专门入口
+                        IconButton(onClick = { nav.navigate(Routes.graph(repoId)) }, enabled = !vm.busy) {
+                            Icon(Icons.Filled.AccountTree, contentDescription = S.commitGraph, modifier = Modifier.size(20.dp))
                         }
                     }
                     Box {

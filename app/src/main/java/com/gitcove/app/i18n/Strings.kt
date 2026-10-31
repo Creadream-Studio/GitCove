@@ -455,6 +455,7 @@ open class Strings {
     open val markedResolved get() = "已标记为已解决"
 
     // ── 提交图谱（4.5）──
+    open val commitGraph get() = "提交图谱"
     open val copyHash get() = "复制提交哈希"
     open val copyMessage get() = "复制提交信息"
     open val copyEmail get() = "复制作者邮箱"
@@ -935,6 +936,7 @@ object EnStrings : Strings() {
     override val markedResolved get() = "Marked as resolved"
 
     // ── Commit graph (4.5) ──
+    override val commitGraph get() = "Commit Graph"
     override val copyHash get() = "Copy commit hash"
     override val copyMessage get() = "Copy commit message"
     override val copyEmail get() = "Copy author email"

@@ -13,6 +13,7 @@ import com.gitcove.app.ui.clone.CloneScreen
 import com.gitcove.app.ui.diff.DiffScreen
 import com.gitcove.app.ui.editor.EditorScreen
 import com.gitcove.app.ui.file.FileViewerScreen
+import com.gitcove.app.ui.graph.CommitGraphScreen
 import com.gitcove.app.ui.repo.RepoScreen
 import com.gitcove.app.ui.repos.RepoListScreen
 import com.gitcove.app.ui.resolve.ConflictResolverScreen
@@ -37,12 +38,17 @@ object Routes {
     const val SETTINGS_ABOUT = "settings/about"
     const val LOG = "log"
     const val REPO = "repo/{repoId}"
+    const val GRAPH = "graph/{repoId}"
     const val DIFF = "diff/{repoId}?path={path}&cached={cached}"
     const val RESOLVE = "resolve/{repoId}?path={path}"
     const val EDITOR = "editor/{repoId}?path={path}&isNew={isNew}"
     const val FILE = "file/{repoId}?path={path}"
 
     fun repo(id: Long) = "repo/$id"
+
+    /** 提交图谱独立页（历史树） */
+    fun graph(id: Long) = "graph/$id"
+
     fun diff(id: Long, path: String, cached: Boolean) =
         "diff/$id?path=${Uri.encode(path)}&cached=$cached"
 
@@ -107,6 +113,14 @@ fun GitCoveNavHost(container: AppContainer) {
         ) { entry ->
             val repoId = entry.arguments?.getLong("repoId") ?: return@composable
             RepoScreen(container = container, nav = nav, repoId = repoId)
+        }
+
+        composable(
+            Routes.GRAPH,
+            arguments = listOf(navArgument("repoId") { type = NavType.LongType })
+        ) { entry ->
+            val repoId = entry.arguments?.getLong("repoId") ?: return@composable
+            CommitGraphScreen(container = container, nav = nav, repoId = repoId)
         }
 
         composable(
