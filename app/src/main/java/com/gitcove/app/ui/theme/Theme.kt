@@ -1,10 +1,7 @@
 package com.gitcove.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material3.MaterialTheme as M3MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
@@ -57,9 +54,6 @@ fun GitCoveTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     accent: Md2Accent = Md2Accent.BLUE,
     shapeStyle: ShapeStyle = ShapeStyle.STANDARD,
-    /** 兼容旧调用：MD2 下由 [accent] 决定主色，此参数不再生效 */
-    @Suppress("UNUSED_PARAMETER")
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val dark = when (themeMode) {
@@ -77,17 +71,9 @@ fun GitCoveTheme(
         MaterialTheme(
             colors = palette.toMaterialColors(),
             typography = Md2Typography,
-            shapes = m2Shapes(shapeStyle)
-        ) {
-            // ── 迁移期桥接：仍在使用 Material3 组件的界面用同一套 MD2 颜色渲染 ──
-            M3MaterialTheme(
-                colorScheme = palette.toM3Scheme(),
-                typography = GitCoveTypography,
-                shapes = m2Shapes(shapeStyle).toM3Shapes()
-            ) {
-                content()
-            }
-        }
+            shapes = m2Shapes(shapeStyle),
+            content = content
+        )
     }
 }
 

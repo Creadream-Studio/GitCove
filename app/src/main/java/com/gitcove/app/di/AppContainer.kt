@@ -51,13 +51,6 @@ class AppContainer(context: Context) {
         accent.value = value
     }
 
-    /** MD3 动态取色（响应式 + 持久化；MD2 主题下仅作为可选兼容开关） */
-    val dynamicColor = mutableStateOf(auth.dynamicColor)
-    fun setDynamicColor(enabled: Boolean) {
-        auth.dynamicColor = enabled
-        dynamicColor.value = enabled
-    }
-
     /** 圆角风格（响应式 + 持久化） */
     val shapeStyle = mutableStateOf(auth.shapeStyle)
     fun setShapeStyle(style: ShapeStyle) {

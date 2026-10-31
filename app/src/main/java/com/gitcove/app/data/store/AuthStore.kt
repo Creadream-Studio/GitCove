@@ -122,11 +122,6 @@ class AuthStore(context: Context) {
         get() = AppLanguage.from(prefs.getString("app_language", AppLanguage.SYSTEM.code))
         set(value) = prefs.edit().putString("app_language", value.code).apply()
 
-    /** MD3 动态取色（Material You，Android 12+ 生效） */
-    var dynamicColor: Boolean
-        get() = prefs.getBoolean("dynamic_color", false)
-        set(value) = prefs.edit().putBoolean("dynamic_color", value).apply()
-
     /** MD2 强调色：0 天蓝 / 1 湾青 / 2 靛紫 / 3 珊瑚 / 4 琥珀 */
     var accent: Md2Accent
         get() = Md2Accent.from(prefs.getInt("accent", 0))

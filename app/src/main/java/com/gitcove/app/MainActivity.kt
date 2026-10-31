@@ -21,8 +21,7 @@ class MainActivity : ComponentActivity() {
                 GitCoveTheme(
                     themeMode = container.themeMode.value,
                     accent = container.accent.value,
-                    shapeStyle = container.shapeStyle.value,
-                    dynamicColor = container.dynamicColor.value
+                    shapeStyle = container.shapeStyle.value
                 ) {
                     GitCoveNavHost(container)
                 }
