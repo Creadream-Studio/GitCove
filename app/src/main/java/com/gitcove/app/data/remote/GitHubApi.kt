@@ -44,6 +44,18 @@ class GitHubApi(private val auth: AuthStore) {
 
     private fun token(): String? = auth.tokenFor("github.com")
 
+    /**
+     * 拉取当前 GitHub 账号并缓存（用户名 / 邮箱 / 头像 URL），供头像解析使用。
+     * 未配置令牌或网络失败时静默跳过。
+     */
+    suspend fun refreshAccountCache(): Result<Unit> = withContext(Dispatchers.IO) {
+        val token = token()
+            ?: return@withContext Result.failure(IllegalStateException("未配置 GitHub 令牌"))
+        GitHubDeviceFlow.fetchUser(token).map { user ->
+            GitHubDeviceFlow.cacheAccount(auth, user)
+        }
+    }
+
     /** 列出当前账号的仓库（需要已配置 github.com 令牌） */
     suspend fun listUserRepos(): Result<List<GitHubRepoInfo>> = withContext(Dispatchers.IO) {
         val token = token() ?: return@withContext Result.failure(IllegalStateException("请先在设置中配置 GitHub 访问令牌"))

@@ -102,6 +102,9 @@ dependencies {
     // Material Design 2（MD2）：界面组件全部基于 Compose Material 1.x
     implementation("androidx.compose.material:material")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // 头像图片加载（磁盘/内存缓存、异步加载）
+    implementation("io.coil-kt:coil-compose:2.7.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Git 内核：JGit（纯 Java，无需 NDK）

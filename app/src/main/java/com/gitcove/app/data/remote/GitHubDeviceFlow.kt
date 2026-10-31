@@ -66,8 +66,21 @@ object GitHubDeviceFlow {
         val login: String,
         val id: Long = 0,
         val name: String? = null,
-        val email: String? = null
+        val email: String? = null,
+        val avatar_url: String? = null
     )
+
+    /** 账号摘要存入 AuthStore（头像解析用） */
+    fun cacheAccount(auth: com.gitcove.app.data.store.AuthStore, user: GitHubUser) {
+        auth.saveGithubAccount(
+            com.gitcove.app.data.store.GitHubAccount(
+                login = user.login,
+                email = user.email?.takeIf { it.isNotBlank() },
+                avatarUrl = user.avatar_url?.takeIf { it.isNotBlank() }
+                    ?: "https://github.com/${user.login}.png"
+            )
+        )
+    }
 
     /** 第一步：请求设备码 */
     suspend fun start(): Result<DeviceCode> = withContext(Dispatchers.IO) {
@@ -130,6 +143,7 @@ object GitHubDeviceFlow {
     fun saveAuth(auth: AuthStore, token: String, user: GitHubUser?): Boolean {
         auth.setToken("github.com", user?.login?.ifBlank { "git" } ?: "git", token)
         if (user == null) return false
+        cacheAccount(auth, user)
         val email = user.email?.takeIf { it.isNotBlank() }
             ?: "${user.id}+${user.login}@users.noreply.github.com"
         val exists = auth.identities().any { it.name == user.login && it.email == email }

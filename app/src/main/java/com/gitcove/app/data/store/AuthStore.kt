@@ -39,6 +39,14 @@ data class GitIdentity(
     val displayName: String get() = label.ifBlank { name }
 }
 
+/** 当前登录的 GitHub 账号摘要（头像解析用） */
+@Serializable
+data class GitHubAccount(
+    val login: String,
+    val email: String? = null,
+    val avatarUrl: String? = null
+)
+
 /**
  * 认证与配置存储：
  * - Git 身份（name/email）
@@ -111,6 +119,24 @@ class AuthStore(context: Context) {
 
     private fun persistIdentities(list: List<GitIdentity>) {
         prefs.edit().putString("git_identities", json.encodeToString(list)).apply()
+    }
+
+    // ── GitHub 账号摘要（头像解析）──────────────────────────────────────────
+    var githubAccount: GitHubAccount?
+        get() = runCatching {
+            prefs.getString("github_account", null)?.let {
+                json.decodeFromString<GitHubAccount>(it)
+            }
+        }.getOrNull()
+        private set(value) {
+            prefs.edit()
+                .putString("github_account", value?.let { json.encodeToString(it) } ?: "")
+                .apply()
+        }
+
+    /** 保存/刷新 GitHub 账号摘要（登录成功或进入身份页时刷新） */
+    fun saveGithubAccount(account: GitHubAccount) {
+        githubAccount = account
     }
 
     // ── 访问令牌（host → user:token 混淆）────────────────────────────────────

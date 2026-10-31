@@ -65,6 +65,14 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     val repoDir: File? get() = repo?.let { File(it.path) }
 
+    /** 认证存储（头像等 UI 直接读取 GitHub 账号摘要） */
+    val auth get() = c.auth
+
+    /** 刷新 GitHub 账号摘要（用户名/邮箱/头像 URL），失败静默 */
+    suspend fun refreshGithubAccount() {
+        c.githubApi.refreshAccountCache()
+    }
+
     private val msg = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val messages: SharedFlow<String> = msg
 
