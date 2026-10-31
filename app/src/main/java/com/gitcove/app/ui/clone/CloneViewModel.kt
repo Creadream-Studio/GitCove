@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.gitcove.app.data.git.GitCredentials
 import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.data.remote.GitHubRepoInfo
+import com.gitcove.app.data.remote.RepoAccessIssue
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.util.StorageAccess
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,19 @@ class CloneViewModel(private val c: AppContainer) : ViewModel() {
                 val repoName = name.trim().ifBlank { GitCredentials.repoNameOf(cleanUrl) }
                 require(repoName.isNotBlank()) { c.strings.repoNameRequired }
                 require(parentDir.isDirectory) { c.strings.badTargetDir(parentDir.absolutePath) }
+                // 权限预检：组织私有仓库被组织限制时，GitHub 只会报 404/403 天书错误，
+                // 这里提前用仓库 API 探测并把原因用人话提示出来
+                progress = c.strings.checkingAccess
+                c.githubApi.diagnoseCloneAccess(cleanUrl)?.let { issue ->
+                    throw IllegalStateException(
+                        when (issue) {
+                            is RepoAccessIssue.TokenInvalid -> c.strings.tokenInvalid
+                            is RepoAccessIssue.OrgSso -> c.strings.repoOrgSso(issue.repo, issue.detail)
+                            is RepoAccessIssue.OrgRestricted -> c.strings.repoOrgRestricted(issue.repo, issue.detail)
+                            is RepoAccessIssue.NoAccess -> c.strings.repoNoAccess(issue.repo)
+                        }
+                    )
+                }
                 val dir = File(parentDir, repoName)
                 require(!(dir.exists() && dir.listFiles()?.isNotEmpty() == true)) { c.strings.repoExists(repoName) }
                 dir.mkdirs()

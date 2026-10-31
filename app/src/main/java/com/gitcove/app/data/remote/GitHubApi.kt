@@ -29,6 +29,19 @@ private data class PullRequestCreated(
     val number: Int = 0
 )
 
+@Serializable
+private data class ApiError(val message: String? = null)
+
+/** 克隆前权限诊断结果（组织私有仓库 404/403 的可读化） */
+sealed class RepoAccessIssue {
+    abstract val repo: String
+    abstract val detail: String
+    data class TokenInvalid(override val repo: String) : RepoAccessIssue() { override val detail = "" }
+    data class OrgSso(override val repo: String, override val detail: String) : RepoAccessIssue()
+    data class OrgRestricted(override val repo: String, override val detail: String) : RepoAccessIssue()
+    data class NoAccess(override val repo: String, override val detail: String) : RepoAccessIssue()
+}
+
 /**
  * GitHub REST API v3（功能 2 / 40 / 46）：
  * - 列出我的仓库
@@ -56,20 +69,68 @@ class GitHubApi(private val auth: AuthStore) {
         }
     }
 
-    /** 列出当前账号的仓库（需要已配置 github.com 令牌） */
+    /** 列出当前账号的仓库（含协作/组织仓库，自动翻页，需要已配置 github.com 令牌） */
     suspend fun listUserRepos(): Result<List<GitHubRepoInfo>> = withContext(Dispatchers.IO) {
         val token = token() ?: return@withContext Result.failure(IllegalStateException("请先在设置中配置 GitHub 访问令牌"))
         runCatching {
+            val all = mutableListOf<GitHubRepoInfo>()
+            var page = 1
+            while (true) {
+                val req = Request.Builder()
+                    .url(
+                        "https://api.github.com/user/repos" +
+                            "?affiliation=owner,collaborator,organization_member&sort=updated&per_page=100&page=$page"
+                    )
+                    .header("Authorization", "Bearer $token")
+                    .header("Accept", "application/vnd.github+json")
+                    .build()
+                val list: List<GitHubRepoInfo> = client.newCall(req).execute().use { resp ->
+                    require(resp.isSuccessful) { "GitHub API HTTP ${resp.code}" }
+                    json.decodeFromString(resp.body?.string().orEmpty())
+                }
+                all += list
+                if (list.size < 100 || page >= 10) break
+                page++
+            }
+            all
+        }
+    }
+
+    /**
+     * 克隆前诊断 github.com HTTPS 仓库的访问权限。
+     *
+     * 组织未批准第三方应用 / 启用 SSO 时，GitHub 会把组织仓库对应用整体隐藏：
+     * 列表接口不返回，git 克隆只报 404/403 的天书错误——这里用仓库 API
+     * 提前探测并给出可读原因。返回 null 表示无障碍（或无令牌 / 非 https
+     * github 地址，无法诊断，交给 git 自己报错）。
+     */
+    suspend fun diagnoseCloneAccess(url: String): RepoAccessIssue? = withContext(Dispatchers.IO) {
+        if (!url.trim().startsWith("https://")) return@withContext null
+        val (owner, repo) = githubOwnerRepo(url) ?: return@withContext null
+        val token = token() ?: return@withContext null
+        runCatching {
             val req = Request.Builder()
-                .url("https://api.github.com/user/repos?per_page=100&sort=updated")
+                .url("https://api.github.com/repos/$owner/$repo")
                 .header("Authorization", "Bearer $token")
                 .header("Accept", "application/vnd.github+json")
                 .build()
             client.newCall(req).execute().use { resp ->
-                require(resp.isSuccessful) { "GitHub API HTTP ${resp.code}" }
-                json.decodeFromString(resp.body?.string().orEmpty())
+                if (resp.isSuccessful) return@use null
+                val fullName = "$owner/$repo"
+                val detail = runCatching {
+                    json.decodeFromString<ApiError>(resp.body?.string().orEmpty()).message.orEmpty()
+                }.getOrDefault("")
+                when (resp.code) {
+                    401 -> RepoAccessIssue.TokenInvalid(fullName)
+                    403 -> if (detail.contains("SAML", ignoreCase = true)) {
+                        RepoAccessIssue.OrgSso(fullName, detail)
+                    } else {
+                        RepoAccessIssue.OrgRestricted(fullName, detail)
+                    }
+                    else -> RepoAccessIssue.NoAccess(fullName, detail)   // 404 最常见：无权限 / 不存在
+                }
             }
-        }
+        }.getOrNull()
     }
 
     /** 功能 40：创建 Pull Request，返回 PR 页面 URL */

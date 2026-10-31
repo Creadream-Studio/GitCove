@@ -396,6 +396,15 @@ open class Strings {
     open fun importDoneNonGit(name: String) = "已导入：$name（非 Git 仓库，Git 功能需先初始化）"
     open fun importFailed(e: String) = "导入失败：$e"
     open val listReposFailed get() = "获取仓库列表失败"
+    open val checkingAccess get() = "检查仓库访问权限…"
+    open val tokenInvalid get() = "GitHub 令牌无效或已过期，请重新登录或更新令牌"
+    open fun repoNoAccess(repo: String) =
+        "无法访问 $repo：仓库不存在，或当前账号/令牌没有权限。组织私有仓库最常见的原因：组织未批准第三方应用访问组织资源"
+    open fun repoOrgSso(repo: String, msg: String) =
+        "无法访问 $repo：该组织启用了 SAML SSO，令牌需经组织授权才能访问" + (if (msg.isBlank()) "" else "（GitHub 返回：$msg）")
+    open fun repoOrgRestricted(repo: String, msg: String) =
+        "无法访问 $repo：组织未批准第三方应用访问组织资源，请组织管理员在 组织设置 → Third-party Access 中批准" +
+            (if (msg.isBlank()) "" else "（GitHub 返回：$msg）")
     open fun deleted(name: String) = "已删除 $name"
 }
 
@@ -751,5 +760,15 @@ object EnStrings : Strings() {
     override fun importDoneNonGit(name: String) = "Imported: $name (not a Git repo — initialize to enable Git features)"
     override fun importFailed(e: String) = "Import failed: $e"
     override val listReposFailed get() = "Failed to load repo list"
+    override val checkingAccess get() = "Checking repository access…"
+    override val tokenInvalid get() = "The GitHub token is invalid or expired. Please sign in again or update the token"
+    override fun repoNoAccess(repo: String) =
+        "Cannot access $repo: the repository does not exist or the current account/token has no permission. For org private repos the usual cause is that the organization has not approved third-party application access"
+    override fun repoOrgSso(repo: String, msg: String) =
+        "Cannot access $repo: the organization enforces SAML SSO; the token must be authorized by the org" +
+            (if (msg.isBlank()) "" else " (GitHub says: $msg)")
+    override fun repoOrgRestricted(repo: String, msg: String) =
+        "Cannot access $repo: the organization has not approved third-party application access. An org admin must approve it under Organization settings → Third-party Access" +
+            (if (msg.isBlank()) "" else " (GitHub says: $msg)")
     override fun deleted(name: String) = "Deleted $name"
 }
