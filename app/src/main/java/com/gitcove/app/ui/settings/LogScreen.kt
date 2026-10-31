@@ -7,16 +7,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,11 +24,14 @@ import androidx.compose.ui.unit.dp
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.EmptyView
+import com.gitcove.app.ui.components.CoveBackButton
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveTopAppBar
+import com.gitcove.app.ui.theme.CoveTheme
 
 /**
  * 操作日志页（功能 79）：查看 / 清空
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogScreen(
     container: AppContainer,
@@ -43,13 +42,9 @@ fun LogScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(S.opLogTitle) },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
-                    }
-                },
+            CoveTopAppBar(
+                title = S.opLogTitle,
+                navigationIcon = { CoveBackButton { nav.popBackStack() } },
                 actions = {
                     IconButton(onClick = {
                         container.opLog.clear()
@@ -59,7 +54,8 @@ fun LogScreen(
                     }
                 }
             )
-        }
+        },
+        backgroundColor = CoveTheme.colors.background
     ) { padding ->
         if (entries.isEmpty()) {
             EmptyView(S.noLogs, modifier = Modifier.padding(padding))
@@ -72,12 +68,12 @@ fun LogScreen(
                                 append("[${entry.tag}] ")
                                 append(entry.message)
                             },
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.caption,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    CoveDivider()
                 }
             }
         }
