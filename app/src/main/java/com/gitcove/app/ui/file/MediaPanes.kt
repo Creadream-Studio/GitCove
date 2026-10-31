@@ -46,10 +46,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -91,7 +93,11 @@ private fun decodeImage(file: File): DecodedImage? = runCatching {
     DecodedImage(bmp.asImageBitmap(), bounds.outWidth, bounds.outHeight)
 }.getOrNull()
 
-/** 可拖动缩放的图片 */
+/**
+ * 可拖动缩放的图片。
+ * - clipToBounds：拖出自身视口的部分必须裁掉，否则双图对比时右图会叠画到左半屏上
+ * - 触摸：双指缩放/拖动；鼠标：拖动平移 + 滚轮缩放（PointerEventType.Scroll）
+ */
 @Composable
 private fun Zoomable(bitmap: ImageBitmap, t: SyncTransform, modifier: Modifier = Modifier) {
     Image(
@@ -99,11 +105,27 @@ private fun Zoomable(bitmap: ImageBitmap, t: SyncTransform, modifier: Modifier =
         contentDescription = null,
         contentScale = ContentScale.Fit,
         modifier = modifier
+            .clipToBounds()
             .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ -> t.apply(zoom, pan) }
             }
             .pointerInput(Unit) {
                 detectTapGestures(onDoubleTap = { t.reset() })
+            }
+            .pointerInput(Unit) {
+                // 鼠标滚轮缩放（触摸事件 scrollDelta 恒为 0，不会误触发）
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.type == PointerEventType.Scroll) {
+                            val dy = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+                            if (dy != 0f) {
+                                t.apply(1f - dy * 0.1f, Offset.Zero)
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    }
+                }
             }
             .graphicsLayer {
                 scaleX = t.scale
