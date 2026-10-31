@@ -230,16 +230,12 @@ open class Strings {
     // ── 改动 Tab ─────────────────────────────────────────────────────────
     open fun conflictsSection(n: Int) = "冲突 · 需要解决 ($n)"
     open fun stagedSection(n: Int) = "已暂存 ($n)"
-    open val unstage get() = "取消"
     open fun unstagedSection(n: Int) = "未暂存 ($n)"
-    open val stage get() = "暂存"
     open val cleanTreeEmpty get() = "工作区干净\n所有改动均已提交"
     open val commitMsgPlaceholder get() = "提交信息…"
     open val msgHistoryRef get() = "历史参考"
     open val msgHistoryTitle get() = "提交信息历史参考"
     open val amend get() = "修改上次提交 (Amend)"
-    open val stageAll get() = "暂存全部改动"
-    open val unstageAll get() = "全部取消暂存"
     open val discardUnstagedMenu get() = "还原未暂存改动…"
     open val stashAll get() = "储藏 (Stash) 全部改动"
     open val viewStashes get() = "查看储藏列表…"
@@ -310,9 +306,11 @@ open class Strings {
     open fun deleteFolderConfirm(path: String) = "确定删除文件夹 $path 及其全部内容吗？"
     open fun deleteFileConfirm(path: String) = "确定删除 $path 吗？删除后可在改动页还原或提交。"
 
-    // ── 改动 Tab：已暂存（缓存）文件多选 ──
+    // ── 改动 Tab：文件多选（复选框暂存/取消暂存）──
     open val selectAll get() = "全选"
+    open fun stageSelected(n: Int) = "暂存所选（$n）"
     open fun unstageSelected(n: Int) = "取消暂存所选（$n）"
+    open val refresh get() = "刷新"
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
     open val diffConflict get() = "冲突"
@@ -583,16 +581,12 @@ object EnStrings : Strings() {
     // ── 改动 Tab ─────────────────────────────────────────────────────────
     override fun conflictsSection(n: Int) = "Conflicts · need resolution ($n)"
     override fun stagedSection(n: Int) = "Staged ($n)"
-    override val unstage get() = "Unstage"
     override fun unstagedSection(n: Int) = "Unstaged ($n)"
-    override val stage get() = "Stage"
     override val cleanTreeEmpty get() = "Working tree clean\nAll changes are committed"
     override val commitMsgPlaceholder get() = "Commit message…"
     override val msgHistoryRef get() = "History"
     override val msgHistoryTitle get() = "Recent commit messages"
     override val amend get() = "Amend last commit"
-    override val stageAll get() = "Stage all changes"
-    override val unstageAll get() = "Unstage all"
     override val discardUnstagedMenu get() = "Discard unstaged changes…"
     override val stashAll get() = "Stash all changes"
     override val viewStashes get() = "View stashes…"
@@ -663,9 +657,11 @@ object EnStrings : Strings() {
     override fun deleteFolderConfirm(path: String) = "Delete folder $path and everything inside it?"
     override fun deleteFileConfirm(path: String) = "Delete $path? You can restore or commit it in Changes."
 
-    // ── 改动 Tab：已暂存（缓存）文件多选 ──
+    // ── 改动 Tab：文件多选（复选框暂存/取消暂存）──
     override val selectAll get() = "Select all"
+    override fun stageSelected(n: Int) = "Stage selected ($n)"
     override fun unstageSelected(n: Int) = "Unstage selected ($n)"
+    override val refresh get() = "Refresh"
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
     override val diffConflict get() = "Conflict"

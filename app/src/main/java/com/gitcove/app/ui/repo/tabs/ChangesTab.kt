@@ -59,7 +59,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 /**
  * 改动 Tab（文档 5.3）：暂存/取消暂存、冲突区、提交信息历史、Amend、提交并推送、Stash
  *
- * 已暂存（缓存）文件支持复选框多选：每行前有复选框，区块头有全选，可批量取消暂存。
+ * 暂存/取消暂存全部通过复选框完成：每个文件行前有复选框，区块头有全选，
+ * 选中后点区块头的批量按钮执行；另提供手动刷新按钮。
  */
 @Composable
 fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
@@ -82,6 +83,13 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     // 只保留仍处于已暂存状态的路径，避免暂存区变化后残留旧选择
     val selectedInStaged = selectedStaged intersect stagedPaths
     val allStagedSelected = staged.isNotEmpty() && selectedInStaged.size == staged.size
+
+    // ── 未暂存文件多选：复选框 + 全选 + 批量暂存 ──
+    var selectedUnstaged by remember { mutableStateOf(setOf<String>()) }
+    val unstagedPaths = remember(unstaged) { unstaged.map { it.path }.toSet() }
+    // 只保留仍未暂存的路径，文件被暂存后旧选择自动失效
+    val selectedInUnstaged = selectedUnstaged intersect unstagedPaths
+    val allUnstagedSelected = unstaged.isNotEmpty() && selectedInUnstaged.size == unstaged.size
 
     Column(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
@@ -160,30 +168,54 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                         onCheckedChange = { on ->
                             selectedStaged = if (on) selectedInStaged + f.path else selectedInStaged - f.path
                         },
-                        onClick = { nav.navigate(Routes.diff(vm.repoId, f.path, cached = true)) },
-                        trailing = {
-                            TextButton(onClick = {
-                                selectedStaged = selectedInStaged - f.path
-                                vm.unstage(listOf(f.path))
-                            }) { Text(S.unstage) }
-                        }
+                        onClick = { nav.navigate(Routes.diff(vm.repoId, f.path, cached = true)) }
                     )
                     CoveDivider()
                 }
             }
 
-            // ── 未暂存 ──
+            // ── 未暂存：区块头全选 + 复选框多选，勾选后批量暂存 ──
             if (unstaged.isNotEmpty()) {
                 item {
-                    SectionHeader(S.unstagedSection(unstaged.size))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(CoveTheme.colors.surfaceVariant)
+                            .padding(start = 2.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = allUnstagedSelected,
+                            onCheckedChange = { on ->
+                                selectedUnstaged = if (on) unstagedPaths else emptySet()
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .semantics { contentDescription = S.selectAll }
+                        )
+                        Text(
+                            S.unstagedSection(unstaged.size),
+                            style = MaterialTheme.typography.button,
+                            color = CoveTheme.colors.primary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (selectedInUnstaged.isNotEmpty()) {
+                            TextButton(onClick = {
+                                val targets = selectedInUnstaged.toList()
+                                selectedUnstaged = emptySet()
+                                vm.stage(targets)
+                            }) { Text(S.stageSelected(selectedInUnstaged.size)) }
+                        }
+                    }
                 }
                 items(unstaged, key = { "u_" + it.path }) { f ->
                     ChangeRow(
                         file = f,
-                        onClick = { nav.navigate(Routes.diff(vm.repoId, f.path, cached = false)) },
-                        trailing = {
-                            TextButton(onClick = { vm.stage(listOf(f.path)) }) { Text(S.stage) }
-                        }
+                        checked = f.path in selectedInUnstaged,
+                        onCheckedChange = { on ->
+                            selectedUnstaged = if (on) selectedInUnstaged + f.path else selectedInUnstaged - f.path
+                        },
+                        onClick = { nav.navigate(Routes.diff(vm.repoId, f.path, cached = false)) }
                     )
                     CoveDivider()
                 }
@@ -245,14 +277,6 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     Icon(Icons.Filled.MoreVert, contentDescription = S.moreActions, modifier = Modifier.size(18.dp))
                 }
                 DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
-                    DropdownMenuItem(onClick = {
-                        overflow = false
-                        vm.stage(vm.diffUnstaged.map { it.path } + (st?.unstaged?.map { it.path } ?: emptyList()))
-                    }) { Text(S.stageAll, style = MaterialTheme.typography.body2) }
-                    DropdownMenuItem(onClick = {
-                        overflow = false
-                        vm.unstage(st?.staged?.map { it.path } ?: emptyList())
-                    }) { Text(S.unstageAll, style = MaterialTheme.typography.body2) }
                     DropdownMenuItem(onClick = { overflow = false; discardDialog = true }) {
                         Text(S.discardUnstagedMenu, style = MaterialTheme.typography.body2, color = CoveTheme.colors.error)
                     }
@@ -341,7 +365,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
 private fun ChangeRow(
     file: FileStatus,
     onClick: () -> Unit,
-    trailing: @Composable () -> Unit,
+    trailing: @Composable () -> Unit = {},
     checked: Boolean? = null,
     onCheckedChange: ((Boolean) -> Unit)? = null
 ) {
