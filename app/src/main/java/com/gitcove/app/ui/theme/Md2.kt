@@ -119,7 +119,7 @@ data class CovePalette(
 private fun accentOn(primary: Color): Color =
     if (primary.luminance() > 0.5f) primary.darken(0.86f) else Color.White
 
-private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue
+fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue
 
 private fun Color.darken(factor: Float): Color =
     Color(red * factor, green * factor, blue * factor, alpha)

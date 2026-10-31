@@ -9,9 +9,14 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import android.app.Activity
 import android.os.Build
 import com.gitcove.app.ui.theme.Md2ShapesCompact
 import com.gitcove.app.ui.theme.Md2ShapesRounded
@@ -78,7 +83,9 @@ fun GitCoveTheme(
     if (palette == null) {
         val scheme = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         M3MaterialTheme(colorScheme = scheme, typography = GitCoveTypography, shapes = m2Shapes(shapeStyle).toM3Shapes()) {
-            CompositionLocalProvider(LocalCovePalette provides (if (dark) darkPalette(accent) else lightPalette(accent))) {
+            val fallback = if (dark) darkPalette(accent) else lightPalette(accent)
+            CompositionLocalProvider(LocalCovePalette provides fallback) {
+                SystemBars(fallback)
                 content()
             }
         }
@@ -86,6 +93,7 @@ fun GitCoveTheme(
     }
 
     CompositionLocalProvider(LocalCovePalette provides palette) {
+        SystemBars(palette)
         MaterialTheme(
             colors = palette.toMaterialColors(),
             typography = Md2Typography,
@@ -101,6 +109,36 @@ fun GitCoveTheme(
             }
         }
     }
+}
+
+/**
+ * 系统栏（MD2 规范：状态栏与顶部应用栏同色、导航栏跟随背景；不使用边缘到边缘，
+ * 这是 MD2 与 Material You 全屏体验的主要差异之一）。
+ */
+@Composable
+private fun SystemBars(palette: CovePalette) {
+    val view = LocalView.current
+    if (view.isInEditMode) return
+    val window = findActivity(view.context)?.window ?: return
+    SideEffect {
+        @Suppress("DEPRECATION")
+        window.statusBarColor = palette.appBar.toArgb()
+        @Suppress("DEPRECATION")
+        window.navigationBarColor = palette.background.toArgb()
+        // MD2 取消边缘到边缘绘制：内容不延伸到系统栏下方
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !palette.isDark && palette.appBar.luminance() > 0.5f
+            isAppearanceLightNavigationBars = !palette.isDark && palette.background.luminance() > 0.5f
+        }
+    }
+}
+
+private tailrec fun findActivity(context: android.content.Context?): Activity? = when (context) {
+    null -> null
+    is Activity -> context
+    is android.content.ContextWrapper -> findActivity(context.baseContext)
+    else -> null
 }
 
 /** 按当前主题取差异对比配色 */

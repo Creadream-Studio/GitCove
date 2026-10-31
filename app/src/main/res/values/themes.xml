@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 启动主题：Compose 接管前的最小框架主题 -->
-    <style name="Theme.GitCove" parent="android:Theme.Material.NoActionBar">
+    <!-- 启动主题（MD2）：Compose 接管前的最小框架主题；状态栏/导航栏颜色由 GitCoveTheme 运行时按调色板设置 -->
+    <style name="Theme.GitCove" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/launch_bg</item>
         <item name="android:statusBarColor">@color/launch_bg</item>
         <item name="android:navigationBarColor">@color/launch_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="o_mr1">shortEdges</item>
     </style>
 </resources>
