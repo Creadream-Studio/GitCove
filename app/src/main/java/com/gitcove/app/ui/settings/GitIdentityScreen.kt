@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,9 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.gitcove.app.data.store.GitHubAccount
 import com.gitcove.app.data.store.GitIdentity
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
+import com.gitcove.app.ui.components.Avatar
 import com.gitcove.app.ui.components.CoveBackButton
 import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveSectionTitle
@@ -63,6 +66,12 @@ fun GitIdentityScreen(
     var editing by remember { mutableStateOf<GitIdentity?>(null) }   // null = 新增
     var showDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<GitIdentity?>(null) }
+    // GitHub 账号摘要：进入页面时自动刷新，身份行据此展示 GitHub 头像
+    var account by remember { mutableStateOf(container.auth.githubAccount) }
+    LaunchedEffect(Unit) {
+        container.githubApi.refreshAccountCache()
+        account = container.auth.githubAccount
+    }
 
     Scaffold(
         topBar = {
@@ -89,6 +98,7 @@ fun GitIdentityScreen(
                 IdentityRow(
                     identity = identity,
                     isDefault = isDefault,
+                    account = account,
                     onEdit = { editing = identity; showDialog = true },
                     onSetDefault = { container.auth.setDefaultIdentity(identity.id) },
                     onDelete = { deleteTarget = identity }
@@ -187,6 +197,7 @@ fun GitIdentityScreen(
 private fun IdentityRow(
     identity: GitIdentity,
     isDefault: Boolean,
+    account: GitHubAccount?,
     onEdit: () -> Unit,
     onSetDefault: () -> Unit,
     onDelete: () -> Unit
@@ -200,14 +211,8 @@ private fun IdentityRow(
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            Modifier
-                .size(32.dp)
-                .background(c.primary.copy(alpha = 0.12f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Outlined.Person, contentDescription = null, tint = c.primary, modifier = Modifier.size(18.dp))
-        }
+        // GitHub 头像（自动获取；取不到时回退首字符圆标）
+        Avatar(email = identity.email, name = identity.name, size = 32.dp, account = account)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(identity.displayName, style = MaterialTheme.typography.subtitle2)
