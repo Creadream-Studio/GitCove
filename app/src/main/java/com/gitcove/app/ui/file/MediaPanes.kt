@@ -228,8 +228,8 @@ fun ImageDiffView(
         if (oldImg == null || newImg == null) {
             val only = newImg ?: oldImg
             if (only == null) {
-                // 两侧都解码失败
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                // 两侧都解码失败：黑底白字（否则浅色主题下白字看不见）
+                Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
                     Text(S.imgOpenFailed, color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.body2)
                 }
                 return@Column
@@ -339,12 +339,15 @@ fun VideoPane(file: File, modifier: Modifier = Modifier) {
     var failed by remember { mutableStateOf(false) }
     var duration by remember { mutableStateOf(0) }
     var position by remember { mutableStateOf(0) }
+    var dragging by remember { mutableStateOf(false) }
     var videoAspect by remember { mutableStateOf(16f / 9f) }
 
     DisposableEffect(file.path) {
         videoView.setVideoURI(Uri.fromFile(file))
         videoView.setOnPreparedListener { mp ->
             prepared = true
+            // ⚠️ 必须在这里取时长：此前遗漏导致进度条永远为 0、时间恒为 00:00
+            duration = mp.duration
             if (mp.videoWidth > 0 && mp.videoHeight > 0) videoAspect = mp.videoWidth.toFloat() / mp.videoHeight
             videoView.start()
             playing = true
@@ -356,7 +359,8 @@ fun VideoPane(file: File, modifier: Modifier = Modifier) {
 
     LaunchedEffect(playing, prepared) {
         while (playing && prepared) {
-            position = videoView.currentPosition
+            // 拖动进度条期间不回写轮询位置，否则拖拽点被拉回当前播放处（音频页同款防抖）
+            if (!dragging) position = videoView.currentPosition
             delay(300)
         }
     }
@@ -392,11 +396,13 @@ fun VideoPane(file: File, modifier: Modifier = Modifier) {
                 )
             }
             Slider(
-                value = if (duration > 0) position.toFloat() / duration else 0f,
+                value = if (duration > 0) position.coerceAtMost(duration).toFloat() / duration else 0f,
                 onValueChange = {
+                    dragging = true
                     position = (it * duration).toInt()
                     videoView.seekTo(position)
                 },
+                onValueChangeFinished = { dragging = false },
                 enabled = prepared,
                 modifier = Modifier.weight(1f),
                 colors = androidx.compose.material.SliderDefaults.colors(
