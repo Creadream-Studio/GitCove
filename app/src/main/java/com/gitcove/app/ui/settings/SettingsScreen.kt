@@ -8,27 +8,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Switch
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,20 +38,30 @@ import com.gitcove.app.data.auth.SshKeyGen
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.AppLanguage
 import com.gitcove.app.i18n.LocalStrings
+import com.gitcove.app.ui.components.CoveAccentPicker
+import com.gitcove.app.ui.components.CoveAlertDialog
+import com.gitcove.app.ui.components.CoveBackButton
+import com.gitcove.app.ui.components.CoveChip
+import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveSectionTitle
+import com.gitcove.app.ui.components.CoveTextField
+import com.gitcove.app.ui.components.CoveTopAppBar
 import com.gitcove.app.ui.components.SectionHeader
 import com.gitcove.app.ui.nav.Routes
+import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.ui.theme.MonoFont
+import com.gitcove.app.ui.theme.Md2Accent
 import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
 import com.gitcove.app.work.SyncWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.gitcove.app.ui.components.CoveDivider
 
 /**
  * 设置页：Git 身份 / 语言 / MD3 风格 / 主题 / 访问令牌 / SSH 密钥 / 自动同步 / 日志 / 关于
  * （功能 45-48 / 19-21 / 79）
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     container: AppContainer,
@@ -86,15 +91,12 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(S.settings) },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.back)
-                    }
-                }
+            CoveTopAppBar(
+                title = S.settings,
+                navigationIcon = { CoveBackButton { nav.popBackStack() } }
             )
-        }
+        },
+        backgroundColor = CoveTheme.colors.background
     ) { padding ->
         Column(
             Modifier
@@ -106,19 +108,20 @@ fun SettingsScreen(
             // ── Git 身份 ──
             SectionHeader(S.sectionGitIdentity)
             Column(Modifier.padding(horizontal = 12.dp)) {
-                OutlinedTextField(
+                CoveTextField(
                     value = gitName,
                     onValueChange = { gitName = it },
-                    label = { Text(S.username) },
+                    label = S.username,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                Spacer(Modifier.height(8.dp))
+                CoveTextField(
                     value = gitEmail,
                     onValueChange = { gitEmail = it },
-                    label = { Text(S.email) },
+                    label = S.email,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
                 TextButton(onClick = {
                     container.auth.gitName = gitName.trim()
@@ -131,18 +134,18 @@ fun SettingsScreen(
             SectionHeader(S.sectionLanguage)
             Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                 AppLanguage.entries.forEach { lang ->
-                    FilterChip(
+                    CoveChip(
+                        label = if (lang == AppLanguage.SYSTEM) S.languageSystem else lang.displayName,
                         selected = container.appLanguage.value == lang,
                         onClick = { container.setAppLanguage(lang) },
-                        label = { Text(if (lang == AppLanguage.SYSTEM) S.languageSystem else lang.displayName) },
                         modifier = Modifier.padding(end = 8.dp)
                     )
                 }
             }
             Text(
                 S.languageHint,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.overline,
+                color = CoveTheme.colors.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
 
@@ -150,66 +153,48 @@ fun SettingsScreen(
             SectionHeader(S.sectionAppearance)
             Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                 ThemeMode.entries.forEach { mode ->
-                    FilterChip(
+                    CoveChip(
+                        label = when (mode) {
+                            ThemeMode.SYSTEM -> S.themeSystem
+                            ThemeMode.DARK -> S.themeDark
+                            ThemeMode.LIGHT -> S.themeLight
+                        },
                         selected = container.themeMode.value == mode,
                         onClick = { container.setThemeMode(mode) },
-                        label = {
-                            Text(
-                                when (mode) {
-                                    ThemeMode.SYSTEM -> S.themeSystem
-                                    ThemeMode.DARK -> S.themeDark
-                                    ThemeMode.LIGHT -> S.themeLight
-                                }
-                            )
-                        },
                         modifier = Modifier.padding(end = 8.dp)
                     )
                 }
             }
 
-            // ── MD3 风格 ──
-            SectionHeader(S.sectionMd3Style)
-            Text(
-                S.shapeStyle,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            // ── MD2 强调色（替代 Material You 动态取色）──
+            SectionHeader(S.sectionAccent)
+            CoveAccentPicker(
+                selected = container.accent.value,
+                onSelect = { container.setAccent(it) },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
             )
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 2.dp)) {
+            Text(
+                S.accentHint,
+                style = MaterialTheme.typography.caption,
+                color = CoveTheme.colors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            // ── 圆角密度 ──
+            SectionHeader(S.shapeStyle)
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 ShapeStyle.entries.forEach { style ->
-                    FilterChip(
+                    CoveChip(
+                        label = when (style) {
+                            ShapeStyle.STANDARD -> S.shapeStandard
+                            ShapeStyle.ROUNDED -> S.shapeRounded
+                            ShapeStyle.COMPACT -> S.shapeCompact
+                        },
                         selected = container.shapeStyle.value == style,
                         onClick = { container.setShapeStyle(style) },
-                        label = {
-                            Text(
-                                when (style) {
-                                    ShapeStyle.STANDARD -> S.shapeStandard
-                                    ShapeStyle.ROUNDED -> S.shapeRounded
-                                    ShapeStyle.COMPACT -> S.shapeCompact
-                                }
-                            )
-                        },
                         modifier = Modifier.padding(end = 8.dp)
                     )
                 }
-            }
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(S.dynamicColor, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        S.dynamicColorHint,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = container.dynamicColor.value,
-                    onCheckedChange = { container.setDynamicColor(it) },
-                    // Material You 动态取色仅在 Android 12+ 可用
-                    enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                )
             }
 
             // ── 访问令牌 ──
@@ -220,21 +205,21 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(t.host, style = MaterialTheme.typography.titleSmall)
+                        Text(t.host, style = MaterialTheme.typography.subtitle2)
                         Text(
                             t.username,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.caption,
+                            color = CoveTheme.colors.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = {
                         container.auth.removeToken(t.host)
                         tokens = container.auth.tokens()
                     }) {
-                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = CoveTheme.colors.error)
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                CoveDivider()
             }
             TextButton(onClick = { tokenDialog = true }, modifier = Modifier.padding(horizontal = 12.dp)) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
@@ -253,21 +238,21 @@ fun SettingsScreen(
                             .weight(1f)
                             .clickable { sshShowPub = k.publicKey }
                     ) {
-                        Text(k.name, style = MaterialTheme.typography.titleSmall)
+                        Text(k.name, style = MaterialTheme.typography.subtitle2)
                         Text(
                             "${k.type} · ${container.auth.fingerprintOf(k.publicKey).take(23)}…",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.caption,
+                            color = CoveTheme.colors.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = {
                         container.auth.deleteSshKey(k.name)
                         sshKeys = container.auth.sshKeys()
                     }) {
-                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Filled.Delete, contentDescription = S.delete, tint = CoveTheme.colors.error)
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                CoveDivider()
             }
             Row(Modifier.padding(horizontal = 12.dp)) {
                 TextButton(onClick = { sshGenDialog = true }) { Text(S.generateKey) }
@@ -282,11 +267,11 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(S.autoSyncDesc, style = MaterialTheme.typography.bodyMedium)
+                    Text(S.autoSyncDesc, style = MaterialTheme.typography.body2)
                     Text(
                         S.everyNMinutes(interval),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.caption,
+                        color = CoveTheme.colors.onSurfaceVariant
                     )
                 }
                 Switch(
@@ -305,16 +290,11 @@ fun SettingsScreen(
             }
             Row(Modifier.padding(horizontal = 12.dp)) {
                 listOf(15, 30, 60).forEach { min ->
-                    FilterChip(
-                        selected = interval == min,
-                        onClick = {
+                    CoveChip(label = "${min}min", selected = interval == min, onClick = {
                             interval = min
                             container.auth.autoSyncIntervalMin = min
                             if (autoSync) SyncWorker.schedule(container.appContext, min)
-                        },
-                        label = { Text("${min}min") },
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
+                        }, modifier = Modifier.padding(end = 8.dp))
                 }
             }
 
@@ -327,16 +307,16 @@ fun SettingsScreen(
             // ── 关于 ──
             SectionHeader(S.sectionAbout)
             Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                Text(S.aboutTitle, style = MaterialTheme.typography.titleSmall)
+                Text(S.aboutTitle, style = MaterialTheme.typography.subtitle2)
                 Text(
                     S.aboutDesc,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.caption,
+                    color = CoveTheme.colors.onSurfaceVariant
                 )
                 Text(
                     S.aboutLink,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
+                    style = MaterialTheme.typography.caption,
+                    color = CoveTheme.colors.secondary,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -351,39 +331,40 @@ fun SettingsScreen(
         var token by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { tokenDialog = false },
-            title = { Text(S.addTokenTitle, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.addTokenTitle, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Column {
-                    Text(S.hostLabel, style = MaterialTheme.typography.labelMedium)
+                    Text(S.hostLabel, style = MaterialTheme.typography.caption)
                     Row {
                         listOf("github.com", "gitlab.com", "gitea.com").forEach { h ->
-                            FilterChip(
+                            CoveChip(
+                                label = h.substringBefore('.'),
                                 selected = host == h,
                                 onClick = { host = h },
-                                label = { Text(h.substringBefore('.')) },
                                 modifier = Modifier.padding(end = 6.dp)
                             )
                         }
                     }
-                    OutlinedTextField(
+                    CoveTextField(
                         value = host,
                         onValueChange = { host = it },
-                        label = { Text(S.customHost) },
-                        singleLine = true
+                        label = S.customHost,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
+                    CoveTextField(
                         value = username,
                         onValueChange = { username = it },
-                        label = { Text(S.username) },
+                        label = S.username,
                         singleLine = true,
-                        modifier = Modifier.padding(top = 6.dp)
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
                     )
-                    OutlinedTextField(
+                    CoveTextField(
                         value = token,
                         onValueChange = { token = it },
-                        label = { Text(S.tokenLabel) },
+                        label = S.tokenLabel,
                         singleLine = true,
-                        modifier = Modifier.padding(top = 6.dp)
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
                     )
                 }
             },
@@ -408,30 +389,27 @@ fun SettingsScreen(
         var type by remember { mutableStateOf(SshKeyGen.KeyType.ECDSA256) }
         AlertDialog(
             onDismissRequest = { sshGenDialog = false },
-            title = { Text(S.genSshTitle, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.genSshTitle, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Column {
-                    OutlinedTextField(
+                    CoveTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text(S.keyName) },
-                        singleLine = true
+                        label = S.keyName,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Row(Modifier.padding(vertical = 6.dp)) {
                         SshKeyGen.KeyType.entries.forEach { t ->
-                            FilterChip(
-                                selected = type == t,
-                                onClick = { type = t },
-                                label = { Text(t.label) },
-                                modifier = Modifier.padding(end = 6.dp)
-                            )
+                            CoveChip(label = t.label, selected = type == t, onClick = { type = t }, modifier = Modifier.padding(end = 6.dp))
                         }
                     }
-                    OutlinedTextField(
+                    CoveTextField(
                         value = comment,
                         onValueChange = { comment = it },
-                        label = { Text(S.keyComment) },
-                        singleLine = true
+                        label = S.keyComment,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             },
@@ -463,27 +441,28 @@ fun SettingsScreen(
         var privateKey by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { sshImportDialog = false },
-            title = { Text(S.importSshTitle, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.importSshTitle, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Column {
-                    OutlinedTextField(
+                    CoveTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text(S.keyName) },
-                        singleLine = true
+                        label = S.keyName,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
+                    CoveTextField(
                         value = privateKey,
                         onValueChange = { privateKey = it },
-                        label = { Text(S.pastePrivateKey) },
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFont),
+                        label = S.pastePrivateKey,
+                        textStyle = MaterialTheme.typography.caption.copy(fontFamily = MonoFont),
                         minLines = 4,
-                        modifier = Modifier.padding(top = 6.dp)
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
                     )
                     Text(
                         S.privateKeyHint,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.overline,
+                        color = CoveTheme.colors.onSurfaceVariant
                     )
                 }
             },
@@ -523,11 +502,11 @@ fun SettingsScreen(
     sshShowPub?.let { pub ->
         AlertDialog(
             onDismissRequest = { sshShowPub = null },
-            title = { Text(S.pubKeyTitle, style = MaterialTheme.typography.titleMedium) },
+            title = { Text(S.pubKeyTitle, style = MaterialTheme.typography.subtitle1) },
             text = {
                 Text(
                     pub,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFont),
+                    style = MaterialTheme.typography.caption.copy(fontFamily = MonoFont),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { clipboard.setText(AnnotatedString(pub)) }

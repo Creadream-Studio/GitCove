@@ -42,6 +42,7 @@ import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -60,6 +61,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.ui.theme.appBarElevatedColor
+import com.gitcove.app.ui.theme.luminance
 
 /**
  * GitCove 的 MD2 组件层。
@@ -629,4 +631,47 @@ fun CoveAlertDialog(
             }
         } else null
     )
+}
+
+/** MD2 强调色选择器：一排圆形色块，选中项加外圈与对勾 */
+@Composable
+fun CoveAccentPicker(
+    selected: com.gitcove.app.ui.theme.Md2Accent,
+    onSelect: (com.gitcove.app.ui.theme.Md2Accent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val c = CoveTheme.colors
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        com.gitcove.app.ui.theme.Md2Accent.entries.forEach { accent ->
+            val swatch = if (c.isDark) accent.darkPrimary else accent.lightPrimary
+            val isSelected = accent == selected
+            Box(
+                modifier = Modifier
+                    .padding(end = 12.dp)
+                    .size(34.dp)
+                    .background(
+                        if (isSelected) swatch.copy(alpha = 0.22f) else Color.Transparent,
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .background(swatch, CircleShape)
+                        .clickable { onSelect(accent) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = if (swatch.luminance() > 0.5f) Color.Black.copy(alpha = 0.75f) else Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

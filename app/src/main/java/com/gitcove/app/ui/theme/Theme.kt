@@ -1,23 +1,19 @@
 package com.gitcove.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme as M3MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material3.MaterialTheme as M3MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import android.app.Activity
-import android.os.Build
 import com.gitcove.app.ui.theme.Md2ShapesCompact
 import com.gitcove.app.ui.theme.Md2ShapesRounded
 import com.gitcove.app.ui.theme.Md2ShapesStandard
@@ -61,7 +57,8 @@ fun GitCoveTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     accent: Md2Accent = Md2Accent.BLUE,
     shapeStyle: ShapeStyle = ShapeStyle.STANDARD,
-    /** 兼容旧调用：MD2 下由 [accent] 决定主色，动态取色不再生效 */
+    /** 兼容旧调用：MD2 下由 [accent] 决定主色，此参数不再生效 */
+    @Suppress("UNUSED_PARAMETER")
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -70,26 +67,9 @@ fun GitCoveTheme(
         ThemeMode.DARK -> true
         ThemeMode.LIGHT -> false
     }
-    val context = LocalContext.current
-    val palette = remember(dark, accent, dynamicColor) {
-        when {
-            // 兼容开关：Android 12+ 仍允许跟随壁纸取色（Material You），否则用 MD2 强调色
-            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> null
-            dark -> darkPalette(accent)
-            else -> lightPalette(accent)
-        }
-    }
-
-    if (palette == null) {
-        val scheme = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        M3MaterialTheme(colorScheme = scheme, typography = GitCoveTypography, shapes = m2Shapes(shapeStyle).toM3Shapes()) {
-            val fallback = if (dark) darkPalette(accent) else lightPalette(accent)
-            CompositionLocalProvider(LocalCovePalette provides fallback) {
-                SystemBars(fallback)
-                content()
-            }
-        }
-        return
+    // MD2：不再跟随壁纸取色（Material You 属于 M3 设计语言），强调色由设置页显式选择
+    val palette = remember(dark, accent) {
+        if (dark) darkPalette(accent) else lightPalette(accent)
     }
 
     CompositionLocalProvider(LocalCovePalette provides palette) {
