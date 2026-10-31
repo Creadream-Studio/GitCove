@@ -1,7 +1,8 @@
 package com.gitcove.app.ui.repo.tabs
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ import com.gitcove.app.domain.model.Commit
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.components.Avatar
 import com.gitcove.app.ui.components.EmptyView
+import com.gitcove.app.ui.repo.CommitActionsSheet
 import com.gitcove.app.ui.repo.CommitDetailSheet
 import com.gitcove.app.ui.repo.RepoViewModel
 import com.gitcove.app.ui.theme.CoveTheme
@@ -40,11 +42,14 @@ import androidx.compose.material.icons.Icons
 /**
  * 历史 Tab（功能 29/34）：提交列表 + 图形化节点连线 + 提交详情（变更文件 / Revert / 建分支 / 签出）
  * 详情抽屉与图谱页共用 [CommitDetailSheet]（ui/repo/CommitSheets.kt）
+ * 长按提交条目 → 快捷操作菜单（复制哈希/信息/邮箱、发邮件、日历、分享补丁），与图谱页一致
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     val S = LocalStrings.current
     var detailTarget by remember { mutableStateOf<Commit?>(null) }
+    var actionTarget by remember { mutableStateOf<Commit?>(null) }
     // GitHub 账号摘要（登录后作者头像可精准命中）
     var account by remember { mutableStateOf(vm.auth.githubAccount) }
     LaunchedEffect(Unit) {
@@ -62,7 +67,10 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clickable { detailTarget = commit }
+                    .combinedClickable(
+                        onClick = { detailTarget = commit },
+                        onLongClick = { actionTarget = commit }
+                    )
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -117,6 +125,14 @@ fun HistoryTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             vm = vm,
             commit = target,
             onDismiss = { detailTarget = null }
+        )
+    }
+
+    actionTarget?.let { commit ->
+        CommitActionsSheet(
+            vm = vm,
+            commit = commit,
+            onDismiss = { actionTarget = null }
         )
     }
 }
