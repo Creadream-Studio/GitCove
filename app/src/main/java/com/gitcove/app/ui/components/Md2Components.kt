@@ -626,6 +626,7 @@ fun CoveAlertDialog(
     onConfirm: (() -> Unit)? = null,
     dismissLabel: String? = null,
     onDismissClick: (() -> Unit)? = null,
+    danger: Boolean = false,
     content: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     val c = CoveTheme.colors
@@ -664,7 +665,7 @@ fun CoveAlertDialog(
                         }
                         if (confirmLabel != null && onConfirm != null) {
                             androidx.compose.material.TextButton(onClick = onConfirm) {
-                                Text(confirmLabel, style = MaterialTheme.typography.button, color = c.primary)
+                                Text(confirmLabel, style = MaterialTheme.typography.button, color = if (danger) c.error else c.primary)
                             }
                         }
                     }

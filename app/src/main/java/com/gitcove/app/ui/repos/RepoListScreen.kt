@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Checkbox
+import androidx.compose.material.CheckboxDefaults
 import androidx.compose.material.FloatingActionButton
 import androidx.compose.material.FloatingActionButtonDefaults
 import androidx.compose.material.Icon
@@ -45,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
-import com.gitcove.app.ui.components.ConfirmDialog
+import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveEmptyState
 import com.gitcove.app.ui.components.CoveProgressBar
@@ -69,7 +71,8 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<Item?>(null) }
-    var deleteFiles by remember { mutableStateOf(true) }
+    // 默认仅从列表移除；勾选才连磁盘文件一起删（防误删整个仓库目录）
+    var deleteFiles by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.refresh() }
 
@@ -129,16 +132,35 @@ fun RepoListScreen(container: AppContainer, nav: androidx.navigation.NavHostCont
     }
 
     deleteTarget?.let { target ->
-        ConfirmDialog(
+        CoveAlertDialog(
+            onDismiss = { deleteTarget = null },
             title = S.deleteRepo,
-            text = S.deleteRepoConfirm(target.repo.name),
+            content = {
+                Text(S.deleteRepoConfirm(target.repo.name), style = MaterialTheme.typography.body2)
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = deleteFiles,
+                        onCheckedChange = { deleteFiles = it },
+                        colors = CheckboxDefaults.colors(checkedColor = c.error)
+                    )
+                    Text(
+                        S.deleteRepoAlsoFiles,
+                        style = MaterialTheme.typography.caption,
+                        color = c.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            },
             confirmLabel = S.delete,
             danger = true,
-            onDismiss = { deleteTarget = null },
             onConfirm = {
                 vm.delete(target.repo, deleteFiles) { msg -> scope.launch { snackbar.showSnackbar(msg) } }
                 deleteTarget = null
-            }
+            },
+            dismissLabel = S.cancel
         )
     }
 }
