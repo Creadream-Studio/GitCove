@@ -142,7 +142,8 @@ fun DiffScreen(
                 ConflictBar(
                     onOurs = { resolve(com.gitcove.app.domain.model.ConflictAction.OURS, S.tookOurs) },
                     onTheirs = { resolve(com.gitcove.app.domain.model.ConflictAction.THEIRS, S.tookTheirs) },
-                    onManual = { nav.navigate(Routes.editor(repoId, path)) }
+                    onManual = { nav.navigate(Routes.editor(repoId, path)) },
+                    onChunks = { nav.navigate(Routes.resolve(repoId, path)) }
                 )
             }
 
@@ -201,7 +202,8 @@ fun DiffScreen(
 private fun ConflictBar(
     onOurs: () -> Unit,
     onTheirs: () -> Unit,
-    onManual: () -> Unit
+    onManual: () -> Unit,
+    onChunks: () -> Unit
 ) {
     val S = LocalStrings.current
     Column(Modifier.fillMaxWidth().padding(8.dp)) {
@@ -212,6 +214,7 @@ private fun ConflictBar(
         )
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            CoveButton(text = S.resolveTool, onClick = onChunks)
             CoveButton(text = S.takeOurs, onClick = onOurs)
             CoveButton(text = S.takeTheirs, onClick = onTheirs)
             CoveOutlinedButton(text = S.manualEdit, onClick = onManual)

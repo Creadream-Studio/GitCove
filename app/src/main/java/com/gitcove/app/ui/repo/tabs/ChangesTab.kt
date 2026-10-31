@@ -110,7 +110,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(onClick = { nav.navigate(Routes.diff(vm.repoId, path, cached = false)) }) {
+                        TextButton(onClick = { nav.navigate(Routes.resolve(vm.repoId, path)) }) {
                             Text(S.resolve)
                         }
                     }

@@ -15,6 +15,7 @@ import com.gitcove.app.ui.editor.EditorScreen
 import com.gitcove.app.ui.file.FileViewerScreen
 import com.gitcove.app.ui.repo.RepoScreen
 import com.gitcove.app.ui.repos.RepoListScreen
+import com.gitcove.app.ui.resolve.ConflictResolverScreen
 import com.gitcove.app.ui.settings.AboutScreen
 import com.gitcove.app.ui.settings.AccountsScreen
 import com.gitcove.app.ui.settings.AppearanceScreen
@@ -37,12 +38,17 @@ object Routes {
     const val LOG = "log"
     const val REPO = "repo/{repoId}"
     const val DIFF = "diff/{repoId}?path={path}&cached={cached}"
+    const val RESOLVE = "resolve/{repoId}?path={path}"
     const val EDITOR = "editor/{repoId}?path={path}&isNew={isNew}"
     const val FILE = "file/{repoId}?path={path}"
 
     fun repo(id: Long) = "repo/$id"
     fun diff(id: Long, path: String, cached: Boolean) =
         "diff/$id?path=${Uri.encode(path)}&cached=$cached"
+
+    /** 冲突解决器：path 为空 = 仓库级（解决全部冲突） */
+    fun resolve(id: Long, path: String? = null) =
+        "resolve/$id?path=${Uri.encode(path.orEmpty())}"
 
     fun editor(id: Long, path: String, isNew: Boolean = false) =
         "editor/$id?path=${Uri.encode(path)}&isNew=$isNew"
@@ -115,6 +121,23 @@ fun GitCoveNavHost(container: AppContainer) {
             val path = entry.arguments?.getString("path").orEmpty()
             val cached = entry.arguments?.getBoolean("cached") ?: false
             DiffScreen(container = container, nav = nav, repoId = repoId, path = path, cached = cached)
+        }
+
+        composable(
+            Routes.RESOLVE,
+            arguments = listOf(
+                navArgument("repoId") { type = NavType.LongType },
+                navArgument("path") { type = NavType.StringType; defaultValue = "" }
+            )
+        ) { entry ->
+            val repoId = entry.arguments?.getLong("repoId") ?: return@composable
+            val path = entry.arguments?.getString("path").orEmpty()
+            ConflictResolverScreen(
+                container = container,
+                nav = nav,
+                repoId = repoId,
+                pathParam = path.ifBlank { null }
+            )
         }
 
         composable(
