@@ -1,12 +1,15 @@
 package com.gitcove.app
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import com.gitcove.app.data.remote.GitHubBrowserFlow
@@ -33,10 +36,18 @@ class MainActivity : ComponentActivity() {
                     accent = container.accent.value,
                     shapeStyle = container.shapeStyle.value
                 ) {
-                    // 键盘避让：targetSdk 35 在 Android 15+ 被强制 edge-to-edge 后，
-                    // manifest 里的 adjustResize 不再生效（窗口不再缩小），必须用 IME insets。
-                    // 老系统窗口本身会缩小、ime inset 为 0，两者自适应不叠加。
-                    Box(Modifier.fillMaxSize().imePadding()) {
+                    // 键盘避让：Android 15+（SDK 35+）强制 edge-to-edge 后 adjustResize 失效
+                    // （窗口不再随键盘缩小），必须用 IME insets；Android 14- 窗口本身会缩小、
+                    // ime inset 为 0。若在 14- 上也叠加 imePadding，电视等设备的 ROM 会报告
+                    // 异常 IME inset（窗口已缩小仍非零），双重避让在底部露出窗口底色白边——
+                    // 因此仅在 35+ 应用。根容器铺主题背景色，任何 inset 过渡区域露出的
+                    // 都是主题色而非启动底色。
+                    val rootModifier = if (Build.VERSION.SDK_INT >= 35) {
+                        Modifier.fillMaxSize().imePadding()
+                    } else {
+                        Modifier.fillMaxSize()
+                    }
+                    Box(rootModifier.background(MaterialTheme.colors.background)) {
                         GitCoveNavHost(container)
                     }
                 }
