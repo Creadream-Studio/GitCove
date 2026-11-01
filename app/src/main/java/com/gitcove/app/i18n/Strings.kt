@@ -429,6 +429,8 @@ open class Strings {
     open val opLogTitle get() = "操作日志"
     open val clearLogs get() = "清空日志"
     open val noLogs get() = "暂无日志"
+    open val crashLogSection get() = "崩溃日志（闪退时自动记录，可用于反馈问题）"
+    open val crashDeleteConfirm get() = "删除这份崩溃日志？"
 
     // ── 相对时间 ─────────────────────────────────────────────────────────
     open val justNow get() = "刚刚"
@@ -977,6 +979,8 @@ object EnStrings : Strings() {
     override val opLogTitle get() = "Operation log"
     override val clearLogs get() = "Clear log"
     override val noLogs get() = "No logs yet"
+    override val crashLogSection get() = "Crash logs (auto-recorded on crash, useful for bug reports)"
+    override val crashDeleteConfirm get() = "Delete this crash log?"
 
     // ── 相对时间 ─────────────────────────────────────────────────────────
     override val justNow get() = "just now"
