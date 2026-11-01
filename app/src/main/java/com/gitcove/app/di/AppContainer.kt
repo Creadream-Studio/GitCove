@@ -3,8 +3,10 @@ package com.gitcove.app.di
 import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import com.gitcove.app.data.git.GitCore
+import com.gitcove.app.data.ai.AiChatClient
 import com.gitcove.app.data.log.OpLog
 import com.gitcove.app.data.remote.GitHubApi
+import com.gitcove.app.data.store.AiConfigStore
 import com.gitcove.app.data.store.AuthStore
 import com.gitcove.app.data.store.RepoStore
 import com.gitcove.app.i18n.AppLanguage
@@ -26,6 +28,10 @@ class AppContainer(context: Context) {
     val repoStore = RepoStore(appContext)
     val gitCore = GitCore(auth, opLog)
     val githubApi = GitHubApi(auth)
+
+    /** AI 生成提交信息（功能 4.6）：加密配置 + OpenAI 兼容客户端 */
+    val aiConfig = AiConfigStore(appContext)
+    val aiChat = AiChatClient(aiConfig)
 
     /** 内部仓库根目录：/data/data/com.gitcove.app/files/repos/（文档 7.1） */
     val repoParent: File = File(appContext.filesDir, "repos").apply { mkdirs() }
