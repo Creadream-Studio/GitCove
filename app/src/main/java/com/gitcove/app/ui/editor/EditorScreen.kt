@@ -92,23 +92,25 @@ fun EditorScreen(
                     if (dirty) {
                         IconButton(
                             onClick = {
+                                // 先给要写盘的内容拍快照：落盘期间继续打字不会被误标为已保存
+                                val snapshot = content
+                                val conflictFile = isConflict
+                                val okMsg = if (conflictFile) S.savedResolved else S.saved
                                 scope.launch(Dispatchers.IO) {
                                     val repo = container.repoStore.get(repoId) ?: return@launch
                                     val dir = java.io.File(repo.path)
-                                    container.gitCore.writeFile(dir, path, content)
+                                    container.gitCore.writeFile(dir, path, snapshot)
                                         .onSuccess {
-                                            if (isConflict) {
-                                                container.gitCore.markResolved(dir, path)
-                                                withContext(Dispatchers.Main) {
-                                                    snackbar.showSnackbar(S.savedResolved)
-                                                }
-                                            } else {
-                                                withContext(Dispatchers.Main) { snackbar.showSnackbar(S.saved) }
-                                            }
-                                            original = content
+                                            if (conflictFile) container.gitCore.markResolved(dir, path)
+                                            // 关键：立刻标记干净（不等提示条）——
+                                            // showSnackbar 是挂起函数，若排在它后面，
+                                            // 提示条显示期间点返回仍会误报「未保存」
+                                            original = snapshot
+                                            // 提示条单独起协程，不阻塞保存流程
+                                            scope.launch { snackbar.showSnackbar(okMsg) }
                                         }
                                         .onFailure {
-                                            withContext(Dispatchers.Main) { snackbar.showSnackbar(it.message ?: S.saveFailed) }
+                                            scope.launch { snackbar.showSnackbar(it.message ?: S.saveFailed) }
                                         }
                                 }
                             }
