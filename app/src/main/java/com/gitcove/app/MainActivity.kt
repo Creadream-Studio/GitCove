@@ -1,7 +1,6 @@
 package com.gitcove.app
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import com.gitcove.app.data.remote.GitHubBrowserFlow
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.nav.GitCoveNavHost
@@ -21,10 +21,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // MD2：关闭边缘到边缘，状态栏/导航栏由主题着色。
-        // 注：targetSdk 35 在 Android 15+ 上此调用被系统忽略（强制 edge-to-edge），
-        // 避让改由 WindowInsets 自适应处理（见 CoveTopAppBar / MainActivity 的 imePadding）。
-        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true)
+        // ── 统一 edge-to-edge（v0.4.8）：全版本显式启用 ──────────────────────────
+        // 此前依赖 setDecorFitsSystemWindows(true) 让系统避让状态栏，但 targetSdk 35 在
+        // Android 15+ 上该调用被系统忽略（强制 edge-to-edge），而个别魔改 ROM 上又出现
+        // "半生效"：窗口仍被系统避让的同时 insets 被清零，Compose 的 statusBarsPadding
+        // 拿到 0 —— 表现为"部分系统上仓库页顶部工具栏被状态栏挡住"。
+        //
+        // 现在不再依赖 ROM 对该 API 的解释：全部版本主动 edge-to-edge（false），
+        // 内容避让统一交给 WindowInsets（CoveTopAppBar 的 safeDrawing 顶部避让、
+        // 根部 imePadding、M2 Scaffold 的 contentWindowInsets），行为一致可预期。
+        //
+        // 连带收益：edge-to-edge 下窗口永不随键盘缩小，adjustResize 语义失效是确定的，
+        // 因此 imePadding 可全版本应用——v0.4.7 电视 ROM"窗口已缩小仍报非零 IME inset
+        // 双重避让白边"的根因（setDecorFitsSystemWindows(true)+imePadding 并存）随之消失。
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         // 冷启动直接由 gitcove://callback 拉起时，同样转发授权回调
         GitHubBrowserFlow.onDeepLink(intent?.data)
         val container = (application as GitCoveApp).container
@@ -36,18 +46,9 @@ class MainActivity : ComponentActivity() {
                     accent = container.accent.value,
                     shapeStyle = container.shapeStyle.value
                 ) {
-                    // 键盘避让：Android 15+（SDK 35+）强制 edge-to-edge 后 adjustResize 失效
-                    // （窗口不再随键盘缩小），必须用 IME insets；Android 14- 窗口本身会缩小、
-                    // ime inset 为 0。若在 14- 上也叠加 imePadding，电视等设备的 ROM 会报告
-                    // 异常 IME inset（窗口已缩小仍非零），双重避让在底部露出窗口底色白边——
-                    // 因此仅在 35+ 应用。根容器铺主题背景色，任何 inset 过渡区域露出的
-                    // 都是主题色而非启动底色。
-                    val rootModifier = if (Build.VERSION.SDK_INT >= 35) {
-                        Modifier.fillMaxSize().imePadding()
-                    } else {
-                        Modifier.fillMaxSize()
-                    }
-                    Box(rootModifier.background(MaterialTheme.colors.background)) {
+                    // 键盘避让：edge-to-edge（全版本）下窗口不随键盘缩小，必须用 IME insets；
+                    // 根容器铺主题背景色，任何 inset 过渡区域露出的都是主题色而非启动底色。
+                    Box(Modifier.fillMaxSize().imePadding().background(MaterialTheme.colors.background)) {
                         GitCoveNavHost(container)
                     }
                 }

@@ -22,7 +22,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -98,12 +102,13 @@ fun CoveTopAppBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // 状态栏/刘海避让：targetSdk 35 在 Android 15+ 被系统强制 edge-to-edge，
-                // setDecorFitsSystemWindows(true) 被忽略、内容会画进状态栏下面；
-                // 用 WindowInsets 自适应避让——系统已避让时 inset 为 0（不叠加），
-                // 强制 edge-to-edge 时为真实高度（推开按钮）。Surface 仍铺满顶部，
-                // 透明状态栏下透出 appBar 底色。
-                .statusBarsPadding()
+                // 顶部系统区避让（v0.4.8）：safeDrawing 顶部并集（状态栏 + 刘海 cutout +
+                // 触控区），比单纯 statusBarsPadding 多覆盖横屏侧刘海 / 异形屏场景。
+                // 全版本 edge-to-edge 下为真实高度；万一某 ROM 已自行避让则 inset 为 0，
+                // 不叠加——两类行为均正确。Surface 仍铺满顶部，状态栏区域透出 appBar 底色。
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                )
                 .heightIn(min = 56.dp)
                 .padding(start = if (navigationIcon != null) 4.dp else 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically

@@ -89,10 +89,15 @@ fun GitCoveTheme(
 /**
  * 系统栏（MD2 规范：状态栏与顶部应用栏同色、导航栏跟随背景）。
  *
- * targetSdk 35 在 Android 15+ 上被强制 edge-to-edge：statusBarColor / navigationBarColor
- * 为空操作（状态栏透明，透出 CoveTopAppBar 铺上去的 appBar 底色），本函数仅对
- * Android 14 及以下生效；内容避让统一由 WindowInsets 自适应处理
- * （CoveTopAppBar 的 statusBarsPadding / 根部 imePadding），两类系统均正确。
+ * v0.4.8 起全版本统一 edge-to-edge（见 MainActivity）：
+ * - Android 15+：statusBarColor / navigationBarColor 为空操作（系统强制透明），
+ *   状态栏透出 CoveTopAppBar 铺上去的 appBar 底色；
+ * - Android 14-：颜色设置仍生效，配合 CoveTopAppBar 的 safeDrawing 顶部避让，
+ *   同样呈现"状态栏与应用栏同色"的 MD2 效果。
+ * 内容避让统一由 WindowInsets 处理（safeDrawing / imePadding / Scaffold insets）。
+ * 注意：这里绝不能再调 setDecorFitsSystemWindows(true) —— SideEffect 每次重组都会
+ * 重跑，会把 MainActivity 设的 edge-to-edge(false) 改回去；正是此前"部分系统上
+ * 顶部工具栏又被状态栏挡住"的根因（ROM 半生效时 insets 被清零）。
  */
 @Composable
 private fun SystemBars(palette: CovePalette) {
@@ -104,8 +109,6 @@ private fun SystemBars(palette: CovePalette) {
         window.statusBarColor = palette.appBarElevatedColor().toArgb()
         @Suppress("DEPRECATION")
         window.navigationBarColor = palette.background.toArgb()
-        // Android 14-：内容不延伸到系统栏下方；Android 15+：被系统忽略（强制 edge-to-edge）
-        WindowCompat.setDecorFitsSystemWindows(window, true)
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = !palette.isDark && palette.appBar.luminance() > 0.5f
             isAppearanceLightNavigationBars = !palette.isDark && palette.background.luminance() > 0.5f
