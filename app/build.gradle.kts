@@ -22,8 +22,8 @@ android {
         applicationId = "com.gitcove.app"
         minSdk = 26          // API 26+：满足 JGit 所需 java.nio.file / java.time
         targetSdk = 35
-        versionCode = 20
-        versionName = "0.4.5"   // 早期测试版（v0.x），转正后再回 1.x；versionCode 持续递增保证可覆盖安装
+        versionCode = 21
+        versionName = "0.4.6"   // 早期测试版（v0.x），转正后再回 1.x；versionCode 持续递增保证可覆盖安装
 
         // GitHub OAuth 浏览器授权：Custom Scheme 回调（gitcove://callback）+ PKCE（强制 S256）。
         // OAuth App 换 token 必须携带 client_secret：直接内置在源码里——
