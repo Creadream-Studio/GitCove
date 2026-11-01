@@ -49,16 +49,18 @@ val CoveErrorContainerLight = Color(0xFFFFDAD5)
 val CoveOnErrorContainerLight = Color(0xFF410001)
 
 // ── 差异对比专用色（保证明暗主题下均可读）─────────────────────────────────
-val DiffAddBgDark = Color(0xFF17301E)
-val DiffDelBgDark = Color(0xFF3A1A16)
-val DiffAddFgDark = Color(0xFF7CC98A)
-val DiffDelFgDark = Color(0xFFE5837C)
+// v0.4.8 调高增删对比度（GitHub diff 风格）：删除红 / 增加绿语义不变，
+// 背景与文字色差拉大，深色主题下也能一眼分辨增删行。
+val DiffAddBgDark = Color(0xFF1B4721)       // 增加行背景：深绿
+val DiffDelBgDark = Color(0xFF4D1F24)       // 删除行背景：深红
+val DiffAddFgDark = Color(0xFF7EE787)       // 增加行文字：亮绿
+val DiffDelFgDark = Color(0xFFFFA198)       // 删除行文字：亮红
 val DiffHunkFgDark = Color(0xFF6FA8DC)
 val DiffMetaFgDark = Color(0xFF6B7683)
-val DiffAddBgLight = Color(0xFFE1F4E4)
-val DiffDelBgLight = Color(0xFFFDE3DF)
-val DiffAddFgLight = Color(0xFF1C7C2E)
-val DiffDelFgLight = Color(0xFFB3261E)
+val DiffAddBgLight = Color(0xFFE6FFEC)      // 增加行背景：浅绿
+val DiffDelBgLight = Color(0xFFFFEBE9)      // 删除行背景：浅红
+val DiffAddFgLight = Color(0xFF1A7F37)      // 增加行文字：绿
+val DiffDelFgLight = Color(0xFFCF222E)      // 删除行文字：红
 val DiffHunkFgLight = Color(0xFF2D5EA8)
 val DiffMetaFgLight = Color(0xFF8A939B)
 

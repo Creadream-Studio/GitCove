@@ -1,7 +1,5 @@
 package com.gitcove.app.ui.diff
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,10 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.Icon
@@ -44,11 +39,10 @@ import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveOutlinedButton
 import com.gitcove.app.ui.components.CoveTopAppBar
 import com.gitcove.app.ui.nav.Routes
+import com.gitcove.app.ui.file.DiffLinesView
 import com.gitcove.app.ui.resolve.BinaryConflictPane
 import com.gitcove.app.ui.resolve.ConflictBoard
 import com.gitcove.app.ui.theme.CoveTheme
-import com.gitcove.app.ui.theme.MonoFont
-import com.gitcove.app.ui.theme.diffColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -83,7 +77,6 @@ fun DiffScreen(
     var chunks by remember { mutableStateOf<List<Diff3.Chunk>?>(null) }
     val decisions = remember { mutableStateMapOf<Int, Diff3.Decision>() }
     val listState = rememberLazyListState()
-    val dc = diffColors()
 
     fun toast(msg: String) = scope.launch { snackbar.showSnackbar(msg) }
 
@@ -275,34 +268,9 @@ fun DiffScreen(
                             )
                         }
                     } else {
-                        val scroll = rememberScrollState()
-                        LazyColumn(Modifier.fillMaxSize()) {
-                            items(lines) { line ->
-                                val bg = when (line.type) {
-                                    LineType.ADD -> dc.addBg
-                                    LineType.DEL -> dc.delBg
-                                    else -> CoveTheme.colors.background
-                                }
-                                val fg = when (line.type) {
-                                    LineType.ADD -> dc.addFg
-                                    LineType.DEL -> dc.delFg
-                                    LineType.HUNK -> dc.hunkFg
-                                    LineType.META -> dc.metaFg
-                                    LineType.CONTEXT -> CoveTheme.colors.onBackground
-                                }
-                                Text(
-                                    text = line.text,
-                                    style = MaterialTheme.typography.caption,
-                                    fontFamily = MonoFont,
-                                    color = fg,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(bg)
-                                        .horizontalScroll(scroll)
-                                        .padding(horizontal = 8.dp, vertical = 1.dp)
-                                )
-                            }
-                        }
+                        // 复用编辑器风格差异视图：行首 +/- 符号栏 + 增绿删红行背景
+                        // （删除红 / 增加绿的语义与文件查看页差异 Tab 完全一致）
+                        DiffLinesView(lines, Modifier.fillMaxSize())
                     }
                 }
             }
