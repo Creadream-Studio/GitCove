@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.Icon
@@ -113,6 +111,8 @@ fun LogScreen(
     }
 
     // ── 崩溃堆栈查看（等宽字体全文滚动）──
+    // 注：内容不要再包 verticalScroll——CoveAlertDialog 内容区自带滚动，
+    // 同向嵌套滚动会在测量阶段抛 IllegalStateException（点击闪退日志又闪退的根因）
     viewingCrash?.let { (name, content) ->
         CoveAlertDialog(
             onDismiss = { viewingCrash = null },
@@ -124,9 +124,7 @@ fun LogScreen(
                     content,
                     style = MaterialTheme.typography.caption,
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         )

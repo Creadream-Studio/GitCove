@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -403,7 +404,10 @@ private fun GithubRepoPickerDialog(
             } else if (repos.isEmpty()) {
                 Text(S.noReposFound, style = MaterialTheme.typography.body2)
             } else {
-                Column(Modifier.height(360.dp).verticalScroll(rememberScrollState())) {
+                // 注：不要在此处再包 verticalScroll——CoveAlertDialog 内容区自带滚动，
+                // 同向嵌套滚动会在测量阶段抛 IllegalStateException（与身份切换闪退同根因）；
+                // 固定高度仅用于限制空列表时的占位
+                Column(Modifier.heightIn(min = 120.dp, max = 360.dp)) {
                     repos.forEach { repo ->
                         Column(
                             Modifier

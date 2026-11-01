@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -508,9 +507,9 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
             confirmLabel = S.close,
             onConfirm = { pickIdentity = false },
             content = {
-                Column(
-                    Modifier.verticalScroll(rememberScrollState())
-                ) {
+                // 注：不要在此处再包 verticalScroll——CoveAlertDialog 内容区自带滚动，
+                // 同向嵌套滚动会在测量阶段直接抛 IllegalStateException（历史闪退根因）
+                Column(Modifier.fillMaxWidth()) {
                     identities.forEach { idt ->
                         CoveListRow(
                             title = idt.displayName +
