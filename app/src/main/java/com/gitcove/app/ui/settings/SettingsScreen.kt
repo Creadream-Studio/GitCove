@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
@@ -29,19 +30,27 @@ import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.i18n.LocalStrings
+import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.components.CoveBackButton
 import com.gitcove.app.ui.components.CoveDivider
 import com.gitcove.app.ui.components.CoveSectionTitle
 import com.gitcove.app.ui.components.CoveTopAppBar
+import com.gitcove.app.ui.components.DirectoryPickerDialog
 import com.gitcove.app.ui.nav.Routes
 import com.gitcove.app.ui.theme.CoveTheme
 import com.gitcove.app.ui.theme.Md2Accent
+import com.gitcove.app.util.StorageAccess
 
 /**
  * 设置首页（一级页面）：不再把所有选项堆在一页，而是按「账号 / 应用 / 其他」分组，
@@ -64,6 +73,9 @@ fun SettingsScreen(
     val sshSub = if (sshCount > 0) S.sshKeyCount(sshCount) else S.noSshKeySet
     val appearanceSub = "${themeLabel(S, container.themeMode.value)} · ${accentLabel(S, container.accent.value)}"
     val syncSub = if (container.auth.autoSyncEnabled) S.syncOnSub(container.auth.autoSyncIntervalMin) else S.syncOffSub
+    val context = LocalContext.current
+    var showDirPicker by remember { mutableStateOf(false) }
+    var showPermissionHint by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -120,6 +132,16 @@ fun SettingsScreen(
             )
             CoveDivider(insetStart = 56)
             SettingsNavItem(
+                icon = Icons.Outlined.FolderOpen,
+                title = S.navDefaultSaveDir,
+                subtitle = container.defaultRepoParent.value.absolutePath,
+                onClick = {
+                    if (StorageAccess.hasAllFilesAccess(context)) showDirPicker = true
+                    else showPermissionHint = true
+                }
+            )
+            CoveDivider(insetStart = 56)
+            SettingsNavItem(
                 icon = Icons.Outlined.AutoAwesome,
                 title = S.aiConfigTitle,
                 // 副标题反映当前配置状态：已配置显示模型名，否则提示未配置
@@ -144,6 +166,32 @@ fun SettingsScreen(
             )
             Spacer(Modifier.padding(bottom = 24.dp))
         }
+    }
+
+    if (showDirPicker) {
+        DirectoryPickerDialog(
+            title = S.pickDir,
+            initialDir = container.defaultRepoParent.value,
+            onSelect = { dir ->
+                container.setDefaultRepoParent(dir)
+                showDirPicker = false
+            },
+            onDismiss = { showDirPicker = false }
+        )
+    }
+
+    if (showPermissionHint) {
+        CoveAlertDialog(
+            onDismiss = { showPermissionHint = false },
+            title = S.permissionTitle,
+            content = { Text(S.permissionText, style = MaterialTheme.typography.body2) },
+            confirmLabel = S.grantAccess,
+            onConfirm = {
+                showPermissionHint = false
+                StorageAccess.requestAllFilesAccess(context)
+            },
+            dismissLabel = S.cancel
+        )
     }
 }
 

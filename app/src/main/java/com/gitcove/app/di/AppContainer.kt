@@ -40,6 +40,16 @@ class AppContainer(context: Context) {
      *  /storage/emulated/0/Android/data/<包名>/files/repos/（免权限、用户可见可导出） */
     val repoParent: File = AppDirs.reposRoot(appContext).apply { mkdirs() }
 
+    /** 新建 / 克隆默认父目录（设置页可改；未设置或目录失效时回退到应用默认仓库根） */
+    val defaultRepoParent = mutableStateOf(
+        auth.defaultRepoParent?.let { File(it) }?.takeIf { it.isDirectory } ?: repoParent
+    )
+
+    fun setDefaultRepoParent(dir: File) {
+        auth.defaultRepoParent = dir.absolutePath
+        defaultRepoParent.value = dir
+    }
+
     /** 主题模式（响应式 + 持久化） */
     val themeMode = mutableStateOf(auth.themeMode)
     fun setThemeMode(mode: ThemeMode) {

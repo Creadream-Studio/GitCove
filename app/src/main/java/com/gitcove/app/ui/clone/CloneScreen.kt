@@ -76,7 +76,7 @@ fun CloneScreen(
     var proto by remember { mutableStateOf(GitCredentials.CloneProto.HTTPS) }
     var name by remember { mutableStateOf("") }
     var path by remember { mutableStateOf("") }
-    var parentDir by remember { mutableStateOf(container.repoParent.absolutePath) }
+    var parentDir by remember { mutableStateOf(container.defaultRepoParent.value.absolutePath) }
     var nameTouched by remember { mutableStateOf(false) }
     var showGithubList by remember { mutableStateOf(false) }
     var showPermissionHint by remember { mutableStateOf(false) }

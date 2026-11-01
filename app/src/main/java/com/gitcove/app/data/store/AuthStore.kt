@@ -226,6 +226,11 @@ class AuthStore(context: Context) {
         get() = ShapeStyle.from(prefs.getInt("shape_style", 0))
         set(value) = prefs.edit().putInt("shape_style", value.value).apply()
 
+    /** 默认保存目录：新建 / 克隆仓库时默认使用的父目录；null 表示使用应用默认仓库根 */
+    var defaultRepoParent: String?
+        get() = prefs.getString("default_repo_parent", null)?.takeIf { it.isNotBlank() }
+        set(value) = prefs.edit().putString("default_repo_parent", value).apply()
+
     /** 自动同步（功能 19/20/21） */
     var autoSyncEnabled: Boolean
         get() = prefs.getBoolean("auto_sync", false)
