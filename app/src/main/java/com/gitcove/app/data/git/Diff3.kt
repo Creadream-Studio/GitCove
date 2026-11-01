@@ -76,13 +76,30 @@ object Diff3 {
         return chunks
     }
 
-    /** 按决策拼出最终文件内容（decision: ours/theirs/both/none，null 表示冲突未决） */
+    /**
+     * 按决策拼出最终文件内容。
+     * 单侧改动块（OURS/THEIRS，双方只有一侧编辑）：git 语义为无冲突自动合并，
+     * 默认采用改动的一侧；有显式决定（旧界面预设）则尊重之。
+     * CONFLICT 块未决（null）输出空——由 UI 层守卫，不应走到这里。
+     */
     fun assemble(chunks: List<Chunk>, decisions: Map<Int, Decision>): String {
         val out = StringBuilder()
         chunks.forEachIndexed { idx, chunk ->
             val lines: List<String> = when (chunk.kind) {
                 Kind.STABLE -> chunk.ours
-                else -> when (decisions[idx]) {
+                Kind.OURS -> when (decisions[idx]) {
+                    Decision.THEIRS -> chunk.theirs
+                    Decision.BOTH -> chunk.ours + chunk.theirs
+                    Decision.NONE -> emptyList()
+                    else -> chunk.ours
+                }
+                Kind.THEIRS -> when (decisions[idx]) {
+                    Decision.OURS -> chunk.ours
+                    Decision.BOTH -> chunk.ours + chunk.theirs
+                    Decision.NONE -> emptyList()
+                    else -> chunk.theirs
+                }
+                Kind.CONFLICT -> when (decisions[idx]) {
                     Decision.OURS -> chunk.ours
                     Decision.THEIRS -> chunk.theirs
                     Decision.BOTH -> chunk.ours + chunk.theirs
