@@ -499,6 +499,25 @@ open class Strings {
     open val rewriteMsgKeepAuthor get() = "作者与日期保持不变，仅改写信息"
     open val rewriteAction get() = "改写"
 
+    // ── AI 生成提交信息（4.6）──
+    open val aiConfigTitle get() = "AI 配置"
+    open val aiNotConfiguredSub get() = "未配置"
+    open val aiPresetsSection get() = "服务商快捷预设"
+    open val aiBaseUrl get() = "接口地址（Base URL）"
+    open val aiBaseUrlHint get() = "需兼容 OpenAI /chat/completions 接口"
+    open val aiApiKey get() = "API Key"
+    open val aiModel get() = "模型名称"
+    open val aiTestBtn get() = "测试连接"
+    open val aiTesting get() = "测试中…"
+    open val aiTestOk get() = "连接成功，模型可用"
+    open val aiSaved get() = "已保存"
+    open val aiSecureNote get() = "API Key 经 EncryptedSharedPreferences 加密存储在本机；生成时会将暂存区 diff 发送给你所配置的服务。"
+    open val aiGenerate get() = "AI 生成提交信息"
+    open val aiNotConfigured get() = "未配置 AI，请先到 设置 → AI 配置 完成 Base URL / API Key / 模型设置"
+    open val aiNothingStaged get() = "没有可生成的改动，请先暂存文件"
+    open val aiFilled get() = "已生成并回填提交信息"
+    open fun aiFailedFallback(reason: String) = "AI 生成失败（$reason），已按文件路径生成建议"
+
     // ── 冲突解决器（4.6）──
     open val resolveTool get() = "分块解决"
     open val resolverTitle get() = "解决冲突"
@@ -1010,6 +1029,25 @@ object EnStrings : Strings() {
     override val rewriteMsgField get() = "New commit message"
     override val rewriteMsgKeepAuthor get() = "Author and date stay unchanged"
     override val rewriteAction get() = "Rewrite"
+
+    // ── AI commit message (4.6) ──
+    override val aiConfigTitle get() = "AI"
+    override val aiNotConfiguredSub get() = "Not configured"
+    override val aiPresetsSection get() = "Provider presets"
+    override val aiBaseUrl get() = "Base URL"
+    override val aiBaseUrlHint get() = "Must be OpenAI /chat/completions compatible"
+    override val aiApiKey get() = "API Key"
+    override val aiModel get() = "Model"
+    override val aiTestBtn get() = "Test connection"
+    override val aiTesting get() = "Testing…"
+    override val aiTestOk get() = "Connection OK, model is reachable"
+    override val aiSaved get() = "Saved"
+    override val aiSecureNote get() = "The API key is encrypted at rest (EncryptedSharedPreferences). When generating, the staged diff is sent to your configured provider."
+    override val aiGenerate get() = "Generate commit message with AI"
+    override val aiNotConfigured get() = "AI is not configured. Set Base URL / API Key / model in Settings → AI first."
+    override val aiNothingStaged get() = "Nothing staged to generate from; stage files first"
+    override val aiFilled get() = "Commit message generated"
+    override fun aiFailedFallback(reason: String) = "AI generation failed ($reason); filled a rule-based suggestion"
 
     // ── Conflict resolver (4.6) ──
     override val resolveTool get() = "Resolve by chunks"

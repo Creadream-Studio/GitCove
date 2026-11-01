@@ -19,6 +19,7 @@ import com.gitcove.app.ui.repos.RepoListScreen
 import com.gitcove.app.ui.resolve.ConflictResolverScreen
 import com.gitcove.app.ui.settings.AboutScreen
 import com.gitcove.app.ui.settings.AccountsScreen
+import com.gitcove.app.ui.settings.AiConfigScreen
 import com.gitcove.app.ui.settings.AppearanceScreen
 import com.gitcove.app.ui.settings.GitIdentityScreen
 import com.gitcove.app.ui.settings.LogScreen
@@ -35,6 +36,7 @@ object Routes {
     const val SETTINGS_SSH = "settings/ssh"
     const val SETTINGS_APPEARANCE = "settings/appearance"
     const val SETTINGS_SYNC = "settings/sync"
+    const val SETTINGS_AI = "settings/ai"
     const val SETTINGS_ABOUT = "settings/about"
     const val LOG = "log"
     const val REPO = "repo/{repoId}"
@@ -99,6 +101,10 @@ fun GitCoveNavHost(container: AppContainer) {
 
         composable(Routes.SETTINGS_SYNC) {
             SyncScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_AI) {
+            AiConfigScreen(container = container, nav = nav)
         }
 
         composable(Routes.SETTINGS_ABOUT) {

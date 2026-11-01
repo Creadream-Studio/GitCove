@@ -21,6 +21,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
@@ -116,6 +117,16 @@ fun SettingsScreen(
                 title = S.navSync,
                 subtitle = syncSub,
                 onClick = { nav.navigate(Routes.SETTINGS_SYNC) }
+            )
+            CoveDivider(insetStart = 56)
+            SettingsNavItem(
+                icon = Icons.Outlined.AutoAwesome,
+                title = S.aiConfigTitle,
+                // 副标题反映当前配置状态：已配置显示模型名，否则提示未配置
+                subtitle = container.aiConfig.snapshot().let {
+                    if (it.complete) it.model else S.aiNotConfiguredSub
+                },
+                onClick = { nav.navigate(Routes.SETTINGS_AI) }
             )
 
             // ── 其他 ──
