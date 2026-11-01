@@ -1,5 +1,6 @@
 package com.gitcove.app.data.git
 
+import com.gitcove.app.data.ai.AiCommit
 import com.gitcove.app.data.log.OpLog
 import com.gitcove.app.data.store.AuthStore
 import com.gitcove.app.domain.model.Branch
@@ -384,6 +385,38 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
     private fun headTreeIterator(repo: Repository): AbstractTreeIterator? {
         val head = repo.resolve("HEAD^{tree}") ?: return null
         return CanonicalTreeParser().apply { reset(repo.newObjectReader(), head) }
+    }
+
+    /**
+     * 功能 4.6：AI 生成提交信息取材 —— 暂存区 diff 文本（Index vs HEAD），
+     * 暂存区无改动时回退工作区（Worktree vs HEAD，未暂存修改也可见）。
+     * 返回 (diff 文本[超长截断], 变更文件路径列表)；两者皆空 = 无任何改动。
+     *
+     * ⚠️ 树迭代器是有状态游标，首次 scan 会将其耗尽：回退分支必须重建
+     * head 迭代器，否则旧侧等效空树，所有文件都显示为 new file
+     * （JVM 语义验证：scripts/aicheck）。
+     */
+    fun aiDiffText(repoDir: File): Result<Pair<String, List<String>>> = withRepo(repoDir) { git ->
+        val repo = git.repository
+        val out = ByteArrayOutputStream()
+        DiffFormatter(out).use { df ->
+            df.setRepository(repo)
+            df.setDetectRenames(true)
+            // 第一优先：暂存区（Index vs HEAD）
+            var entries = df.scan(headTreeIterator(repo) ?: EmptyTreeIterator(), DirCacheIterator(repo.readDirCache()))
+            // 回退：工作区（Worktree vs HEAD）——head 迭代器重建，不可复用
+            if (entries.isEmpty())
+                entries = df.scan(headTreeIterator(repo) ?: EmptyTreeIterator(), FileTreeIterator(repo))
+            val files = entries.map { pathOf(it) }
+            if (files.isEmpty()) return@withRepo "" to emptyList()
+            df.format(entries)
+            df.flush()
+            val text = out.toString("UTF-8")
+            val capped = if (text.length > AiCommit.MAX_DIFF_CHARS)
+                text.take(AiCommit.MAX_DIFF_CHARS) + "\n…（diff 过长已截断）"
+            else text
+            capped to files
+        }
     }
 
     /** 解析 unified diff 文本为带类型的行 */
