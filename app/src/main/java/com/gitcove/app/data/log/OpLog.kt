@@ -8,9 +8,9 @@ import java.util.Locale
 
 /**
  * 操作日志（功能 79：日志文件）
- * 按月分文件存储于 files/log/，支持查看、清空。
+ * 按月分文件存储于外部应用目录 log/（v0.4.8 起，用户可直接取用），支持查看、清空、导出。
  */
-class OpLog(private val dir: File) {
+class OpLog(val dir: File) {
 
     private val timeFmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA)
     private val fileFmt = SimpleDateFormat("yyyy-MM", Locale.CHINA)

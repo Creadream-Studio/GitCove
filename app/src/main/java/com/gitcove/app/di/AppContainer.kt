@@ -15,6 +15,7 @@ import com.gitcove.app.i18n.resolveStrings
 import com.gitcove.app.ui.theme.Md2Accent
 import com.gitcove.app.ui.theme.ShapeStyle
 import com.gitcove.app.ui.theme.ThemeMode
+import com.gitcove.app.util.AppDirs
 import java.io.File
 
 /**
@@ -24,7 +25,9 @@ import java.io.File
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
     val auth = AuthStore(appContext)
-    val opLog = OpLog(File(appContext.filesDir, "log"))
+    // 操作日志：外部应用专属目录（/storage/emulated/0/Android/data/<包名>/files/log），
+    // 用户可直接用文件管理器取走排查；令牌/SSH/AI 配置等敏感数据仍留内部私有目录
+    val opLog = OpLog(AppDirs.logDir(appContext))
     val repoStore = RepoStore(appContext)
     val gitCore = GitCore(auth, opLog)
     val githubApi = GitHubApi(auth)
@@ -33,8 +36,9 @@ class AppContainer(context: Context) {
     val aiConfig = AiConfigStore(appContext)
     val aiChat = AiChatClient(aiConfig)
 
-    /** 内部仓库根目录：/data/data/com.gitcove.app/files/repos/（文档 7.1） */
-    val repoParent: File = File(appContext.filesDir, "repos").apply { mkdirs() }
+    /** 内部仓库根目录已废弃：v0.4.8 起默认仓库根在外部应用专属目录
+     *  /storage/emulated/0/Android/data/<包名>/files/repos/（免权限、用户可见可导出） */
+    val repoParent: File = AppDirs.reposRoot(appContext).apply { mkdirs() }
 
     /** 主题模式（响应式 + 持久化） */
     val themeMode = mutableStateOf(auth.themeMode)

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 可分享路径：
+     - external-files-path：外部应用专属目录（v0.4.8 起的 log/ 与 crash/）
+     - files-path：内部 filesDir（AppDirs 回退内部目录时的兜底）
+     - cache-path：导出全部日志时临时 zip 所在的 cacheDir -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-files-path name="ext_files" path="." />
+    <files-path name="internal_files" path="." />
+    <cache-path name="cache" path="." />
+</paths>

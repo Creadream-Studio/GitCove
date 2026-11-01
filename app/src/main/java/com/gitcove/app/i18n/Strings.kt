@@ -431,6 +431,12 @@ open class Strings {
     open val noLogs get() = "暂无日志"
     open val crashLogSection get() = "崩溃日志（闪退时自动记录，可用于反馈问题）"
     open val crashDeleteConfirm get() = "删除这份崩溃日志？"
+    open val shareLog get() = "分享日志"
+    open val exportAllLogs get() = "导出全部日志（zip）"
+    open val logsLocationTitle get() = "日志存放位置"
+    open val logsLocationDesc get() = "崩溃与操作日志存放在下方目录，也可用文件管理器 / 数据线直接取用："
+    open val exportNothing get() = "没有可导出的日志"
+    open val exportFailed get() = "导出失败"
 
     // ── 相对时间 ─────────────────────────────────────────────────────────
     open val justNow get() = "刚刚"
@@ -981,6 +987,12 @@ object EnStrings : Strings() {
     override val noLogs get() = "No logs yet"
     override val crashLogSection get() = "Crash logs (auto-recorded on crash, useful for bug reports)"
     override val crashDeleteConfirm get() = "Delete this crash log?"
+    override val shareLog get() = "Share log"
+    override val exportAllLogs get() = "Export all logs (zip)"
+    override val logsLocationTitle get() = "Log location"
+    override val logsLocationDesc get() = "Crash and operation logs are stored in the directory below; you can also grab them with a file manager or USB:"
+    override val exportNothing get() = "Nothing to export"
+    override val exportFailed get() = "Export failed"
 
     // ── 相对时间 ─────────────────────────────────────────────────────────
     override val justNow get() = "just now"

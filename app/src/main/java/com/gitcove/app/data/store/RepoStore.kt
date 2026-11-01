@@ -74,6 +74,24 @@ class RepoStore(context: Context) {
         save(db.copy(repos = db.repos.map { if (it.id == id) it.copy(isGitRepo = isGitRepo) else it }))
     }
 
+    /**
+     * 目录迁移用：把仓库记录里以 [oldPrefix] 开头的绝对路径改写到 [newPrefix]。
+     * （v0.4.8 仓库根从内部 filesDir/repos 迁到外部应用目录时由 AppDirs.migrate 回调）
+     * 返回改写的记录数。
+     */
+    suspend fun migrateRepoPaths(oldPrefix: String, newPrefix: String): Int = mutex.withLock {
+        val db = load()
+        var changed = 0
+        val repos = db.repos.map { r ->
+            if (r.path.startsWith(oldPrefix)) {
+                changed++
+                r.copy(path = newPrefix + r.path.removePrefix(oldPrefix))
+            } else r
+        }
+        if (changed > 0) save(db.copy(repos = repos))
+        changed
+    }
+
     private fun load(): RepoDb = runCatching {
         if (file.exists()) json.decodeFromString<RepoDb>(file.readText()) else RepoDb()
     }.getOrDefault(RepoDb())

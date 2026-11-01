@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Build
 import android.util.Log
 import com.gitcove.app.BuildConfig
+import com.gitcove.app.util.AppDirs
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -14,10 +15,15 @@ import java.util.Locale
  *
  * 电视 / 盒子等阉割手机系统上的闪退往往无法用 adb 复现、也没有系统日志可查。
  * 方案：接管默认未捕获异常处理器——闪退发生时把完整堆栈（含设备 / 系统版本 /
- * 应用版本信息）写入 files/crash/crash-<时间戳>.txt，同时在操作日志里追加一条
- * 摘要；写完把异常交还系统默认处理器（保持正常的崩溃退出行为，不影响系统 dialog）。
+ * 应用版本信息）写入外部应用目录 crash/crash-<时间戳>.txt，同时在操作日志里追加
+ * 一条摘要；写完把异常交还系统默认处理器（保持正常的崩溃退出行为，不影响系统
+ * dialog）。
  *
- * 崩溃文件在「设置 → 日志」页可见、可查看全文、可删除；只保留最近 10 份防止占满磁盘。
+ * 目录随 v0.4.8 迁到 /storage/emulated/0/Android/data/<包名>/files/crash/：
+ * 用户无需导出功能也能用文件管理器直接取走；极少数 ROM 拿不到外部目录时
+ * （AppDirs 回退内部 filesDir）仍可用应用内「设置 → 日志」查看 / 分享。
+ *
+ * 崩溃文件在「设置 → 日志」页可见、可查看全文、可分享、可删除；只保留最近 10 份防止占满磁盘。
  */
 object CrashCapture {
 
@@ -41,7 +47,7 @@ object CrashCapture {
     }
 
     private fun write(app: Application, threadName: String, throwable: Throwable): File {
-        val dir = File(app.filesDir, "crash").apply { mkdirs() }
+        val dir = AppDirs.crashDir(app).apply { mkdirs() }
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
         val file = File(dir, "crash-$stamp.txt")
         file.writeText(
@@ -64,13 +70,13 @@ object CrashCapture {
 
     /** 全部崩溃文件（新的在前） */
     fun list(context: android.content.Context): List<File> =
-        File(context.filesDir, "crash").listFiles { f -> f.name.startsWith("crash-") }
+        AppDirs.crashDir(context).listFiles { f -> f.name.startsWith("crash-") }
             ?.sortedByDescending { it.name }
             ?: emptyList()
 
     /** 清空全部崩溃文件（日志页「清空」按钮） */
     fun clear(context: android.content.Context) {
-        File(context.filesDir, "crash").listFiles()?.forEach { runCatching { it.delete() } }
+        AppDirs.crashDir(context).listFiles()?.forEach { runCatching { it.delete() } }
     }
 
     /** 读取崩溃文件内容（查看全文） */

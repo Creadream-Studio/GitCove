@@ -39,6 +39,17 @@
                 <data android:scheme="gitcove" />
             </intent-filter>
         </activity>
+
+        <!-- 日志导出：崩溃堆栈 / 操作日志经系统分享面板发出去（ACTION_SEND + FileProvider） -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.gitcove.app.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

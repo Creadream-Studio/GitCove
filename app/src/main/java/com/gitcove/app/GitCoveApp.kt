@@ -4,7 +4,9 @@ import android.app.Application
 import com.gitcove.app.data.git.SshTransport
 import com.gitcove.app.data.log.CrashCapture
 import com.gitcove.app.di.AppContainer
+import com.gitcove.app.util.AppDirs
 import com.gitcove.app.work.SyncWorker
+import kotlin.concurrent.thread
 
 class GitCoveApp : Application() {
 
@@ -14,6 +16,20 @@ class GitCoveApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // v0.4.8 目录迁移：仓库根 / 操作日志 / 崩溃堆栈迁往外部应用专属目录
+        // （/storage/emulated/0/Android/data/<包名>/files/）。搬移旧数据量可能不小
+        // （整仓库 rename），放后台线程，不阻塞首帧；失败不致命（旧目录照常可用）。
+        thread(name = "dirs-migrate", isDaemon = true) {
+            runCatching {
+                val moved = AppDirs.migrate(this) { oldPrefix, newPrefix ->
+                    // suspend 函数在无协程上下文的线程里直接用 runBlocking 兑付
+                    kotlinx.coroutines.runBlocking {
+                        container.repoStore.migrateRepoPaths(oldPrefix, newPrefix)
+                    }
+                }
+                if (moved > 0) container.opLog.append("migrate", "Dir migration: $moved item(s) → external app dir")
+            }
+        }
         // 崩溃捕获：魔改 ROM（电视/盒子等阉割手机系统）闪退难复现，
         // 先落盘完整堆栈（设置 → 日志可见），再交还系统默认处理
         CrashCapture.install(this, container.opLog)
