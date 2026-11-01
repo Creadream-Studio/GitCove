@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -96,6 +98,12 @@ fun CoveTopAppBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                // 状态栏/刘海避让：targetSdk 35 在 Android 15+ 被系统强制 edge-to-edge，
+                // setDecorFitsSystemWindows(true) 被忽略、内容会画进状态栏下面；
+                // 用 WindowInsets 自适应避让——系统已避让时 inset 为 0（不叠加），
+                // 强制 edge-to-edge 时为真实高度（推开按钮）。Surface 仍铺满顶部，
+                // 透明状态栏下透出 appBar 底色。
+                .statusBarsPadding()
                 .heightIn(min = 56.dp)
                 .padding(start = if (navigationIcon != null) 4.dp else 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -531,7 +539,9 @@ fun CoveBottomSheet(
                 elevation = 8.dp,
                 shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
             ) {
-                Column(Modifier.fillMaxWidth()) {
+                // 导航栏避让（同 CoveTopAppBar 的 statusBarsPadding：Dialog 窗口未被
+                // 系统避让时为真实高度，已避让时为 0，两者自适应），Surface 底色延伸到手势条后面
+                Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
                     // 顶部抓握条
                     Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                         Box(

@@ -87,8 +87,12 @@ fun GitCoveTheme(
 }
 
 /**
- * 系统栏（MD2 规范：状态栏与顶部应用栏同色、导航栏跟随背景；不使用边缘到边缘，
- * 这是 MD2 与 Material You 全屏体验的主要差异之一）。
+ * 系统栏（MD2 规范：状态栏与顶部应用栏同色、导航栏跟随背景）。
+ *
+ * targetSdk 35 在 Android 15+ 上被强制 edge-to-edge：statusBarColor / navigationBarColor
+ * 为空操作（状态栏透明，透出 CoveTopAppBar 铺上去的 appBar 底色），本函数仅对
+ * Android 14 及以下生效；内容避让统一由 WindowInsets 自适应处理
+ * （CoveTopAppBar 的 statusBarsPadding / 根部 imePadding），两类系统均正确。
  */
 @Composable
 private fun SystemBars(palette: CovePalette) {
@@ -100,7 +104,7 @@ private fun SystemBars(palette: CovePalette) {
         window.statusBarColor = palette.appBarElevatedColor().toArgb()
         @Suppress("DEPRECATION")
         window.navigationBarColor = palette.background.toArgb()
-        // MD2 取消边缘到边缘绘制：内容不延伸到系统栏下方
+        // Android 14-：内容不延伸到系统栏下方；Android 15+：被系统忽略（强制 edge-to-edge）
         WindowCompat.setDecorFitsSystemWindows(window, true)
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = !palette.isDark && palette.appBar.luminance() > 0.5f

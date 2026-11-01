@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -781,7 +782,9 @@ private fun ViewerBottomBar(tab: Int, onSelect: (Int) -> Unit) {
     val S = LocalStrings.current
     val c = CoveTheme.colors
     Surface(elevation = 8.dp, color = c.surface, contentColor = c.onSurface) {
-        Row(Modifier.fillMaxWidth()) {
+        // 导航栏/手势条避让：Android 15+ 强制 edge-to-edge 时 Scaffold 的 bottomBar 贴到
+        // 屏幕最底端，需自行避让；系统已避让时 inset 为 0 不叠加（同 CoveTopAppBar）
+        Row(Modifier.fillMaxWidth().navigationBarsPadding()) {
             TabBtn(Icons.Filled.Article, S.viewerTabContent, tab == 0, Modifier.weight(1f)) { onSelect(0) }
             TabBtn(Icons.Filled.Difference, S.viewerTabDiff, tab == 1, Modifier.weight(1f)) { onSelect(1) }
             TabBtn(Icons.Filled.History, S.viewerTabHistory, tab == 2, Modifier.weight(1f)) { onSelect(2) }
