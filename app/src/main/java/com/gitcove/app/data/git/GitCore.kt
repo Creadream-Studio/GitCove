@@ -344,13 +344,14 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
      */
     fun pendingMergeMessage(repoDir: File): String? = runCatching {
         gitFor(repoDir).use { git ->
-            git.repository.readMergeCommitMsg()
-                ?.toString(Charsets.UTF_8)
-                ?.lineSequence()
-                ?.filterNot { it.startsWith("#") }
-                ?.joinToString("\n")
-                ?.trim()
-                ?.takeIf { it.isNotBlank() }
+            val bytes = git.repository.readMergeCommitMsg()
+            if (bytes == null) null
+            else String(bytes, Charsets.UTF_8)
+                .lineSequence()
+                .filterNot { it.startsWith("#") }
+                .joinToString("\n")
+                .trim()
+                .takeIf { it.isNotBlank() }
         }
     }.getOrNull()
 
