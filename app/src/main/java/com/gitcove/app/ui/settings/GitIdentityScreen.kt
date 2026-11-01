@@ -63,9 +63,19 @@ fun GitIdentityScreen(
     val S = LocalStrings.current
     val c = CoveTheme.colors
     var identities by remember { mutableStateOf(container.auth.identities()) }
+    // 默认身份本地镜像：设默认后同步写入并触发重组，徽章立即切换
+    // （只写 SharedPreferences 不引起重组，界面要等下一次任意状态变化才“补显”，
+    //  这是“必须点两下才切换成功”的根源）
+    var defaultId by remember { mutableStateOf(container.auth.defaultIdentityId) }
     var editing by remember { mutableStateOf<GitIdentity?>(null) }   // null = 新增
     var showDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<GitIdentity?>(null) }
+
+    /** 重载列表与默认身份（保存/删除后调用；删除默认时存储层会回退到首条） */
+    fun refresh() {
+        identities = container.auth.identities()
+        defaultId = container.auth.defaultIdentityId
+    }
     // GitHub 账号摘要：进入页面时自动刷新，身份行据此展示 GitHub 头像
     var account by remember { mutableStateOf(container.auth.githubAccount) }
     LaunchedEffect(Unit) {
@@ -93,14 +103,17 @@ fun GitIdentityScreen(
                 EmptyView(text = S.emptyIdentities, icon = Icons.Outlined.Person)
             }
             identities.forEach { identity ->
-                val isDefault = identity.id == container.auth.defaultIdentityId ||
-                    (container.auth.defaultIdentityId == -1L && identity.id == identities.first().id)
+                val isDefault = identity.id == defaultId ||
+                    (defaultId == -1L && identities.firstOrNull()?.id == identity.id)
                 IdentityRow(
                     identity = identity,
                     isDefault = isDefault,
                     account = account,
                     onEdit = { editing = identity; showDialog = true },
-                    onSetDefault = { container.auth.setDefaultIdentity(identity.id) },
+                    onSetDefault = {
+                        container.auth.setDefaultIdentity(identity.id)
+                        defaultId = identity.id   // 立即生效，徽章当场切换
+                    },
                     onDelete = { deleteTarget = identity }
                 )
                 CoveDivider()
@@ -165,7 +178,7 @@ fun GitIdentityScreen(
                             email = email.trim()
                         )
                         container.auth.saveIdentity(item)
-                        identities = container.auth.identities()
+                        refresh()
                         showDialog = false
                     },
                     enabled = name.isNotBlank() && email.isNotBlank()
@@ -184,7 +197,7 @@ fun GitIdentityScreen(
             confirmButton = {
                 TextButton(onClick = {
                     container.auth.deleteIdentity(target.id)
-                    identities = container.auth.identities()
+                    refresh()
                     deleteTarget = null
                 }) { Text(S.delete, color = c.error) }
             },
