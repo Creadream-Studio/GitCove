@@ -17,11 +17,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.Checkbox
 import androidx.compose.material.CheckboxDefaults
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
@@ -238,6 +240,29 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 onValueChange = { message = it },
                 placeholder = S.commitMsgPlaceholder,
                 minLines = 2,
+                // 星星：AI 生成提交信息（功能 4.6）。
+                // 有暂存才可点（无暂存禁用）；生成中转圈防重复；未配置时点击提示去设置。
+                leadingIcon = {
+                    IconButton(
+                        onClick = { vm.generateAiCommitMessage { message = it } },
+                        enabled = staged.isNotEmpty() && !vm.aiGenerating
+                    ) {
+                        if (vm.aiGenerating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.AutoAwesome,
+                                contentDescription = S.aiGenerate,
+                                tint = if (staged.isNotEmpty()) CoveTheme.colors.primary
+                                else CoveTheme.colors.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                },
                 trailingIcon = {
                     Column {
                         IconButton(onClick = { historyMenu = true }, enabled = vm.recentMsgs.isNotEmpty()) {

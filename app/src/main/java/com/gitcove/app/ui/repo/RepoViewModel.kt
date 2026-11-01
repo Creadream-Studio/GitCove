@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gitcove.app.data.git.GitConflictException
+import com.gitcove.app.data.ai.AiCommit
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.domain.model.Branch
 import com.gitcove.app.domain.model.Commit
@@ -63,6 +64,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         private set
     /** 正在执行提交（按钮文字切“提交中…”用，与通用 busy 区分） */
     var committing by mutableStateOf(false)
+        private set
+    /** 正在 AI 生成提交信息（星星按钮转圈 + 防重复点击） */
+    var aiGenerating by mutableStateOf(false)
         private set
     var progress by mutableStateOf("")
         private set
@@ -425,6 +429,45 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
 
     fun checkoutDetached(hash: String) = launchOp(c.strings.checkoutDone(hash.take(8))) {
         c.gitCore.checkoutDetached(repoDir!!, hash).getOrThrow()
+    }
+
+    /**
+     * 功能 4.6：AI 生成提交信息 —— 暂存 diff（无暂存回退工作区）→ 调 OpenAI 兼容
+     * 接口 → 清洗后回填输入框。调用失败不中断：提示错误并按文件路径生成本地
+     * 规则建议（type: update xxx）仍回填；未配置 / 无改动直接提示。
+     */
+    fun generateAiCommitMessage(onDone: (String) -> Unit) {
+        if (aiGenerating) return
+        if (!c.aiConfig.isConfigured) {
+            msg.tryEmit(c.strings.aiNotConfigured)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            aiGenerating = true
+            try {
+                val dir = repoDir ?: return@launch
+                val (diff, files) = c.gitCore.aiDiffText(dir).getOrElse {
+                    msg.tryEmit(c.strings.aiFailedFallback(it.message ?: ""))
+                    return@launch
+                }
+                if (files.isEmpty()) {
+                    msg.tryEmit(c.strings.aiNothingStaged)
+                    return@launch
+                }
+                try {
+                    val text = c.aiChat.generateCommitMessage(files, diff)
+                    withContext(Dispatchers.Main) { onDone(text) }
+                    msg.tryEmit(c.strings.aiFilled)
+                } catch (e: Throwable) {
+                    // 失败回退：错误提示 + 本地规则建议仍回填，保证总有可用起点
+                    msg.tryEmit(c.strings.aiFailedFallback(e.message ?: e.javaClass.simpleName))
+                    val local = AiCommit.localFallback(files)
+                    withContext(Dispatchers.Main) { onDone(local) }
+                }
+            } finally {
+                aiGenerating = false
+            }
+        }
     }
 
     // ─────────────── Stash / 标签 ───────────────
