@@ -95,6 +95,20 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     // 实际生效身份：显式选择优先，找不到（已删除）或未选则回退默认
     val chosenIdentity = identities.firstOrNull { it.id == commitIdentityId } ?: storeDefault
 
+    // ── 冲突全部解决后自动带入合并提交信息（MERGE_MSG，用户可修改）──
+    // 触发条件：冲突清零 + 存在挂起合并信息 + 输入框为空（不打扰已输入内容）；
+    // 只回填一次（mergePrefilled），用户清空重写不会被再次覆盖
+    var mergePrefilled by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(vm.status?.conflicts?.size, vm.pendingMergeMsg) {
+        val mergeMsg = vm.pendingMergeMsg
+        if (!mergePrefilled && mergeMsg != null &&
+            vm.status?.conflicts.isNullOrEmpty() && message.isBlank()
+        ) {
+            message = mergeMsg
+            mergePrefilled = true
+        }
+    }
+
     val st = vm.status
     val conflicts = st?.conflicts.orEmpty()
     val staged = st?.staged.orEmpty()

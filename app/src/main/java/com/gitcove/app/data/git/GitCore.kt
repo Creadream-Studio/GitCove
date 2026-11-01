@@ -337,6 +337,23 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
     }.getOrDefault(emptyList())
 
+    /**
+     * 挂起的合并提交信息（.git/MERGE_MSG）：合并产生冲突时 Git 写入
+     * （如「Merge branch 'x' into y」），冲突全部解决后的提交应默认使用它。
+     * 过滤注释行（# Conflicts: …）与首尾空行；无合并状态/空白时返回 null。
+     */
+    fun pendingMergeMessage(repoDir: File): String? = runCatching {
+        gitFor(repoDir).use { git ->
+            git.repository.readMergeCommitMsg()
+                ?.toString(Charsets.UTF_8)
+                ?.lineSequence()
+                ?.filterNot { it.startsWith("#") }
+                ?.joinToString("\n")
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+        }
+    }.getOrNull()
+
     /** 全部改动文件（暂存 + 未暂存 + 冲突） */
     fun allChangedPaths(repoDir: File): List<String> {
         val st = status(repoDir).getOrNull() ?: return emptyList()

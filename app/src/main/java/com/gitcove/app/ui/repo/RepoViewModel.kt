@@ -60,6 +60,9 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         private set
     var recentMsgs by mutableStateOf<List<String>>(emptyList())
         private set
+    /** 挂起的合并提交信息（MERGE_MSG）：冲突全部解决后自动回填提交输入框（用户可改） */
+    var pendingMergeMsg by mutableStateOf<String?>(null)
+        private set
     var busy by mutableStateOf(false)
         private set
     /** 正在执行提交（按钮文字切“提交中…”用，与通用 busy 区分） */
@@ -125,6 +128,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                     diffStaged = emptyList()
                     diffUnstaged = emptyList()
                     recentMsgs = emptyList()
+                    pendingMergeMsg = null
                     files = listFiles(dir, currentPath, null)
                     return@withLock
                 }
@@ -133,6 +137,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                     status = it
                     c.repoStore.updateCurrentBranch(repoId, it.branch)
                 }.onFailure { msg.tryEmit(c.strings.statusFailed(it.message ?: "")) }
+                pendingMergeMsg = c.gitCore.pendingMergeMessage(dir)
                 files = listFiles(dir, currentPath, status)
                 commits = c.gitCore.logGraph(dir).getOrDefault(emptyList())
                 branches = c.gitCore.branches(dir).getOrDefault(emptyList())
@@ -169,6 +174,7 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
                     status = it
                     c.repoStore.updateCurrentBranch(repoId, it.branch)
                 }
+                pendingMergeMsg = c.gitCore.pendingMergeMessage(dir)
                 files = listFiles(dir, currentPath, status)
             }
         }
