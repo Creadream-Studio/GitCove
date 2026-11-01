@@ -318,12 +318,13 @@ class RepoViewModel(private val c: AppContainer, val repoId: Long) : ViewModel()
         message: String,
         amend: Boolean,
         pushAfter: Boolean,
+        identityId: Long? = null,
         onDone: (() -> Unit)? = null
     ) = launchOp(refresh = Refresh.QUICK_THEN_FULL) {
         committing = true
         try {
             require(message.isNotBlank()) { c.strings.commitRequired }
-            c.gitCore.commit(repoDir!!, message, amend).getOrThrow()
+            c.gitCore.commit(repoDir!!, message, amend, identityId).getOrThrow()
             // 乐观更新：提交成功即清空「已暂存」显示与角标，不等 status 重算（体感秒级成功）
             status?.let { st -> status = st.copy(staged = emptyList()) }
             diffStaged = emptyList()

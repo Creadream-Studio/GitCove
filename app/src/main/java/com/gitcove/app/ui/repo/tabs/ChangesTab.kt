@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,8 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.Checkbox
 import androidx.compose.material.CheckboxDefaults
@@ -32,9 +35,11 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +62,7 @@ import com.gitcove.app.ui.components.CoveAlertDialog
 import com.gitcove.app.ui.components.CoveButton
 import com.gitcove.app.ui.components.CoveChip
 import com.gitcove.app.ui.components.CoveDivider
+import com.gitcove.app.ui.components.CoveListRow
 import com.gitcove.app.ui.components.CoveOutlinedButton
 import com.gitcove.app.ui.components.CoveTextField
 import com.gitcove.app.ui.theme.CoveTheme
@@ -79,6 +85,15 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
     var discardDialog by remember { mutableStateOf(false) }
     // 待确认删除的储藏下标（删除不可恢复，与文件删除同级别需要确认）
     var dropStashIdx by remember { mutableStateOf<Int?>(null) }
+
+    // ── 提交身份选择：默认跟随默认身份，可临时切换本次提交用哪套身份 ──
+    // rememberSaveable：切 Tab/转屏不丢；退出仓库页重置回默认，不动设置里的默认身份
+    var commitIdentityId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pickIdentity by remember { mutableStateOf(false) }
+    val identities = vm.auth.identities()
+    val storeDefault = vm.auth.defaultIdentity()
+    // 实际生效身份：显式选择优先，找不到（已删除）或未选则回退默认
+    val chosenIdentity = identities.firstOrNull { it.id == commitIdentityId } ?: storeDefault
 
     val st = vm.status
     val conflicts = st?.conflicts.orEmpty()
@@ -285,6 +300,66 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 },
                 modifier = Modifier.fillMaxWidth()
             )
+            // ── 提交身份行：输入框下方，显示当前将使用的身份，点击切换 ──
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        if (identities.isEmpty()) nav.navigate(com.gitcove.app.ui.nav.Routes.SETTINGS_GIT)
+                        else pickIdentity = true
+                    }
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Filled.Person,
+                    contentDescription = S.commitAsLabel,
+                    tint = if (chosenIdentity != null) CoveTheme.colors.primary else CoveTheme.colors.error,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Column(Modifier.weight(1f)) {
+                    if (chosenIdentity != null) {
+                        Text(
+                            "${S.commitAsLabel}：${chosenIdentity.displayName}" +
+                                if (chosenIdentity.id == storeDefault?.id) " · ${S.defaultBadge}" else "",
+                            style = MaterialTheme.typography.caption,
+                            color = CoveTheme.colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "${chosenIdentity.name} <${chosenIdentity.email}>",
+                            style = MaterialTheme.typography.overline,
+                            color = CoveTheme.colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } else {
+                        Text(
+                            S.noIdentityYet,
+                            style = MaterialTheme.typography.caption,
+                            color = CoveTheme.colors.error
+                        )
+                    }
+                }
+                if (identities.isNotEmpty()) {
+                    Text(
+                        S.identityHint,
+                        style = MaterialTheme.typography.overline,
+                        color = CoveTheme.colors.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1.2f, fill = false)
+                    )
+                    Icon(
+                        Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        tint = CoveTheme.colors.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
             Row(
                 Modifier.fillMaxWidth().padding(top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -329,7 +404,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                     text = if (vm.committing) S.committing else S.commit,
                     onClick = {
                         // 成功才清空输入：失败（如未配置身份）时保留信息，改完直接重试
-                        vm.commit(message, amend, pushAfter = false) { message = ""; amend = false }
+                        vm.commit(message, amend, pushAfter = false, identityId = commitIdentityId) { message = ""; amend = false }
                     },
                     enabled = staged.isNotEmpty() && message.isNotBlank() && !vm.busy,
                     modifier = Modifier.weight(1f)
@@ -337,7 +412,7 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 CoveOutlinedButton(
                     text = if (vm.committing) S.committing else S.commitAndPush,
                     onClick = {
-                        vm.commit(message, amend, pushAfter = true) { message = ""; amend = false }
+                        vm.commit(message, amend, pushAfter = true, identityId = commitIdentityId) { message = ""; amend = false }
                     },
                     // st?.detached != true：status 尚未加载时按可推送处理（detached 才禁用），
                     // 原写法 st?.detached!! 在 status 为 null 的首帧会 NPE
@@ -408,6 +483,51 @@ fun ChangesTab(vm: RepoViewModel, nav: androidx.navigation.NavHostController) {
                 vm.stashDrop(idx)
             },
             onDismiss = { dropStashIdx = null }
+        )
+    }
+
+    // ── 提交身份选择：默认显示默认身份，点选切换本次提交身份 ──
+    if (pickIdentity) {
+        CoveAlertDialog(
+            onDismiss = { pickIdentity = false },
+            title = S.identityPickerTitle,
+            confirmLabel = S.close,
+            onConfirm = { pickIdentity = false },
+            content = {
+                Column(
+                    Modifier.verticalScroll(rememberScrollState())
+                ) {
+                    identities.forEach { idt ->
+                        CoveListRow(
+                            title = idt.displayName +
+                                if (idt.id == storeDefault?.id) " · ${S.defaultBadge}" else "",
+                            subtitle = "${idt.name} <${idt.email}>",
+                            icon = {
+                                Icon(
+                                    Icons.Filled.Person,
+                                    contentDescription = null,
+                                    tint = CoveTheme.colors.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            trailing = {
+                                if (idt.id == chosenIdentity?.id) {
+                                    Icon(
+                                        Icons.Filled.CheckCircle,
+                                        contentDescription = null,
+                                        tint = CoveTheme.colors.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            },
+                            onClick = {
+                                commitIdentityId = idt.id
+                                pickIdentity = false
+                            }
+                        )
+                    }
+                }
+            }
         )
     }
 }

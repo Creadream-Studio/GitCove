@@ -294,13 +294,22 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
     }
 
-    /** 功能 10/11/12/13：提交（支持 Amend 修改最近提交），作者/提交者使用当前默认 Git 身份 */
-    fun commit(repoDir: File, message: String, amend: Boolean = false): Result<String> = withRepo(repoDir) { git ->
+    /**
+     * 功能 10/11/12/13：提交（支持 Amend 修改最近提交）。
+     * [identityId] 指定本次提交身份（提交区选择器）；null = 当前默认身份。
+     * 找不到对应身份（已删除等）时回退默认身份。
+     */
+    fun commit(
+        repoDir: File,
+        message: String,
+        amend: Boolean = false,
+        identityId: Long? = null
+    ): Result<String> = withRepo(repoDir) { git ->
         require(message.isNotBlank()) { "提交信息不能为空" }
         val cmd = git.commit()
             .setMessage(message.trim())
             .setAmend(amend)
-        auth.defaultIdentity()?.let { id ->
+        resolveIdentity(identityId)?.let { id ->
             if (id.name.isNotBlank()) {
                 cmd.setAuthor(id.name, id.email)
                 cmd.setCommitter(id.name, id.email)
@@ -309,6 +318,13 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         val rc = cmd.call()
         log.append("commit", rc.shortMessage)
         rc.name()
+    }
+
+    /** 身份解析：按 id 精确取，取不到回退默认身份（含首条兜底） */
+    private fun resolveIdentity(identityId: Long?): com.gitcove.app.data.store.GitIdentity? {
+        if (identityId == null) return auth.defaultIdentity()
+        return auth.identities().firstOrNull { it.id == identityId }
+            ?: auth.defaultIdentity()
     }
 
     /** 功能 10：提交信息历史参考（候选词） */
