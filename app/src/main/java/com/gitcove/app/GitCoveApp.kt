@@ -5,6 +5,7 @@ import com.gitcove.app.data.git.SshTransport
 import com.gitcove.app.data.log.CrashCapture
 import com.gitcove.app.di.AppContainer
 import com.gitcove.app.util.AppDirs
+import com.gitcove.app.util.SampleRepoInstaller
 import com.gitcove.app.work.SyncWorker
 import kotlin.concurrent.thread
 
@@ -28,6 +29,12 @@ class GitCoveApp : Application() {
                     }
                 }
                 if (moved > 0) container.opLog.append("migrate", "Dir migration: $moved item(s) → external app dir")
+            }
+        }
+        // 内置示例仓库：首次启动安装到默认仓库根（新用户点进去就能体验各功能；可像普通仓库一样删除）
+        thread(name = "sample-repo", isDaemon = true) {
+            runCatching {
+                SampleRepoInstaller.installIfNeeded(this@GitCoveApp, container.repoStore, container.opLog)
             }
         }
         // 崩溃捕获：魔改 ROM（电视/盒子等阉割手机系统）闪退难复现，
