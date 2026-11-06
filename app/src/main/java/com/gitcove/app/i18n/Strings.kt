@@ -598,6 +598,27 @@ open class Strings {
     open fun repoOrgRestricted(repo: String, msg: String) =
         "无法访问 $repo：组织未批准第三方应用访问组织资源，请组织管理员在 组织设置 → Third-party Access 中批准" +
             (if (msg.isBlank()) "" else "（GitHub 返回：$msg）")
+    // ── 备份与还原 ────────────────────────────────────────────────────────
+    open val navBackup get() = "备份与还原"
+    open val backupSubtitle get() = "设置 / 身份 / 令牌 / SSH 密钥 / AI 配置"
+    open val backupSectionBackup get() = "备份"
+    open val backupDesc get() = "导出除仓库以外的全部数据：应用设置、Git 身份、访问令牌、SSH 密钥（含私钥）、AI 配置，生成 .gitcove 备份文件。"
+    open val backupButton get() = "备份到文件"
+    open val backupPasswordLabel get() = "加密密码（留空则不加密）"
+    open val backupDone get() = "备份完成"
+    open val backupFailed get() = "备份失败："
+    open val restoreSection get() = "还原"
+    open val restoreDesc get() = "导入之前备份的 .gitcove 文件。默认合并（只补本机缺的项，界面设置不动）；勾选「覆盖」则以备份文件为准，先清空再导入（含界面设置）。"
+    open val restoreButton get() = "从文件导入"
+    open val restoreTitle get() = "导入备份文件"
+    open val restoreOverwrite get() = "覆盖现有数据"
+    open val restoreEncryptedHint get() = "此备份已加密，请输入密码"
+    open val restoreWrongPassword get() = "密码错误或文件损坏"
+    open val restoreImport get() = "导入"
+    open val restoreDone get() = "还原完成："
+    open val restoreFailed get() = "还原失败："
+    open val restoreBadFile get() = "不是有效的 GitCove 备份文件"
+    open val backupEmpty get() = "本机还没有可备份的数据"
     open fun deleted(name: String) = "已删除 $name"
 }
 
@@ -1156,5 +1177,26 @@ object EnStrings : Strings() {
     override fun repoOrgRestricted(repo: String, msg: String) =
         "Cannot access $repo: the organization has not approved third-party application access. An org admin must approve it under Organization settings → Third-party Access" +
             (if (msg.isBlank()) "" else " (GitHub says: $msg)")
+    // ── 备份与还原 ────────────────────────────────────────────────────────
+    override val navBackup get() = "Backup & restore"
+    override val backupSubtitle get() = "Settings / identities / tokens / SSH keys / AI config"
+    override val backupSectionBackup get() = "Backup"
+    override val backupDesc get() = "Export everything except repositories: app settings, Git identities, access tokens, SSH keys (incl. private keys) and AI config, as a .gitcove backup file."
+    override val backupButton get() = "Back up to file"
+    override val backupPasswordLabel get() = "Encryption password (leave empty for none)"
+    override val backupDone get() = "Backup finished"
+    override val backupFailed get() = "Backup failed: "
+    override val restoreSection get() = "Restore"
+    override val restoreDesc get() = "Import a previously exported .gitcove file. By default items are merged (only missing ones are added; appearance settings untouched); check \"Overwrite\" to clear existing data first and restore exactly what the backup contains (including appearance settings)."
+    override val restoreButton get() = "Import from file"
+    override val restoreTitle get() = "Import backup file"
+    override val restoreOverwrite get() = "Overwrite existing data"
+    override val restoreEncryptedHint get() = "This backup is encrypted, enter the password"
+    override val restoreWrongPassword get() = "Wrong password or corrupted file"
+    override val restoreImport get() = "Import"
+    override val restoreDone get() = "Restore finished: "
+    override val restoreFailed get() = "Restore failed: "
+    override val restoreBadFile get() = "Not a valid GitCove backup file"
+    override val backupEmpty get() = "Nothing to back up yet"
     override fun deleted(name: String) = "Deleted $name"
 }

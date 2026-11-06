@@ -21,6 +21,7 @@ import com.gitcove.app.ui.settings.AboutScreen
 import com.gitcove.app.ui.settings.AccountsScreen
 import com.gitcove.app.ui.settings.AiConfigScreen
 import com.gitcove.app.ui.settings.AppearanceScreen
+import com.gitcove.app.ui.settings.BackupRestoreScreen
 import com.gitcove.app.ui.settings.GitIdentityScreen
 import com.gitcove.app.ui.settings.LogScreen
 import com.gitcove.app.ui.settings.SettingsScreen
@@ -37,6 +38,7 @@ object Routes {
     const val SETTINGS_APPEARANCE = "settings/appearance"
     const val SETTINGS_SYNC = "settings/sync"
     const val SETTINGS_AI = "settings/ai"
+    const val SETTINGS_BACKUP = "settings/backup"
     const val SETTINGS_ABOUT = "settings/about"
     const val LOG = "log"
     const val REPO = "repo/{repoId}"
@@ -105,6 +107,10 @@ fun GitCoveNavHost(container: AppContainer) {
 
         composable(Routes.SETTINGS_AI) {
             AiConfigScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_BACKUP) {
+            BackupRestoreScreen(container = container, nav = nav)
         }
 
         composable(Routes.SETTINGS_ABOUT) {

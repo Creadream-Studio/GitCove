@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Palette
@@ -153,6 +154,13 @@ fun SettingsScreen(
 
             // ── 其他 ──
             CoveSectionTitle(S.settingsSectionOther)
+            SettingsNavItem(
+                icon = Icons.Outlined.Backup,
+                title = S.navBackup,
+                subtitle = S.backupSubtitle,
+                onClick = { nav.navigate(Routes.SETTINGS_BACKUP) }
+            )
+            CoveDivider(insetStart = 56)
             SettingsNavItem(
                 icon = Icons.Outlined.ReceiptLong,
                 title = S.sectionOpLog,
