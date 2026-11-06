@@ -20,7 +20,8 @@ data class SshKey(
     val addedAt: Long
 )
 
-/** 访问令牌条目（功能 46） */
+/** 访问令牌条目（功能 46；@Serializable：备份文件需要序列化） */
+@Serializable
 data class TokenEntry(
     val host: String,           // github.com / gitlab.com / gitea.com / 自定义
     val username: String,
