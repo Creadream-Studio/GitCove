@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import com.gitcove.app.data.git.GitCore
 import com.gitcove.app.data.ai.AiChatClient
+import com.gitcove.app.data.backup.BackupManager
 import com.gitcove.app.data.log.OpLog
 import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.data.store.AiConfigStore
@@ -35,6 +36,9 @@ class AppContainer(context: Context) {
     /** AI 生成提交信息（功能 4.6）：加密配置 + OpenAI 兼容客户端 */
     val aiConfig = AiConfigStore(appContext)
     val aiChat = AiChatClient(aiConfig)
+
+    /** 备份与还原（v0.5.2）：除仓库以外的全部数据，可选密码加密 */
+    val backup = BackupManager(appContext, auth, aiConfig)
 
     /** 内部仓库根目录已废弃：v0.4.8 起默认仓库根在外部应用专属目录
      *  /storage/emulated/0/Android/data/<包名>/files/repos/（免权限、用户可见可导出） */
