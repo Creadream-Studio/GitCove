@@ -46,5 +46,8 @@ class GitCoveApp : Application() {
         if (container.auth.autoSyncEnabled) {
             SyncWorker.schedule(this, container.auth.autoSyncIntervalMin)
         }
+        // 自动更新：开关开启时每次启动自动检查 GitHub 最新正式 Release
+        // （检查结果在 UpdateChecker.state，主 Activity 消费后弹出更新弹窗）
+        container.updateChecker.checkOnLaunch()
     }
 }

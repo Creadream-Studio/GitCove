@@ -27,6 +27,7 @@ import com.gitcove.app.ui.settings.LogScreen
 import com.gitcove.app.ui.settings.SettingsScreen
 import com.gitcove.app.ui.settings.SshScreen
 import com.gitcove.app.ui.settings.SyncScreen
+import com.gitcove.app.ui.settings.UpdateScreen
 
 object Routes {
     const val REPOS = "repos"
@@ -40,6 +41,7 @@ object Routes {
     const val SETTINGS_AI = "settings/ai"
     const val SETTINGS_BACKUP = "settings/backup"
     const val SETTINGS_ABOUT = "settings/about"
+    const val SETTINGS_UPDATE = "settings/update"
     const val LOG = "log"
     const val REPO = "repo/{repoId}"
     const val GRAPH = "graph/{repoId}"
@@ -115,6 +117,10 @@ fun GitCoveNavHost(container: AppContainer) {
 
         composable(Routes.SETTINGS_ABOUT) {
             AboutScreen(container = container, nav = nav)
+        }
+
+        composable(Routes.SETTINGS_UPDATE) {
+            UpdateScreen(container = container, nav = nav)
         }
 
         composable(Routes.LOG) {

@@ -10,6 +10,7 @@ import com.gitcove.app.data.remote.GitHubApi
 import com.gitcove.app.data.store.AiConfigStore
 import com.gitcove.app.data.store.AuthStore
 import com.gitcove.app.data.store.RepoStore
+import com.gitcove.app.data.update.UpdateChecker
 import com.gitcove.app.i18n.AppLanguage
 import com.gitcove.app.i18n.Strings
 import com.gitcove.app.i18n.resolveStrings
@@ -39,6 +40,9 @@ class AppContainer(context: Context) {
 
     /** 备份与还原（v0.5.2）：除仓库以外的全部数据，可选密码加密 */
     val backup = BackupManager(appContext, auth, aiConfig)
+
+    /** 自动更新检查器：帮助页入口的「检查更新」 + 启动时自动检查（仅正式版） */
+    val updateChecker = UpdateChecker(appContext, auth)
 
     /** 内部仓库根目录已废弃：v0.4.8 起默认仓库根在外部应用专属目录
      *  /storage/emulated/0/Android/data/<包名>/files/repos/（免权限、用户可见可导出） */

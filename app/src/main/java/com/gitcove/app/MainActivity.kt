@@ -16,6 +16,7 @@ import com.gitcove.app.data.remote.GitHubBrowserFlow
 import com.gitcove.app.i18n.LocalStrings
 import com.gitcove.app.ui.nav.GitCoveNavHost
 import com.gitcove.app.ui.theme.GitCoveTheme
+import com.gitcove.app.ui.update.UpdateAlert
 
 class MainActivity : ComponentActivity() {
 
@@ -50,6 +51,8 @@ class MainActivity : ComponentActivity() {
                     // 根容器铺主题背景色，任何 inset 过渡区域露出的都是主题色而非启动底色。
                     Box(Modifier.fillMaxSize().imePadding().background(MaterialTheme.colors.background)) {
                         GitCoveNavHost(container)
+                        // 更新弹窗：在导航层之上，仅发现全新正式版时弹出，不抢占当前页面
+                        UpdateAlert(container = container)
                     }
                 }
             }

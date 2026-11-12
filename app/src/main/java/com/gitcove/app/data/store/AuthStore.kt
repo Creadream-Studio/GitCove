@@ -241,6 +241,11 @@ class AuthStore(context: Context) {
         get() = prefs.getInt("auto_sync_interval", 30)
         set(value) = prefs.edit().putInt("auto_sync_interval", value).apply()
 
+    /** 自动更新（设置 → 更新 入口）：开启后每次启动时从 GitHub 检查最新正式 Release */
+    var autoUpdateEnabled: Boolean
+        get() = prefs.getBoolean("auto_update", false)
+        set(value) = prefs.edit().putBoolean("auto_update", value).apply()
+
     // ── 最近访问（功能 63）──────────────────────────────────────────────────
     fun pushRecentFile(repoId: Long, path: String) {
         val list = recentFiles(repoId).toMutableList()

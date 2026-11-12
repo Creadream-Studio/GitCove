@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -74,6 +75,7 @@ fun SettingsScreen(
     val sshSub = if (sshCount > 0) S.sshKeyCount(sshCount) else S.noSshKeySet
     val appearanceSub = "${themeLabel(S, container.themeMode.value)} · ${accentLabel(S, container.accent.value)}"
     val syncSub = if (container.auth.autoSyncEnabled) S.syncOnSub(container.auth.autoSyncIntervalMin) else S.syncOffSub
+    val updateSub = if (container.auth.autoUpdateEnabled) S.updateOnSub else S.updateOffSub
     val context = LocalContext.current
     var showDirPicker by remember { mutableStateOf(false) }
     var showPermissionHint by remember { mutableStateOf(false) }
@@ -150,6 +152,13 @@ fun SettingsScreen(
                     if (it.complete) it.model else S.aiNotConfiguredSub
                 },
                 onClick = { nav.navigate(Routes.SETTINGS_AI) }
+            )
+            CoveDivider(insetStart = 56)
+            SettingsNavItem(
+                icon = Icons.Outlined.SystemUpdate,
+                title = S.navUpdate,
+                subtitle = updateSub,
+                onClick = { nav.navigate(Routes.SETTINGS_UPDATE) }
             )
 
             // ── 其他 ──
