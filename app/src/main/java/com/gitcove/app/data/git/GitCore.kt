@@ -579,6 +579,23 @@ class GitCore(private val auth: AuthStore, private val log: OpLog) {
         }
     }
 
+    /**
+     * 从暂存区（index）读取指定 stage 的 blob：stage 1 = base（共同祖先）、
+     * stage 2 = ours（当前分支）、stage 3 = theirs（对方分支）。
+     *
+     * 合并冲突时 index 会保留三阶段信息，普通 `readBlobAt("HEAD")` 只能看到当前版本，
+     * 拿不到对方版本，所以对冲突文件要用 Stage 读两侧的正确内容（二进制/图片适用）。
+     */
+    fun readBlobAtStage(repoDir: File, path: String, stage: Int): Result<ByteArray?> = withRepo(repoDir) { git ->
+        val repo = git.repository
+        val cache = repo.readDirCache()
+        (0 until cache.entryCount)
+            .asSequence()
+            .map { cache.getEntry(it) }
+            .firstOrNull { it.pathString == path && it.stage == stage }
+            ?.let { repo.open(it.objectId).bytes }
+    }
+
     /** 指定修订中某文件的 (大小, 流式 SHA-1)；不整块载入内存，用于大文件"有无改变"判断。不存在返回 null */
     fun blobStatAt(repoDir: File, rev: String, path: String): Result<Pair<Long, String>?> = withRepo(repoDir) { git ->
         val repo = git.repository

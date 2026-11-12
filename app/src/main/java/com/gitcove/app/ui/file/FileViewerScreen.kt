@@ -454,14 +454,26 @@ private fun DiffTab(
                 CircularProgressIndicator(color = c.primary, modifier = Modifier.size(30.dp))
             }
             ui == null -> EmptyView(S.loadingDiff)
-            isConflict && selectedCommit == null -> Column(Modifier.fillMaxSize()) {
-                ConflictBar(
-                    onOurs = { onResolve(ConflictAction.OURS) },
-                    onTheirs = { onResolve(ConflictAction.THEIRS) },
-                    onManual = onManualEdit
-                )
-                CoveDivider()
-                DiffLinesView(ui!!.conflictLines, Modifier.fillMaxSize())
+            isConflict && selectedCommit == null -> when (kind) {
+                // 图片文件在冲突时照样对比两侧版本（来自暂存区 stage 2/3），而非只读文本行
+                FileKind.IMAGE -> Column(Modifier.fillMaxSize()) {
+                    ConflictBar(
+                        onOurs = { onResolve(ConflictAction.OURS) },
+                        onTheirs = { onResolve(ConflictAction.THEIRS) },
+                        onManual = onManualEdit
+                    )
+                    CoveDivider()
+                    ImageDiffView(ui!!.oldImage, ui!!.newImage, S.imgConflictBanner)
+                }
+                else -> Column(Modifier.fillMaxSize()) {
+                    ConflictBar(
+                        onOurs = { onResolve(ConflictAction.OURS) },
+                        onTheirs = { onResolve(ConflictAction.THEIRS) },
+                        onManual = onManualEdit
+                    )
+                    CoveDivider()
+                    DiffLinesView(ui!!.conflictLines, Modifier.fillMaxSize())
+                }
             }
             else -> when (kind) {
                 FileKind.TEXT -> when {
@@ -640,17 +652,23 @@ private suspend fun loadFileDiff(
                 )
             }
             FileKind.IMAGE -> {
-                val oldBytes = container.gitCore.readBlobAt(dir, "HEAD", path).getOrNull()
-                val newBytes = if (file != null && file.isFile) {
-                    runCatching { file.readBytes() }.getOrNull()
-                } else null
+                // 冲突文件侧的版本不一定在工作区里：冲突时 index 保留 stage 2（我方）/ stage 3（对方）
+                // 两阶段 blob，需从 index 取两侧的正确版本对比；没有对方版本时再退回工作区文件
+                val oldBytes = if (isConflict) container.gitCore.readBlobAtStage(dir, path, 2).getOrNull()
+                else container.gitCore.readBlobAt(dir, "HEAD", path).getOrNull()
+                val newBytes = if (isConflict) {
+                    container.gitCore.readBlobAtStage(dir, path, 3).getOrNull()
+                        ?: (file?.let { f -> runCatching { f.readBytes() }.getOrNull() } ?: null)
+                } else {
+                    if (file != null && file.isFile) runCatching { file.readBytes() }.getOrNull() else null
+                }
                 val oldSha = oldBytes?.let { FileTypes.sha1Of(ByteArrayInputStream(it)) }
                 val newSha = newBytes?.let { FileTypes.sha1Of(ByteArrayInputStream(it)) }
                 val changed = fs != null || oldSha != newSha
                 FileDiffUi(
                     changed = changed, changeType = if (changed) changeType else null, lines = emptyList(),
-                    oldImage = blobToTempFile(context, oldBytes, "head", name),
-                    newImage = blobToTempFile(context, newBytes, "work", name),
+                    oldImage = blobToTempFile(context, oldBytes, (if (isConflict) "ours" else "head"), name),
+                    newImage = blobToTempFile(context, newBytes, (if (isConflict) "theirs" else "work"), name),
                     oldStat = null, newStat = null, conflictLines = emptyList()
                 )
             }

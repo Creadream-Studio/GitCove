@@ -376,6 +376,7 @@ open class Strings {
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
     open val diffConflict get() = "冲突"
+    open val imgConflictBanner get() = "图片存在合并冲突：需先解决冲突再查看对比"
     open val diffStaged get() = "已暂存"
     open val diffUnstaged get() = "未暂存"
     open val repoUnavailable get() = "仓库不可用"
@@ -954,6 +955,7 @@ object EnStrings : Strings() {
 
     // ── 差异对比页 ───────────────────────────────────────────────────────
     override val diffConflict get() = "Conflict"
+    override val imgConflictBanner get() = "Image conflict: resolve first"
     override val diffStaged get() = "Staged"
     override val diffUnstaged get() = "Unstaged"
     override val repoUnavailable get() = "Repository unavailable"
