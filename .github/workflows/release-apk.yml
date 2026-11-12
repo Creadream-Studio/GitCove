@@ -138,8 +138,8 @@ jobs:
           # 用数组 + 规范引号，避免含空格的标题被拆分成多个参数
           EXTRA_ARGS=()
           # 命名规则：预发布 → 「GitCove vX.Y.Z Beta」；正式版 → 「GitCove vX.Y.Z」（不带 Beta）。
-          # 转正时把下面的 PRERELEASE 改为 false：不再标记 Pre-release，标题自动去掉 Beta。
-          PRERELEASE=true
+          # 已转正：PRERELEASE=false，不再标记 Pre-release，标题自动去掉 Beta。
+          PRERELEASE=false
           if [ -n "$TITLE" ]; then
             EXTRA_ARGS+=(--title "$TITLE")
           elif [ "$PRERELEASE" = "true" ]; then
@@ -151,12 +151,13 @@ jobs:
           if [ "$PRERELEASE" = "true" ]; then EXTRA_ARGS+=(--prerelease); fi
 
           BODY=$(cat <<'EOF'
-          ## GitCove 测试版（Pre-release）
+          ## GitCove 正式版
 
-          早期测试版本，功能仍在快速迭代，遇到问题欢迎提 issue。
+          第一个正式版（v1.0.0）。功能仍在持续迭代，遇到问题欢迎提 issue。
 
           - `GitCove-*.apk`：全架构通用包（arm64-v8a / armeabi-v7a / x86 / x86_64 通用，纯 Java 实现，适配 armv7 电视盒）
           - 安装要求：Android 8.0（API 26）及以上
+          - 使用仓库固定签名密钥构建，可直接覆盖安装 v0.x 测试版
           EOF
           )
 
